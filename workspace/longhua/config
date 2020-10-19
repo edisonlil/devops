@@ -1,0 +1,22 @@
+
+#构建平台，是 DOCKER_SWARM,KUBERNETES
+BUILD_PLATFORM="DOCKER_SWARM"
+
+BUILD_DOCKER_STACK_NAME="longhua"
+
+BUILD_DOCKER_SWARM_NETWORK="longhua_overlay_network"
+
+#是否启用harbor仓库
+BUILD_ENABEL_HARBOR=1
+
+#配置harbor仓库地址
+#BUILD_HARBOR_ADDRESS="harbor.jsy.com"
+
+#配置harbor仓库
+#BUILD_HARBOR_PROJECT="unsun"
+
+#启用dockerfile,路由dockerfile
+#BUILD_ENABEL_DOCKERFILES=""
+
+#启用模板
+#BUILD_ENABEL_TEMPLATES="console-zuul,jshyun-zuul,task-scheduler,entrance-management"

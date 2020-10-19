@@ -213,10 +213,9 @@ function go_build() {
 	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
 		 -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
 
-	#推送镜像
-	info "开始向harbor推送镜像"
-	docker push $image_path
-	dic[tmp_image_path]=$image_path
+
+    #推送镜像
+	push $image_path
 }
 
 function java_build() {
@@ -276,10 +275,8 @@ function java_build() {
 	       --build-arg java_opts="$opt_java_opts"\
 	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
 
-	#推送镜像
-	info "开始向harbor推送镜像"
-	docker push $image_path
-	dic[tmp_image_path]=$image_path
+    #推送镜像
+	push $image_path
 }
 
 function vue_build() {
@@ -308,7 +305,7 @@ function vue_build() {
 
 	dic[tmp_build_dist_path]=$module_path/dist
 
-        info "开始vue项目镜像的构建"
+    info "开始vue项目镜像的构建"
 	cd ${dic[tmp_build_dist_path]}
 	tar -cf dist.tar *
 	check_env_by_cmd_v docker
@@ -317,9 +314,8 @@ function vue_build() {
 	docker build -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
 
 	#推送镜像
-	info "开始向harbor推送镜像"
-	docker push $image_path
-	dic[tmp_image_path]=$image_path
+	push $image_path
+
 }
 
 function choose_dockerfile() {
@@ -489,6 +485,20 @@ function remote_deploy() {
 	expect eof
 
 EOF
+}
+
+function push(){
+
+  image_path=$1
+  enable_harbor=${dic[cfg_enable_harbor]}
+	#推送镜像
+	if test $enable_harbor -eq 1 ;
+	then
+	    info "开始向harbor推送镜像"
+	    docker push $image_path
+    fi
+    info "$image_path"
+    dic[tmp_image_path]=$image_path
 }
 
 function prune() {

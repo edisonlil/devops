@@ -44,6 +44,7 @@ dic[cfg_deploy_gen_location]=${dic[cfg_devops_path]}/deploy/${dic[opt_workspace]
 #加载配置
 source ${dic[cfg_workspace_path]}/config
 #读取配置变量
+dic[cfg_enable_harbor]=$BUILD_ENABEL_HARBOR
 dic[cfg_harbor_address]=$BUILD_HARBOR_ADDRESS
 dic[cfg_harbor_project]=$BUILD_HARBOR_PROJECT
 dic[cfg_build_platform]=$BUILD_PLATFORM
