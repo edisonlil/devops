@@ -252,7 +252,7 @@ function tomcat_build() {
 	 ;;
 	maven)
 		check_env_by_cmd_v mvn
-		info "开始使用gradle构建项目"
+		info "开始使用maven构建项目"
 		 #构建代码
                 if test -n "$opt_build_cmds" ;then
 			cd $module_path && ${opt_build_cmds}
@@ -328,7 +328,7 @@ function java_build() {
 	 ;;
 	maven)
 		check_env_by_cmd_v mvn
-		info "开始使用gradle构建项目"
+		info "开始使用maven构建项目"
 		 #构建代码
                 if test -n "$opt_build_cmds" ;then
 			cd $module_path && ${opt_build_cmds}
