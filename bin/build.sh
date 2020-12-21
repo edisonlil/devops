@@ -207,12 +207,15 @@ function go_build() {
     	fi
 	dic[tmp_build_dist_path]=$module_path
 
-
-    	info "开始go项目镜像的构建"
+  info "开始go项目镜像的构建"
 
 	check_env_by_cmd_v docker
 	# 构建镜像
-	image_path=$cfg_harbor_address/$cfg_harbor_project/${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${dic[cfg_enable_harbor]} -eq 1;
+	then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+  fi
 	tar -cf dist.tar *
 	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
 		 -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
@@ -271,26 +274,16 @@ function tomcat_build() {
 	cd ${dic[tmp_build_dist_path]}
 	jar_name=`ls | grep -v 'source'| grep ${cmd_job_name}`
 
-	# shellcheck disable=SC2046
-	if [ $jar_name == `${jar_name} | awk '/.war${print $0}'` ]
-	then
-	  error "tomcat deploy fail. The project package must be a war package..."
-	  exit 1;
-	fi
-
-  tomcat_deploy_path=`${jar_name} | awk -F '.' '{print $1}'`
-  if [ ! -d $tomcat_deploy_path ]
-  then
-    mkdir $tomcat_deploy_path
-  fi
-  mv $jar_name ./$tomcat_deploy_path/$jar_name
-	unzip ./$tomcat_deploy_path/$jar_name
 	check_env_by_cmd_v docker
-
 	# 构建镜像
-	image_path=$cfg_harbor_address/$cfg_harbor_project/${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${dic[cfg_enable_harbor]} -eq 1;
+	then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+  fi
+
 	docker build --build-arg java_opts="$opt_java_opts"\
-	       --build-arg tomcat_deploy_path="./$tomcat_deploy_path"\
+	       --build-arg tomcat_deploy_path=$cmd_job_name\
 	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
 
     #推送镜像
@@ -329,7 +322,7 @@ function java_build() {
 		check_env_by_cmd_v mvn
 		info "开始使用maven构建项目"
 		 #构建代码
-                if test -n "$opt_build_cmds" ;then
+    if test -n "$opt_build_cmds" ;then
 			cd $module_path && ${opt_build_cmds}
 		else
 			cd $module_path && mvn clean -Dmaven.test.skip=true  compile package -U -am
@@ -350,7 +343,11 @@ function java_build() {
 	check_env_by_cmd_v docker
 
 	# 构建镜像
-	image_path=$cfg_harbor_address/$cfg_harbor_project/${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${dic[cfg_enable_harbor]} -eq 1;
+	then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+  fi
 	docker build --build-arg jar_name=$jar_name\
 	       --build-arg java_opts="$opt_java_opts"\
 	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
@@ -360,8 +357,8 @@ function java_build() {
 }
 
 function vue_build() {
-    cfg_temp_dir=${dic[cfg_temp_dir]}
-    cmd_job_name=${dic[cmd_job_name]}
+  cfg_temp_dir=${dic[cfg_temp_dir]}
+  cmd_job_name=${dic[cmd_job_name]}
 	opt_build_cmds=${dic[opt_build_cmds]}
 	opt_build_env=${dic[opt_build_env]}	
 	cfg_harbor_address=${dic[cfg_harbor_address]}
@@ -371,8 +368,8 @@ function vue_build() {
 
 	check_env_by_cmd_v npm	
 	info "开始使用node构建vue项目"
-        module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
-        if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
+    module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
+    if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
 	if test -n "$opt_build_cmds" ;then
 		cd $module_path &&  npm --unsafe-perm install && $opt_build_cmds
 	else
@@ -390,7 +387,11 @@ function vue_build() {
 	tar -cf dist.tar *
 	check_env_by_cmd_v docker
 	# 构建镜像
-	image_path=$cfg_harbor_address/$cfg_harbor_project/${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${dic[cfg_enable_harbor]} -eq 1;
+	then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+  fi
 	docker build -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
 
 	#推送镜像
