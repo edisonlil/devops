@@ -91,6 +91,9 @@ function check_post_parmas() {
 	rm -rf ${dic[cfg_temp_dir]}
 }
 
+function run_tomcat() {
+  run_devops tomcat_build  
+}
 
 function run_java() {
         run_devops java_build
@@ -217,6 +220,83 @@ function go_build() {
 
     #推送镜像
 	push $image_path
+}
+
+function tomcat_build() {
+
+  cfg_temp_dir=${dic[cfg_temp_dir]}
+	cmd_job_name=${dic[cmd_job_name]}
+	opt_build_tool=${dic[opt_build_tool]}
+	opt_build_cmds=${dic[opt_build_cmds]}
+	opt_java_opts=${dic[opt_java_opts]}
+	tmp_dockerfile=${dic[tmp_dockerfile]}
+	cfg_harbor_address=${dic[cfg_harbor_address]}
+	cfg_harbor_project=${dic[cfg_harbor_project]}
+	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}
+
+	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
+        if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
+
+
+	case "$opt_build_tool"  in
+	gradle)
+		check_env_by_cmd_v gradle
+		info "开始使用gradle构建项目"
+		#构建代码
+		if test -n "$opt_build_cmds" ;then
+			cd $module_path && $opt_build_cmds
+        	else
+			cd $module_path && gradle -x test clean build
+        	fi
+		dic[tmp_build_dist_path]=$module_path/build/libs
+	 ;;
+	maven)
+		check_env_by_cmd_v mvn
+		info "开始使用gradle构建项目"
+		 #构建代码
+                if test -n "$opt_build_cmds" ;then
+			cd $module_path && ${opt_build_cmds}
+		else
+			cd $module_path && mvn clean -Dmaven.test.skip=true  compile package -U -am
+		fi
+		dic[tmp_build_dist_path]=$module_path/target
+       	#to do
+	 ;;
+	*) warn "java project only support gradle or maven build"; exit 1; ;;
+    	esac
+
+
+	info "开始java项目镜像的构建"
+
+	# 查找jar包名
+	cd ${dic[tmp_build_dist_path]}
+	jar_name=`ls | grep -v 'source'| grep ${cmd_job_name}`
+
+	# shellcheck disable=SC2046
+	if [ $jar_name == `${jar_name} | awk '/.war${print $0}'` ]
+	then
+	  error "tomcat deploy fail. The project package must be a war package..."
+	  exit 1;
+	fi
+
+  tomcat_deploy_path=`${jar_name} | awk -F '.' '{print $1}'`
+  if [ ! -d $tomcat_deploy_path ]
+  then
+    mkdir $tomcat_deploy_path
+  fi
+  mv $jar_name ./$tomcat_deploy_path/$jar_name
+	unzip ./$tomcat_deploy_path/$jar_name
+	check_env_by_cmd_v docker
+
+	# 构建镜像
+	image_path=$cfg_harbor_address/$cfg_harbor_project/${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	docker build --build-arg java_opts="$opt_java_opts"\
+	       --build-arg tomcat_deploy_path="./$tomcat_deploy_path"\
+	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
+
+    #推送镜像
+	push $image_path
+    
 }
 
 function java_build() {
