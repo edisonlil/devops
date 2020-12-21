@@ -1,0 +1,14 @@
+FROM dordoka/tomcat:latest
+MAINTAINER edisonlil@163.com
+LABEL maintainer='corp'
+
+ARG java_opts
+ARG tomcat_deploy_path
+ENV JAVA_OPTS=$java_opts
+
+RUN echo "TOMCAT_DEPLOY_PATH is $tomcat_deploy_path"
+RUN echo "JAVA_OPTS is $JAVA_OPTS"
+ENV TZ=Asia/Shanghai
+
+ADD $tomcat_deploy_path/ /opt/tomcat/webapps/$tomcat_deploy_path/
+CMD /opt/tomcat/bin/catalina.sh run
