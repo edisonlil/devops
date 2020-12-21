@@ -10,5 +10,5 @@ RUN echo "TOMCAT_DEPLOY_PATH is $tomcat_deploy_path"
 RUN echo "JAVA_OPTS is $JAVA_OPTS"
 ENV TZ=Asia/Shanghai
 
-ADD $tomcat_deploy_path/ /opt/tomcat/webapps/$tomcat_deploy_path/
+ADD ./$tomcat_deploy_path/ /opt/tomcat/webapps/$tomcat_deploy_path/
 CMD /opt/tomcat/bin/catalina.sh run
