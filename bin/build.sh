@@ -22,7 +22,7 @@ function parse_params() {
                         while [ true ] ; do
                                 if [[ $1 == -* ]];then
                                         case "$1" in
-                                        --build-tool) dic[opt_build_tool]=$2; echo "buibui ${dic[opt_build_tool]}" shift 2;;
+                                        --build-tool) dic[opt_build_tool]=$2; shift 2;;
                                         --git-url) dic[opt_git_url]=$2;  shift 2;;
                                         --svn-url) dic[opt_svn_url]=$2; shift 2;;
                                         --java-opts) dic[opt_java_opts]=$2; shift 2;;
@@ -237,7 +237,6 @@ function tomcat_build() {
 	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
         if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
 
-  info "開始使用${opt_build_tool}進行構建"
 	case "$opt_build_tool"  in
 	gradle)
 		check_env_by_cmd_v gradle

@@ -61,8 +61,10 @@ dic[cfg_dockerfile_path]=${dic[cfg_workspace_path]}/dockerfile
 dic[cfg_template_path]=${dic[cfg_workspace_path]}/template
 
 #java命令，选项默认值
+if [ ${dic[opt_build_tool]} == ""  ]
+then
 dic[opt_build_tool]=gradle
-
+fi
 
 #执行first命令
 case ${dic[cmd_1]} in
