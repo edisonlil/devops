@@ -22,7 +22,7 @@ function parse_params() {
                         while [ true ] ; do
                                 if [[ $1 == -* ]];then
                                         case "$1" in
-                                        --build-tool) dic[opt_build_tool]=$2; shift 2;;
+                                        --build-tool) dic[opt_build_tool]=$2; echo "buibui ${dic[opt_build_tool]}" shift 2;;
                                         --git-url) dic[opt_git_url]=$2;  shift 2;;
                                         --svn-url) dic[opt_svn_url]=$2; shift 2;;
                                         --java-opts) dic[opt_java_opts]=$2; shift 2;;
