@@ -237,7 +237,7 @@ function tomcat_build() {
 	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
         if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
 
-
+  info "開始使用${opt_build_tool}進行構建"
 	case "$opt_build_tool"  in
 	gradle)
 		check_env_by_cmd_v gradle
