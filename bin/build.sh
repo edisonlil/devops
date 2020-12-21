@@ -5,6 +5,7 @@ function check_env_by_cmd_v() {
 	command -v $1 > /dev/null 2>&1 || (error "Need to install ##$1## command first and run this script again." && exit 1)
 }
 
+
 function parse_params() {
         case "$1" in
 	-v) echo "devops version 1.6.5" ; exit 1;;
@@ -390,6 +391,7 @@ function render_template() {
 
 	#执行替换
 	sed -i "s#?module_name#${cmd_job_name}#g"  ./${gen_long_time_str}.yml
+	sed -i "s#?module_name#${cmd_job_name}#g"  ./${gen_long_time_str}.yml
 	sed -i "s#?image_path#${tmp_image_path}#g"  ./${gen_long_time_str}.yml
 	sed -i "s#?network#${cfg_swarm_network}#g"  ./${gen_long_time_str}.yml
 	#生成文件
@@ -429,10 +431,27 @@ function local_deploy() {
         then
                 info "开始使用docker swarm部署服务"
                 docker stack deploy -c ${deploy_job_yml} ${cfg_swarm_stack_name}  --with-registry-auth
-        else
-                info "开始使用docker swarm部署服务"
-                docker stack deploy -c ${deploy_job_yml} ${cfg_swarm_stack_name} --with-registry-auth
+        elif [ "$cfg_build_platform" = "DOCKER_COMPOSE" ]
+        then
+                check_env_by_cmd_v docker-compose
+                info "開始使用docker-compose 部署服務"
+                last_pwd=$PWD
+                # 進入docker文件
+                compose_path=$cfg_deploy_gen_location/$cmd_job_name
+                if [[ ! -d $compose_path ]]
+                then
+                  mkdir $compose_path
+                fi
+                cd $compose_path
+                if [[ -f "./docker-compose.yml" ]]
+                then
+                  docker-compose down
+                fi
+                cp -f $deploy_job_yml "./docker-compose.yml"
+                docker-compose up -d
+                cd $last_pwd
         fi
+
 }
 
 function remote_deploy() {
