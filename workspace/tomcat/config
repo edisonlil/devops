@@ -1,0 +1,22 @@
+
+#构建平台，是 DOCKER_SWARM,KUBERNETES
+BUILD_PLATFORM="DOCKER_COMPOSE"
+
+BUILD_DOCKER_STACK_NAME="tomcat"
+
+BUILD_DOCKER_SWARM_NETWORK="tomcat-over"
+
+#是否启用harbor仓库
+BUILD_ENABEL_HARBOR=0
+
+#配置harbor仓库地址
+#BUILD_HARBOR_ADDRESS="harbor.coldweaponera.com"
+
+#配置harbor仓库
+#BUILD_HARBOR_PROJECT="tomcat"
+
+#启用dockerfile,路由dockerfile
+#BUILD_ENABEL_DOCKERFILES=""
+
+#启用模板
+#BUILD_ENABEL_TEMPLATES=""
