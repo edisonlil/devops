@@ -62,6 +62,7 @@ function devops_help() {
 	      --build-cmds string    the cmd rewrite for building this job
 	      --build-env string     build env "dev" "test" "gray" "prod" etc.
 	      --version              the version of devops
+	      --workspace            the workspace
 	
 	Commands:
 	  run      now you can "run java" or "run vue"'
