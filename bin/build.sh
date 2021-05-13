@@ -1,4 +1,4 @@
-c#!/bin/bash
+#!/bin/bash
 source ${dic[cfg_devops_bin_path]}/log.sh
 
 function check_env_by_cmd_v() {
