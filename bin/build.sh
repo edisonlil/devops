@@ -601,7 +601,9 @@ function push(){
 	if test $enable_harbor -eq 1 ;
 	then
 	    info "开始向harbor推送镜像"
-	    docker push $cfg_harbor_address/$image_path
+            harbor_url="${cfg_harbor_address}/${image_path}"
+	    debug "url: $harbor_url"
+	    docker push $harbor_url
     fi
     info "$image_path"
     dic[tmp_image_path]=$image_path

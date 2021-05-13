@@ -9,7 +9,7 @@ BUILD_DOCKER_SWARM_NETWORK="youshen_overlay_network"
 BUILD_ENABEL_HARBOR=1
 
 #配置harbor仓库地址
-BUILD_HARBOR_ADDRESS="http://8.134.53.178:8080"
+BUILD_HARBOR_ADDRESS="http://youshen.harbor.com"
 
 #配置harbor仓库
 BUILD_HARBOR_PROJECT="youshenshu"
