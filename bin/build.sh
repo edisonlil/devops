@@ -1,4 +1,4 @@
-#!/bin/bash
+c#!/bin/bash
 source ${dic[cfg_devops_bin_path]}/log.sh
 
 function check_env_by_cmd_v() {
@@ -607,8 +607,11 @@ function prune() {
 
 	#删除源代码
 	cd $cfg_devops_path
-	rm -rf $cfg_temp_dir
 
+	if [[ -n ${cfg_temp_dir} && ${cfg_temp_dir} != '/' && ${cfg_temp_dir} != '.' ]]
+	then
+	 rm -rf $cfg_temp_dir
+  fi
 	#!清除没有运行的无用镜像
 	echo 'start prune local images:'
 	docker image prune -af --filter="label=maintainer=corp" --filter="until=24h"
