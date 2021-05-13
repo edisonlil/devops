@@ -221,7 +221,7 @@ function go_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
 	tar -cf dist.tar *
 	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
@@ -286,7 +286,7 @@ function tomcat_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
 
 	docker build --build-arg java_opts="$opt_java_opts"\
@@ -353,7 +353,7 @@ function java_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
 	docker build --build-arg jar_name=$jar_name\
 	       --build-arg java_opts="$opt_java_opts"\
@@ -601,9 +601,7 @@ function push(){
 	if test $enable_harbor -eq 1 ;
 	then
 	    info "开始向harbor推送镜像"
-            harbor_url="${cfg_harbor_address}/${image_path}"
-	    debug "url: $harbor_url"
-	    docker push $harbor_url
+	    docker push image_path
     fi
     info "$image_path"
     dic[tmp_image_path]=$image_path
