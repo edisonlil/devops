@@ -89,7 +89,11 @@ function check_post_parmas() {
 	 fi
 	dic[cmd_job_name]=${dic[cmd_3]} 
 	dic[cfg_temp_dir]=/tmp/devops/${dic[opt_workspace]}/${dic[cmd_job_name]}
-	rm -rf ${dic[cfg_temp_dir]}
+
+	if [[ -n ${dic[cfg_temp_dir]} && ${dic[cfg_temp_dir]} != '/' && ${dic[cfg_temp_dir]} != '.' ]]
+	then
+	  rm -rf ${dic[cfg_temp_dir]}
+  fi
 }
 
 function run_tomcat() {
@@ -186,9 +190,11 @@ function go_build() {
 		mkdir -p ${dic[tmp_go_workspace_src_ws]}
 	fi
 	export GOAPTH=${dic[tmp_go_workspace]}
-	
-	rm -rf ${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
 
+  if [[ -n ${dic[tmp_go_workspace_src_ws]} && ${dic[tmp_go_workspace_src_ws]} != '/' && ${dic[tmp_go_workspace_src_ws]} != '.' ]]
+	then
+	  rm -rf ${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
+  fi
 	\mv $cfg_temp_dir ${dic[tmp_go_workspace_src_ws]}
 	dic[cfg_temp_dir]=${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
 
