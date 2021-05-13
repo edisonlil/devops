@@ -1,0 +1,19 @@
+
+#构建平台，是 DOCKER_SWARM,KUBERNETES
+BUILD_PLATFORM="DOCKER_SWARM"
+
+BUILD_DOCKER_STACK_NAME="youshen"
+
+BUILD_DOCKER_SWARM_NETWORK="youshen_overlay_network"
+
+#配置harbor仓库地址
+BUILD_HARBOR_ADDRESS="http://8.134.53.178:8080"
+
+#配置harbor仓库
+BUILD_HARBOR_PROJECT="youshenshu"
+
+#启用dockerfile,路由dockerfile
+BUILD_ENABEL_DOCKERFILES="node"
+
+#启用模板
+BUILD_ENABEL_TEMPLATES="zuul"
