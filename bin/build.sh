@@ -221,7 +221,7 @@ function go_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_project/$image_path
   fi
 	tar -cf dist.tar *
 	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
@@ -286,7 +286,7 @@ function tomcat_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_project/$image_path
   fi
 
 	docker build --build-arg java_opts="$opt_java_opts"\
@@ -353,7 +353,7 @@ function java_build() {
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${dic[cfg_enable_harbor]} -eq 1;
 	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+	   image_path=$cfg_harbor_project/$image_path
   fi
 	docker build --build-arg jar_name=$jar_name\
 	       --build-arg java_opts="$opt_java_opts"\
