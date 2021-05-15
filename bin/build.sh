@@ -601,7 +601,7 @@ function push(){
 	if test $enable_harbor -eq 1 ;
 	then
 	    info "开始向harbor推送镜像"
-	    docker push image_path
+	    docker push $image_path
     fi
     info "$image_path"
     dic[tmp_image_path]=$image_path
