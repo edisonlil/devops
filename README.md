@@ -1,7 +1,7 @@
 # edisonlil/devops
 ### 作者：edison,srillia
 
-该脚本从srillia中fork出来后由edison维护，属于`srillia/devops`的分支。
+该脚本从`srillia`中`fork`出来后由`edison`维护，属于`srillia/devops`的分支。
 
 ## 最新动态
 
