@@ -1,7 +1,8 @@
-# srillia/devops
-### 作者：张正涵
+# edisonlil/devops
+### 作者：edison
 
 ## 最新动态
+
 devops 1.6.5发布
 ```
 加入go,tomcat项目自动化部署的支持
