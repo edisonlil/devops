@@ -32,7 +32,6 @@ function vue_build() {
 	tar -cf dist.tar *
 
 
-	check_env_by_cmd_v docker
 	# 构建镜像
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
 	if test ${env[cfg_enable_harbor]} -eq 1;

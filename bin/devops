@@ -5,6 +5,8 @@ source ./tools.sh
 source ./env.sh
 source ./build.sh
 
+check_env_by_cmd_v docker
+
 if test ! -d $HOME/.devops ; then mkdir $HOME/.devops ; fi
 
 #设置deploy文件生成位置
