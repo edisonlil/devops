@@ -7,13 +7,12 @@ if test ! -d $HOME/.devops ; then mkdir $HOME/.devops ; fi
 
 #保存不同远程主机信息的私密文件
 dic[cfg_devops_secret]=$HOME/.devops/deploy-target
+
+source ./build.sh
+source ./log.sh
+
 #获取当前shell文件所在路径
 dic[cfg_devops_bin_path]=$(dirname $(readlink -f "$0"))
-
-source ${dic[cfg_devops_bin_path]}/build.sh
-source ${dic[cfg_devops_bin_path]}/log.sh
-
-
 #devops项目所在路径
 dic[cfg_devops_path]=`cd ${dic[cfg_devops_bin_path]} && cd ../ && pwd`
 
@@ -24,6 +23,7 @@ parse_params "$@"
 #激活配置
 dic[cfg_workspace_dir_name]="workspace"
 source ${dic[cfg_devops_path]}/${dic[cfg_workspace_dir_name]}/enable
+
 
 #如果命令行没有指定 --workspace 工作空间，那么使用enable文件配置的默认工作空间
 if test -z ${dic[opt_workspace]}; then
@@ -41,6 +41,7 @@ fi
 #设置deploy文件生成位置
 info "埋点: 当前的工作空间为:${opt_workspace}"
 dic[cfg_deploy_gen_location]=${dic[cfg_devops_path]}/deploy/${dic[opt_workspace]}
+
 #加载配置
 source ${dic[cfg_workspace_path]}/config
 #读取配置变量
