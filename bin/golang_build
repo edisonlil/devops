@@ -1,34 +1,34 @@
 #!/bin/bash
 
 function go_build() {
-	cfg_temp_dir=${dic[cfg_temp_dir]}
-	cmd_job_name=${dic[cmd_job_name]}
-	opt_build_tool=${dic[opt_build_tool]}
-	opt_build_cmds=${dic[opt_build_cmds]}
-	cfg_harbor_address=${dic[cfg_harbor_address]}
-	cfg_harbor_project=${dic[cfg_harbor_project]}
-	tmp_dockerfile=${dic[tmp_dockerfile]}
-	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}
+	cfg_temp_dir=${env[cfg_temp_dir]}
+	cmd_job_name=${env[cmd_job_name]}
+	opt_build_tool=${env[opt_build_tool]}
+	opt_build_cmds=${env[opt_build_cmds]}
+	cfg_harbor_address=${env[cfg_harbor_address]}
+	cfg_harbor_project=${env[cfg_harbor_project]}
+	tmp_dockerfile=${env[tmp_dockerfile]}
+	tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
 
-	dic[tmp_go_workspace]=/tmp/devops-go
-	dic[tmp_go_workspace_src]=${dic[tmp_go_workspace]}/src
-	dic[tmp_go_workspace_src_ws]=${dic[tmp_go_workspace_src]}/${dic[opt_workspace]}
+	env[tmp_go_workspace]=/tmp/devops-go
+	env[tmp_go_workspace_src]=${env[tmp_go_workspace]}/src
+	env[tmp_go_workspace_src_ws]=${env[tmp_go_workspace_src]}/${env[opt_workspace]}
 	#生成gopath和src
-	if test ! -d "${dic[tmp_go_workspace_src_ws]}" ;then
-		mkdir -p ${dic[tmp_go_workspace_src_ws]}
+	if test ! -d "${env[tmp_go_workspace_src_ws]}" ;then
+		mkdir -p ${env[tmp_go_workspace_src_ws]}
 	fi
-	export GOAPTH=${dic[tmp_go_workspace]}
+	export GOAPTH=${env[tmp_go_workspace]}
 
-  if [[ -n ${dic[tmp_go_workspace_src_ws]} && ${dic[tmp_go_workspace_src_ws]} != '/' && ${dic[tmp_go_workspace_src_ws]} != '.' ]]
+  if [[ -n ${env[tmp_go_workspace_src_ws]} && ${env[tmp_go_workspace_src_ws]} != '/' && ${env[tmp_go_workspace_src_ws]} != '.' ]]
 	then
-	  rm -rf ${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
+	  rm -rf ${env[tmp_go_workspace_src_ws]}/${cmd_job_name}
   fi
-	\mv $cfg_temp_dir ${dic[tmp_go_workspace_src_ws]}
-	dic[cfg_temp_dir]=${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
+	\mv $cfg_temp_dir ${env[tmp_go_workspace_src_ws]}
+	env[cfg_temp_dir]=${env[tmp_go_workspace_src_ws]}/${cmd_job_name}
 
 
-	module_path=`find ${dic[cfg_temp_dir]}/* -type d  -name  ${cmd_job_name}`
-        if test -z "$module_path"; then module_path=${dic[cfg_temp_dir]}; fi
+	module_path=`find ${env[cfg_temp_dir]}/* -type d  -name  ${cmd_job_name}`
+        if test -z "$module_path"; then module_path=${env[cfg_temp_dir]}; fi
 
 
         #go语言构建不会把静态文件构建进二进制文件，dockerfile build的时，需要自定义dockerfile将，静态文件copy到容器中
@@ -40,20 +40,21 @@ function go_build() {
     	else
 		cd $module_path && go build -o ./
     	fi
-	dic[tmp_build_dist_path]=$module_path
+	env[tmp_build_dist_path]=$module_path
 
   info "开始go项目镜像的构建"
+
 
 	check_env_by_cmd_v docker
 	# 构建镜像
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
-	if test ${dic[cfg_enable_harbor]} -eq 1;
+	if test ${env[cfg_enable_harbor]} -eq 1;
 	then
 	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
 	tar -cf dist.tar *
-	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
-		 -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
+	docker build  --build-arg DEVOPS_RUN_ENV=${env[opt_build_env]} \
+		 -t $image_path -f  $tmp_dockerfile  ${env[tmp_build_dist_path]}
 
 
   #推送镜像

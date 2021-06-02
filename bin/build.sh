@@ -1,80 +1,33 @@
 #!/bin/bash
-source ./log.sh
-source ./devops_help
+
 source ./golang_build
 source ./java_build
 source ./tomcat_build
 source ./vue_build
 
-
-function check_env_by_cmd_v() {
-	command -v $1 > /dev/null 2>&1 || (error "Need to install ##$1## command first and run this script again." && exit 1)
-}
-
-function parse_params() {
-        case "$1" in
-	      -v) devops_version ; exit 1;;
-	      -h)  devops_help ; exit 1;;
-        --version) devops_version ; exit 1;;
-        *) 
-                dic[cmd_1]=$1
-                shift 1
-                case "$1" in
-                -h)  echo "thanks for use devops!" ; exit 1;;
-                *)
-                        dic[cmd_2]=$1
-                        shift 1
-                        while [ true ] ; do
-                                if [[ $1 == -* ]];then
-                                        case "$1" in
-                                        --build-tool) dic[opt_build_tool]=$2; shift 2;;
-                                        --git-url) dic[opt_git_url]=$2;  shift 2;;
-                                        --svn-url) dic[opt_svn_url]=$2; shift 2;;
-                                        --java-opts) dic[opt_java_opts]=$2; shift 2;;
-                                        --dockerfile) dic[opt_dockerfile]=$2; shift 2;;
-										--template) dic[opt_template]=$2; shift 2;;
-										--git-branch) dic[opt_git_branch]=$2; shift 2;;
-										--build-cmds) dic[opt_build_cmds]=$2; shift 2;;
-                                        --build-env) dic[opt_build_env]=$2; shift 2;;
-										--workspace) dic[opt_workspace]=$2; shift 2;;
-                                        *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
-                                        esac
-                                else
-                                        dic[cmd_3]=$1
-                                        shift 1
-                                        break
-                                fi
-                        done
-
-                ;;  esac
-        ;; esac
-}
-
-
-
 function run() {
-        case ${dic[cmd_1]} in
+        case ${env[cmd_1]} in
         run) 
-                if test -n ${dic[cmd_2]}; then
-                        run_${dic[cmd_2]}
+                if test -n ${env[cmd_2]}; then
+                        run_${env[cmd_2]}
                 else
                         echo "run need be followed by a cammand"; exit 1
                 fi
          ;;
-        *) error "cannot find the cammand ${dic[cmd_1]}"; exit 1 ; ;;
+        *) error "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
 	esac
 }
 
 function check_post_parmas() {
- 	if [[ -z ${dic[cmd_3]} ]];then
+ 	if [[ -z ${env[cmd_3]} ]];then
                 warn "job name can not be null ## $1 ##."; exit 1;
 	 fi
-	dic[cmd_job_name]=${dic[cmd_3]} 
-	dic[cfg_temp_dir]=/tmp/devops/${dic[opt_workspace]}/${dic[cmd_job_name]}
+	env[cmd_job_name]=${env[cmd_3]}
+	env[cfg_temp_dir]=/tmp/devops/${env[opt_workspace]}/${env[cmd_job_name]}
 
-	if [[ -n ${dic[cfg_temp_dir]} && ${dic[cfg_temp_dir]} != '/' && ${dic[cfg_temp_dir]} != '.' ]]
+	if [[ -n ${env[cfg_temp_dir]} && ${env[cfg_temp_dir]} != '/' && ${env[cfg_temp_dir]} != '.' ]]
 	then
-	  rm -rf ${dic[cfg_temp_dir]}
+	  rm -rf ${env[cfg_temp_dir]}
   fi
 }
 
@@ -114,10 +67,10 @@ function run_devops() {
 
 
 function scm() {
-	cfg_temp_dir=${dic[cfg_temp_dir]}
-	opt_git_url=${dic[opt_git_url]}
-	opt_git_branch=${dic[opt_git_branch]}
-	opt_svn_url=${dic[opt_svn_url]}
+	cfg_temp_dir=${env[cfg_temp_dir]}
+	opt_git_url=${env[opt_git_url]}
+	opt_git_branch=${env[opt_git_branch]}
+	opt_svn_url=${env[opt_svn_url]}
 
 	if [ -n "$opt_git_url" ]; then 
 		check_env_by_cmd_v git
@@ -136,7 +89,7 @@ function scm() {
 		#生成日期和git日志版本后六位
 		date=`date +%Y-%m-%d_%H-%M-%S`
 		last_log=`git log --pretty=format:%h | head -1`
-		dic[tmp_docker_image_suffix]="${date}_${last_log}"
+		env[tmp_docker_image_suffix]="${date}_${last_log}"
 	elif [ -n "$opt_svn_url" ]; then 
 		check_env_by_cmd_v svn
 		info '开始使用 svn 拉取代码'
@@ -146,18 +99,18 @@ function scm() {
 		date=`date +%Y-%m-%d_%H-%M-%S`
 		tmp_log=`svn log | head -2 | tail -1`
 		last_log=${tmp_log%% *}
-                dic[tmp_docker_image_suffix]="${date}_${last_log}"
+                env[tmp_docker_image_suffix]="${date}_${last_log}"
 	else 
 		error "--git-url and --svn-url must has one"; exit 1;
 	fi
 }
 
 function choose_dockerfile() {
-	cmd_job_name=${dic[cmd_job_name]}
-	opt_dockerfile=${dic[opt_dockerfile]}
-	cfg_dockerfile_path=${dic[cfg_dockerfile_path]}
-	cfg_enable_dockerfiles=${dic[cfg_enable_dockerfiles]}
-	tmp_build_dist_path=${dic[tmp_build_dist_path]}
+	cmd_job_name=${env[cmd_job_name]}
+	opt_dockerfile=${env[opt_dockerfile]}
+	cfg_dockerfile_path=${env[cfg_dockerfile_path]}
+	cfg_enable_dockerfiles=${env[cfg_enable_dockerfiles]}
+	tmp_build_dist_path=${env[tmp_build_dist_path]}
 
         if test ! -d ${tmp_build_dist_path} ; then
 		error "please check scm url or job name(the last command),job name must be the module name";
@@ -167,7 +120,7 @@ function choose_dockerfile() {
 	if test -n "${opt_dockerfile}"
 	then
 		echo "埋点:执行命令行指定dockerfile${opt_dockerfile}"
-   		dic[tmp_dockerfile]=$cfg_dockerfile_path/${opt_dockerfile}-dockerfile 
+   		env[tmp_dockerfile]=$cfg_dockerfile_path/${opt_dockerfile}-dockerfile
 	else
 		dockerfiles=(${cfg_enable_dockerfiles//,/ })
 		is_has_enable_docker_file=false
@@ -175,13 +128,13 @@ function choose_dockerfile() {
 			if [[ $cmd_job_name == $dockerfile ]]
 			then
 			  echo "埋点:执行在config.conf配置的dockerfile:${dockerfile}"
-			  dic[tmp_dockerfile]=$cfg_dockerfile_path/${dockerfile}-dockerfile
+			  env[tmp_dockerfile]=$cfg_dockerfile_path/${dockerfile}-dockerfile
 			  is_has_enable_docker_file=true
 			fi
 		done
 		if [ "$is_has_enable_docker_file" = false ]; then
 			echo "埋点:执行默认指定dockerfile"
-		   	dic[tmp_dockerfile]=$cfg_dockerfile_path/dockerfile
+		   	env[tmp_dockerfile]=$cfg_dockerfile_path/dockerfile
 		fi
 	fi
 }
@@ -189,14 +142,14 @@ function choose_dockerfile() {
 
 
 function render_template() {
-	opt_template=${dic[opt_template]}
-	cfg_devops_path=${dic[cfg_devops_path]}
-	cfg_swarm_network=${dic[cfg_swarm_network]}
-	cfg_template_path=${dic[cfg_template_path]}
-	cfg_enable_templates=${dic[cfg_enable_templates]}
-	cfg_deploy_gen_location=${dic[cfg_deploy_gen_location]}
-	cmd_job_name=${dic[cmd_job_name]}
-	tmp_image_path=${dic[tmp_image_path]}
+	opt_template=${env[opt_template]}
+	cfg_devops_path=${env[cfg_devops_path]}
+	cfg_swarm_network=${env[cfg_swarm_network]}
+	cfg_template_path=${env[cfg_template_path]}
+	cfg_enable_templates=${env[cfg_enable_templates]}
+	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
+	cmd_job_name=${env[cmd_job_name]}
+	tmp_image_path=${env[tmp_image_path]}
 
         #info "开始渲染模板文件"
 	cd $cfg_template_path
@@ -235,7 +188,7 @@ function render_template() {
 }
 
 function deploy() {
-        cfg_deploy_target=${dic[cfg_deploy_target]}
+        cfg_deploy_target=${env[cfg_deploy_target]}
 	if test -z "$cfg_deploy_target"  ; then
 		info "执行本地部署"
 		local_deploy
@@ -247,11 +200,11 @@ function deploy() {
 }
 
 function local_deploy() {
-  	cfg_devops_path=${dic[cfg_devops_path]}
-    cfg_build_platform=${dic[cfg_build_platform]}
-    cfg_swarm_stack_name=${dic[cfg_swarm_stack_name]}
-	cfg_deploy_gen_location=${dic[cfg_deploy_gen_location]}
-    cmd_job_name=${dic[cmd_job_name]}
+  	cfg_devops_path=${env[cfg_devops_path]}
+    cfg_build_platform=${env[cfg_build_platform]}
+    cfg_swarm_stack_name=${env[cfg_swarm_stack_name]}
+	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
+    cmd_job_name=${env[cmd_job_name]}
 
 	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
         #创建或者更新镜像
@@ -289,12 +242,12 @@ function local_deploy() {
 
 function remote_deploy() {
 
-	cfg_devops_path=${dic[cfg_devops_path]}
-    cfg_build_platform=${dic[cfg_build_platform]}
-    cfg_swarm_stack_name=${dic[cfg_swarm_stack_name]}
-	cfg_deploy_target=${dic[cfg_deploy_target]}
-	cfg_deploy_gen_location=${dic[cfg_deploy_gen_location]}
-    cmd_job_name=${dic[cmd_job_name]}
+	cfg_devops_path=${env[cfg_devops_path]}
+    cfg_build_platform=${env[cfg_build_platform]}
+    cfg_swarm_stack_name=${env[cfg_swarm_stack_name]}
+	cfg_deploy_target=${env[cfg_deploy_target]}
+	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
+    cmd_job_name=${env[cmd_job_name]}
 
 	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
 
@@ -342,7 +295,7 @@ EOF
 function push(){
 
   image_path=$1
-  enable_harbor=${dic[cfg_enable_harbor]}
+  enable_harbor=${env[cfg_enable_harbor]}
 	#推送镜像
 	if test $enable_harbor -eq 1 ;
 	then
@@ -350,12 +303,12 @@ function push(){
 	    docker push $image_path
     fi
     info "$image_path"
-    dic[tmp_image_path]=$image_path
+    env[tmp_image_path]=$image_path
 }
 
 function prune() {
-	cfg_devops_path=${dic[cfg_devops_path]}
-	cfg_temp_dir=${dic[cfg_temp_dir]}
+	cfg_devops_path=${env[cfg_devops_path]}
+	cfg_temp_dir=${env[cfg_temp_dir]}
 
 	#删除源代码
 	cd $cfg_devops_path
