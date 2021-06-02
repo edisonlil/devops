@@ -1,16 +1,21 @@
 #!/bin/bash
-source ${dic[cfg_devops_bin_path]}/log.sh
+source ./log.sh
+source ./devops_help
+source ./golang_build
+source ./java_build
+source ./tomcat_build
+source ./vue_build
+
 
 function check_env_by_cmd_v() {
 	command -v $1 > /dev/null 2>&1 || (error "Need to install ##$1## command first and run this script again." && exit 1)
 }
 
-
 function parse_params() {
         case "$1" in
-	-v) echo "devops version 1.6.5" ; exit 1;;
-        --version) echo "devops version 1.6.5" ; exit 1;;
-        -h)  devops_help ; exit 1;;
+	      -v) devops_version ; exit 1;;
+	      -h)  devops_help ; exit 1;;
+        --version) devops_version ; exit 1;;
         *) 
                 dic[cmd_1]=$1
                 shift 1
@@ -46,29 +51,6 @@ function parse_params() {
 }
 
 
-function devops_help() {
-	echo -e 'Usage:  devops [OPTIONS] COMMAND
-
-	A cicd tool for devops
-	
-	Options:
-	      --build-tool string    java build tool "maven" or "gradle"
-	      --git-url string       the url of git registry
-	      --git-branch string    the branch of git registry
-	      --svn-url string       the url of svn registry
-	      --java-opts string     the java -jar ${java-opts} foo.jar
-	      --dockerfile string    the use of the dockerfile for this job
-	      --template string      the use of the docker swram or k8s template for this job
-	      --build-cmds string    the cmd rewrite for building this job
-	      --build-env string     build env "dev" "test" "gray" "prod" etc.
-	      --version              the version of devops
-	      --workspace            the workspace
-	
-	Commands:
-	  run      now you can "run java" or "run vue"'
-	exit 1;
-	
-}
 
 function run() {
         case ${dic[cmd_1]} in
@@ -101,21 +83,19 @@ function run_tomcat() {
 }
 
 function run_java() {
-        run_devops java_build
+  run_devops java_build
 }
-
 
 function run_go() {
 	run_devops go_build
 }
-
 
 function run_vue() {
 	run_devops vue_build
 }
 
 function run_devops() {
-        #检测前置参数
+  #检测前置参数
 	check_post_parmas
 	#从版本管理工具加载代码
 	scm 
@@ -170,240 +150,6 @@ function scm() {
 	else 
 		error "--git-url and --svn-url must has one"; exit 1;
 	fi
-}
-
-function go_build() {
-	cfg_temp_dir=${dic[cfg_temp_dir]}
-	cmd_job_name=${dic[cmd_job_name]}
-	opt_build_tool=${dic[opt_build_tool]}
-	opt_build_cmds=${dic[opt_build_cmds]}
-	cfg_harbor_address=${dic[cfg_harbor_address]}
-	cfg_harbor_project=${dic[cfg_harbor_project]}
-	tmp_dockerfile=${dic[tmp_dockerfile]}
-	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}	
-
-	dic[tmp_go_workspace]=/tmp/devops-go
-	dic[tmp_go_workspace_src]=${dic[tmp_go_workspace]}/src
-	dic[tmp_go_workspace_src_ws]=${dic[tmp_go_workspace_src]}/${dic[opt_workspace]}
-	#生成gopath和src
-	if test ! -d "${dic[tmp_go_workspace_src_ws]}" ;then
-		mkdir -p ${dic[tmp_go_workspace_src_ws]}
-	fi
-	export GOAPTH=${dic[tmp_go_workspace]}
-
-  if [[ -n ${dic[tmp_go_workspace_src_ws]} && ${dic[tmp_go_workspace_src_ws]} != '/' && ${dic[tmp_go_workspace_src_ws]} != '.' ]]
-	then
-	  rm -rf ${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
-  fi
-	\mv $cfg_temp_dir ${dic[tmp_go_workspace_src_ws]}
-	dic[cfg_temp_dir]=${dic[tmp_go_workspace_src_ws]}/${cmd_job_name}
-
-
-	module_path=`find ${dic[cfg_temp_dir]}/* -type d  -name  ${cmd_job_name}`
-        if test -z "$module_path"; then module_path=${dic[cfg_temp_dir]}; fi
-
-
-        #go语言构建不会把静态文件构建进二进制文件，dockerfile build的时，需要自定义dockerfile将，静态文件copy到容器中
-	check_env_by_cmd_v go
-	info "开始使用go构建项目"
-	#构建代码
-	if test -n "$opt_build_cmds" ;then
-		cd $module_path && $opt_build_cmds
-    	else
-		cd $module_path && go build -o ./
-    	fi
-	dic[tmp_build_dist_path]=$module_path
-
-  info "开始go项目镜像的构建"
-
-	check_env_by_cmd_v docker
-	# 构建镜像
-	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
-	if test ${dic[cfg_enable_harbor]} -eq 1;
-	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
-  fi
-	tar -cf dist.tar *
-	docker build  --build-arg DEVOPS_RUN_ENV=${dic[opt_build_env]} \
-		 -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
-
-
-    #推送镜像
-	push $image_path
-}
-
-function tomcat_build() {
-
-  cfg_temp_dir=${dic[cfg_temp_dir]}
-	cmd_job_name=${dic[cmd_job_name]}
-	opt_build_tool=${dic[opt_build_tool]}
-	opt_build_cmds=${dic[opt_build_cmds]}
-	opt_java_opts=${dic[opt_java_opts]}
-	tmp_dockerfile=${dic[tmp_dockerfile]}
-	cfg_harbor_address=${dic[cfg_harbor_address]}
-	cfg_harbor_project=${dic[cfg_harbor_project]}
-	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}
-
-	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
-        if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
-
-	case "$opt_build_tool"  in
-	gradle)
-		check_env_by_cmd_v gradle
-		info "开始使用gradle构建项目"
-		#构建代码
-		if test -n "$opt_build_cmds" ;then
-			cd $module_path && $opt_build_cmds
-        	else
-			cd $module_path && gradle -x test clean build
-        	fi
-		dic[tmp_build_dist_path]=$module_path/build/libs
-	 ;;
-	maven)
-		check_env_by_cmd_v mvn
-		info "开始使用maven构建项目"
-		 #构建代码
-                if test -n "$opt_build_cmds" ;then
-			cd $module_path && ${opt_build_cmds}
-		else
-			cd $module_path && mvn clean -Dmaven.test.skip=true  compile package -U -am
-		fi
-		dic[tmp_build_dist_path]=$module_path/target
-       	#to do
-	 ;;
-	*) warn "java project only support gradle or maven build"; exit 1; ;;
-    	esac
-
-
-	info "开始java项目镜像的构建"
-
-	# 查找jar包名
-	cd ${dic[tmp_build_dist_path]}
-	jar_name=`ls | grep -v 'source'| grep ${cmd_job_name}`
-
-	check_env_by_cmd_v docker
-	# 构建镜像
-	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
-	if test ${dic[cfg_enable_harbor]} -eq 1;
-	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
-  fi
-
-	docker build --build-arg java_opts="$opt_java_opts"\
-	       --build-arg tomcat_deploy_path=$cmd_job_name\
-	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
-
-    #推送镜像
-	push $image_path
-    
-}
-
-function java_build() {
-	cfg_temp_dir=${dic[cfg_temp_dir]}
-	cmd_job_name=${dic[cmd_job_name]}
-	opt_build_tool=${dic[opt_build_tool]}
-	opt_build_cmds=${dic[opt_build_cmds]}
-	opt_java_opts=${dic[opt_java_opts]}
-	tmp_dockerfile=${dic[tmp_dockerfile]}	
-	cfg_harbor_address=${dic[cfg_harbor_address]}
-	cfg_harbor_project=${dic[cfg_harbor_project]}
-	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}
-
-	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
-        if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
-
-
-	case "$opt_build_tool"  in
-	gradle)
-		check_env_by_cmd_v gradle
-		info "开始使用gradle构建项目"
-		#构建代码
-		if test -n "$opt_build_cmds" ;then
-			cd $module_path && $opt_build_cmds
-        	else
-			cd $module_path && gradle -x test clean build
-        	fi
-		dic[tmp_build_dist_path]=$module_path/build/libs
-	 ;;
-	maven)
-		check_env_by_cmd_v mvn
-		info "开始使用maven构建项目"
-		 #构建代码
-    if test -n "$opt_build_cmds" ;then
-			cd $module_path && ${opt_build_cmds}
-		else
-			cd $module_path && mvn clean -Dmaven.test.skip=true  compile package -U -am
-		fi
-		dic[tmp_build_dist_path]=$module_path/target
-       	#to do
-	 ;;
-	*) warn "java project only support gradle or maven build"; exit 1; ;;
-    	esac
-
-
-	info "开始java项目镜像的构建"
-
-	# 查找jar包名
-	cd ${dic[tmp_build_dist_path]}
-	jar_name=`ls | grep -v 'source'| grep ${cmd_job_name}`
-	
-	check_env_by_cmd_v docker
-
-	# 构建镜像
-	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
-	if test ${dic[cfg_enable_harbor]} -eq 1;
-	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
-  fi
-	docker build --build-arg jar_name=$jar_name\
-	       --build-arg java_opts="$opt_java_opts"\
-	       -t $image_path -f $tmp_dockerfile ${dic[tmp_build_dist_path]}
-
-    #推送镜像
-	push $image_path
-}
-
-function vue_build() {
-  cfg_temp_dir=${dic[cfg_temp_dir]}
-  cmd_job_name=${dic[cmd_job_name]}
-	opt_build_cmds=${dic[opt_build_cmds]}
-	opt_build_env=${dic[opt_build_env]}	
-	cfg_harbor_address=${dic[cfg_harbor_address]}
-	cfg_harbor_project=${dic[cfg_harbor_project]}
-	tmp_dockerfile=${dic[tmp_dockerfile]}	
-	tmp_docker_image_suffix=${dic[tmp_docker_image_suffix]}
-
-	check_env_by_cmd_v npm	
-	info "开始使用node构建vue项目"
-    module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
-    if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
-	if test -n "$opt_build_cmds" ;then
-		cd $module_path &&  npm --unsafe-perm install && $opt_build_cmds
-	else
-		if test -n "$opt_build_env" ;then
-			cd $module_path && npm --unsafe-perm install && npm run build:$opt_build_env
-		else
-			cd $module_path && npm --unsafe-perm install && npm run build
-		fi
-	fi
-
-	dic[tmp_build_dist_path]=$module_path/dist
-
-    info "开始vue项目镜像的构建"
-	cd ${dic[tmp_build_dist_path]}
-	tar -cf dist.tar *
-	check_env_by_cmd_v docker
-	# 构建镜像
-	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
-	if test ${dic[cfg_enable_harbor]} -eq 1;
-	then
-	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
-  fi
-	docker build -t $image_path -f  $tmp_dockerfile  ${dic[tmp_build_dist_path]}
-
-	#推送镜像
-	push $image_path
-
 }
 
 function choose_dockerfile() {
