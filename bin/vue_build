@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ./docker_helper.sh
+
 
 function vue_build() {
   cfg_temp_dir=${env[cfg_temp_dir]}
@@ -40,8 +42,8 @@ function vue_build() {
   fi
 	docker build -t $image_path -f  $tmp_dockerfile  ${env[tmp_build_dist_path]}
 
-	#推送镜像
-	push $image_path
+  #推送镜像
+	docker_push $image_path
 
 }
 

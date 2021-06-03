@@ -3,15 +3,6 @@
 source ./log.sh
 source ./tools.sh
 
-function docker_build() {
-
-    image_path=$1
-    dockerfile=$2
-    build_dist_path=$3
-
-    docker build -t $image_path -f  $dockerfile  $build_dist_path
-}
-
 
 function docker_push(){
 

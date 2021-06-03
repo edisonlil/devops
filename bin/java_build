@@ -59,10 +59,11 @@ function java_build() {
 	then
 	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
-	docker build --build-arg jar_name=$jar_name\
+
+  docker build --build-arg jar_name=$jar_name\
 	       --build-arg java_opts="$opt_java_opts"\
 	       -t $image_path -f $tmp_dockerfile ${env[tmp_build_dist_path]}
 
-    #推送镜像
-	push $image_path
+  #推送镜像
+	docker_push $image_path
 }

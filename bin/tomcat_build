@@ -60,8 +60,8 @@ function tomcat_build() {
 	       --build-arg tomcat_deploy_path=$cmd_job_name\
 	       -t $image_path -f $tmp_dockerfile ${env[tmp_build_dist_path]}
 
-    #推送镜像
-	push $image_path
+  #推送镜像
+	docker_push $image_path
 
 }
 

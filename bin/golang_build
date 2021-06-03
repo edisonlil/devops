@@ -1,5 +1,8 @@
 #!/bin/bash
 
+source ./docker_helper.sh
+
+
 function go_build() {
 	cfg_temp_dir=${env[cfg_temp_dir]}
 	cmd_job_name=${env[cmd_job_name]}
@@ -58,5 +61,5 @@ function go_build() {
 
 
   #推送镜像
-	push $image_path
+	docker_push $image_path
 }
