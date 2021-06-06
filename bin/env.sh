@@ -70,12 +70,13 @@ if test -z ${env[opt_workspace]}; then
 	env[cfg_workspace_path]=${env[cfg_devops_path]}/${env[cfg_workspace_dir_name]}/${env[cfg_enable_path]}
 else
 	env[cfg_workspace_path]=${env[cfg_devops_path]}/${env[cfg_workspace_dir_name]}/${env[opt_workspace]}
-  if test -f ${env[cfg_devops_secret]} ; then
-          source ${env[cfg_devops_secret]}
-          env[cfg_deploy_target]=`eval echo '$'"${env[opt_workspace]}"`
-  fi
+
 fi
 
+if test -f ${env[cfg_devops_secret]} ; then
+    source ${env[cfg_devops_secret]}
+    env[cfg_deploy_target]=`eval echo '$'"${env[opt_workspace]}"`
+fi
 
 
 #设置deploy文件生成位置
