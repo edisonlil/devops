@@ -5,8 +5,12 @@ source ./devops_help
 #必须先声明
 declare -A env
 
+#保存不同远程主机信息的私密文件
+env[cfg_devops_secret]=$HOME/.devops/deploy-target
+
 #获取当前shell文件所在路径
 env[cfg_devops_bin_path]=$(dirname $(readlink -f "$0"))
+
 #devops项目所在路径
 env[cfg_devops_path]=`cd ${env[cfg_devops_bin_path]} && cd ../ && pwd`
 
@@ -66,10 +70,10 @@ if test -z ${env[opt_workspace]}; then
 	env[cfg_workspace_path]=${env[cfg_devops_path]}/${env[cfg_workspace_dir_name]}/${env[cfg_enable_path]}
 else
 	env[cfg_workspace_path]=${env[cfg_devops_path]}/${env[cfg_workspace_dir_name]}/${env[opt_workspace]}
-        if test -f ${env[cfg_devops_secret]} ; then
-                source ${env[cfg_devops_secret]}
-                env[cfg_deploy_target]=`eval echo '$'"${env[opt_workspace]}"`
-        fi
+  if test -f ${env[cfg_devops_secret]} ; then
+          source ${env[cfg_devops_secret]}
+          env[cfg_deploy_target]=`eval echo '$'"${env[opt_workspace]}"`
+  fi
 fi
 
 
