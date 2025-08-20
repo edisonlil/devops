@@ -1,89 +1,25 @@
-# DevOps 一键安装指南
+# DevOps 安装指南
 
-本项目提供了两个安装脚本，帮助您快速部署 DevOps 环境。
-
-## 安装脚本说明
-
-### 1. install.sh - 完整安装脚本
-功能最全面的安装脚本，包含详细的系统检测和组件安装。
-
-**特性:**
-- 自动检测操作系统类型
-- 完整的依赖检查和安装
-- 详细的安装日志
-- 全面的错误处理
-- 安装验证
-
-**支持的组件:**
-- Docker & Docker Compose
-- SDKMAN! (Java 生态系统管理器)
-- Java JDK (多版本支持: 11, 17, 21)
-- Maven (通过 SDKMAN!)
-- Gradle (通过 SDKMAN!)
-- Node.js (LTS)
-- Go 1.21.4
-- Git 和基础工具
-
-### 2. quick-install.sh - 快速安装脚本
-轻量级的快速安装脚本，适合快速部署。
-
-**特性:**
-- 快速安装核心组件
-- 支持多种安装模式
-- 简洁的用户界面
-- 基本的系统检查
-
-**安装模式:**
-- `--minimal`: 最小化安装（仅基础工具）
-- `--full`: 完整安装（所有组件）
-- 默认: 标准安装（核心组件）
-
-## 使用方法
-
-### 方法一：完整安装（推荐）
+## 快速安装
 
 ```bash
-# 下载并运行完整安装脚本
+# 下载并运行安装脚本
 chmod +x install.sh
 ./install.sh
+
+# 或在线安装
+curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash
 ```
 
-### 方法二：快速安装
+## 安装内容
 
-```bash
-# 标准安装
-chmod +x quick-install.sh
-./quick-install.sh
-
-# 最小化安装
-./quick-install.sh --minimal
-
-# 完整安装
-./quick-install.sh --full
-```
-
-### 方法三：一键安装（推荐新手）
-
-```bash
-# 直接运行（会自动选择合适的脚本）
-curl -fsSL https://raw.githubusercontent.com/your-repo/devops/main/quick-install.sh | bash
-```
-
-### 方法四：仅安装 SDKMAN! 和 Java 环境
-
-```bash
-# 专门的 SDKMAN! 安装脚本
-chmod +x install-sdkman.sh
-
-# 标准安装（Java + Maven + Gradle）
-./install-sdkman.sh
-
-# 仅安装 Java
-./install-sdkman.sh --java-only
-
-# 交互式安装（可选择额外工具）
-./install-sdkman.sh --interactive
-```
+安装脚本会自动安装和配置：
+- Docker & Docker Compose
+- Java JDK 11
+- Maven & Gradle
+- Node.js & NPM
+- Go 语言环境
+- Git 和基础工具
 
 ## 系统要求
 

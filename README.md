@@ -31,41 +31,14 @@ devops 1.5.1已经发布release
 
 ## 快速安装
 
-### 一键安装脚本
-我们提供了三种安装模式来满足不同用户的需求：
-
 ```bash
-# 方法一：标准安装（推荐）
+# 一键安装
 chmod +x install.sh
 ./install.sh
 
-# 方法二：完整安装（全功能）
-./install.sh --full
-
-# 方法三：脚本专用安装（轻量）
-./install.sh --script-only
-
-# 方法四：在线安装
-curl -fsSL https://raw.githubusercontent.com/your-repo/devops/main/install.sh | bash
-
-# 方法五：使用 Makefile
-make install      # 标准安装
-make full         # 完整安装
-make script-only  # 仅安装脚本
+# 或在线安装
+curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash
 ```
-
-### 安装模式说明
-- **标准安装**: Java + Docker + Maven + Gradle (~10分钟)
-- **完整安装**: 标准安装 + Node.js + Go (~20分钟)
-- **脚本专用**: 仅安装 DevOps 脚本，适合已有环境用户 (~1分钟)
-
-安装脚本会自动安装和配置：
-- Docker & Docker Compose
-- Java JDK 11
-- Maven & Gradle
-- Node.js & NPM
-- Go 语言环境
-- Git 和基础工具
 
 详细安装说明请查看 [INSTALL.md](INSTALL.md)
 
