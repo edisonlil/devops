@@ -458,7 +458,7 @@ EOF
 
 # 下载DevOps项目
 download_devops_project() {
-    log_step "下载 DevOps 项目..." >&2
+    log_step "下载 DevOps 项目..."
 
     local devops_dir="$HOME/devops"
     local github_url="https://github.com/edisonlil/devops"
@@ -466,72 +466,73 @@ download_devops_project() {
 
     # 如果目录已存在，先备份
     if [[ -d "$devops_dir" ]]; then
-        log_warn "DevOps 目录已存在，创建备份..." >&2
+        log_warn "DevOps 目录已存在，创建备份..."
         mv "$devops_dir" "${devops_dir}.backup.$(date +%Y%m%d_%H%M%S)"
     fi
 
-    # 克隆项目
+    # 尝试使用git克隆
     if command_exists git; then
-        log_info "使用 git 克隆项目..." >&2
-        if ! git clone -b "$branch" "$github_url" "$devops_dir" >&2; then
-            log_error "git 克隆失败，尝试使用 curl 下载" >&2
-            rm -rf "$devops_dir" 2>/dev/null || true
-        else
+        log_info "使用 git 克隆项目..."
+        if git clone -b "$branch" "$github_url" "$devops_dir"; then
+            log_info "git 克隆成功"
             return 0
+        else
+            log_warn "git 克隆失败，尝试HTTP下载"
+            rm -rf "$devops_dir" 2>/dev/null || true
         fi
     fi
 
-    # 使用 curl 或 wget 下载
-    log_info "使用 HTTP 下载项目..." >&2
+    # 使用HTTP下载
+    log_info "使用 HTTP 下载项目..."
     local zip_url="${github_url}/archive/refs/heads/${branch}.zip"
     local temp_dir="/tmp/devops_install_$$"
 
     mkdir -p "$temp_dir"
     cd "$temp_dir"
 
-    # 尝试使用 curl
+    # 下载
     if command_exists curl; then
-        log_info "使用 curl 下载..." >&2
+        log_info "使用 curl 下载..."
         curl -fsSL -o devops.zip "$zip_url"
     elif command_exists wget; then
-        log_info "使用 wget 下载..." >&2
+        log_info "使用 wget 下载..."
         wget -O devops.zip "$zip_url"
     else
-        log_error "curl 和 wget 都不可用，无法下载项目" >&2
+        log_error "curl 和 wget 都不可用"
         exit 1
     fi
 
     # 解压
+    log_info "解压文件..."
     if ! unzip -q devops.zip; then
-        log_error "解压失败" >&2
+        log_error "解压失败"
         exit 1
     fi
 
-    # 移动到目标目录
+    # 移动
+    log_info "安装到目标目录..."
     if ! mv "devops-${branch}" "$devops_dir"; then
-        log_error "移动文件失败" >&2
+        log_error "移动文件失败"
         exit 1
     fi
 
+    # 清理
     cd - > /dev/null
     rm -rf "$temp_dir"
 
     if [[ ! -d "$devops_dir" ]]; then
-        log_error "下载 DevOps 项目失败" >&2
+        log_error "下载 DevOps 项目失败"
         exit 1
     fi
 
-    log_info "DevOps 项目下载完成: $devops_dir" >&2
+    log_info "DevOps 项目下载完成: $devops_dir"
 }
 
 # 最小化安装（仅安装 DevOps 脚本）
 minimal_install() {
     log_info "最小化安装模式 - 仅安装 DevOps 脚本"
-    echo "开始最小化安装..."
 
-    echo "检查root权限..."
     check_root
-    echo "检测操作系统..."
     detect_os
 
     # 只安装必要的基础工具
@@ -548,11 +549,10 @@ minimal_install() {
     done
 
     # 下载DevOps项目
-    local devops_home="$HOME/devops"
     download_devops_project
 
     # 切换到项目目录
-    cd "$devops_home"
+    cd "$HOME/devops"
 
     setup_environment
     setup_directories
@@ -565,11 +565,6 @@ minimal_install() {
 
 # 主函数
 main() {
-    echo "DevOps 安装脚本启动..."
-    echo "参数: $*"
-    echo "当前用户: $(whoami)"
-    echo "当前目录: $(pwd)"
-
     case "${1:-}" in
         --minimal|--script-only)
             log_info "开始 DevOps 脚本专用安装..."
