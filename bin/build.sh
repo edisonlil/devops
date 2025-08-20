@@ -1,9 +1,12 @@
 #!/bin/bash
 
-source ./golang_build
-source ./java_build
-source ./tomcat_build
-source ./vue_build
+# 获取脚本所在目录
+BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$BUILD_SCRIPT_DIR/golang_build"
+source "$BUILD_SCRIPT_DIR/java_build"
+source "$BUILD_SCRIPT_DIR/tomcat_build"
+source "$BUILD_SCRIPT_DIR/vue_build"
 
 function run() {
         case ${env[cmd_1]} in
@@ -48,6 +51,8 @@ function run_vue() {
 }
 
 function run_devops() {
+  #检查docker环境
+	check_env_by_cmd_v docker
   #检测前置参数
 	check_post_parmas
 	#从版本管理工具加载代码

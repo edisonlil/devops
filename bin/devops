@@ -1,12 +1,16 @@
 #!/bin/bash
 
-source ./log.sh
-source ./tools.sh
-source ./env.sh
-source ./build.sh
-source ./install_tools.sh
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-check_env_by_cmd_v docker
+# 加载依赖脚本
+source "$SCRIPT_DIR/log.sh"
+source "$SCRIPT_DIR/tools.sh"
+source "$SCRIPT_DIR/env.sh"
+source "$SCRIPT_DIR/build.sh"
+source "$SCRIPT_DIR/install_tools.sh"
+
+# Docker检查移到具体命令处理中
 
 if test ! -d $HOME/.devops ; then mkdir $HOME/.devops ; fi
 
@@ -18,6 +22,6 @@ info "埋点: 当前的工作空间为:${env[opt_workspace]}"
 case ${env[cmd_1]} in
         run) run; ;;
         install-tools) install_tools; ;;
-        *) echo "cannot find the cammand ${env[cmd_1]}"; exit1 ; ;;
+        *) echo "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
 esac
 
