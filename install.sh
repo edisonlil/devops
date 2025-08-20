@@ -458,7 +458,7 @@ EOF
 
 # 下载DevOps项目
 download_devops_project() {
-    log_step "下载 DevOps 项目..."
+    log_step "下载 DevOps 项目..." >&2
 
     local devops_dir="$HOME/devops"
     local github_url="https://github.com/edisonlil/devops"
@@ -466,15 +466,15 @@ download_devops_project() {
 
     # 如果目录已存在，先备份
     if [[ -d "$devops_dir" ]]; then
-        log_warn "DevOps 目录已存在，创建备份..."
+        log_warn "DevOps 目录已存在，创建备份..." >&2
         mv "$devops_dir" "${devops_dir}.backup.$(date +%Y%m%d_%H%M%S)"
     fi
 
     # 克隆项目
     if command_exists git; then
-        log_info "使用 git 克隆项目..."
-        if ! git clone -b "$branch" "$github_url" "$devops_dir"; then
-            log_error "git 克隆失败，尝试使用 curl 下载"
+        log_info "使用 git 克隆项目..." >&2
+        if ! git clone -b "$branch" "$github_url" "$devops_dir" >&2; then
+            log_error "git 克隆失败，尝试使用 curl 下载" >&2
             rm -rf "$devops_dir" 2>/dev/null || true
         else
             return 0
@@ -482,7 +482,7 @@ download_devops_project() {
     fi
 
     # 使用 curl 或 wget 下载
-    log_info "使用 HTTP 下载项目..."
+    log_info "使用 HTTP 下载项目..." >&2
     local zip_url="${github_url}/archive/refs/heads/${branch}.zip"
     local temp_dir="/tmp/devops_install_$$"
 
@@ -491,25 +491,25 @@ download_devops_project() {
 
     # 尝试使用 curl
     if command_exists curl; then
-        log_info "使用 curl 下载..."
+        log_info "使用 curl 下载..." >&2
         curl -fsSL -o devops.zip "$zip_url"
     elif command_exists wget; then
-        log_info "使用 wget 下载..."
+        log_info "使用 wget 下载..." >&2
         wget -O devops.zip "$zip_url"
     else
-        log_error "curl 和 wget 都不可用，无法下载项目"
+        log_error "curl 和 wget 都不可用，无法下载项目" >&2
         exit 1
     fi
 
     # 解压
     if ! unzip -q devops.zip; then
-        log_error "解压失败"
+        log_error "解压失败" >&2
         exit 1
     fi
 
     # 移动到目标目录
     if ! mv "devops-${branch}" "$devops_dir"; then
-        log_error "移动文件失败"
+        log_error "移动文件失败" >&2
         exit 1
     fi
 
@@ -517,12 +517,11 @@ download_devops_project() {
     rm -rf "$temp_dir"
 
     if [[ ! -d "$devops_dir" ]]; then
-        log_error "下载 DevOps 项目失败"
+        log_error "下载 DevOps 项目失败" >&2
         exit 1
     fi
 
-    log_info "DevOps 项目下载完成: $devops_dir"
-    echo "$devops_dir"
+    log_info "DevOps 项目下载完成: $devops_dir" >&2
 }
 
 # 最小化安装（仅安装 DevOps 脚本）
@@ -549,7 +548,8 @@ minimal_install() {
     done
 
     # 下载DevOps项目
-    local devops_home=$(download_devops_project)
+    local devops_home="$HOME/devops"
+    download_devops_project
 
     # 切换到项目目录
     cd "$devops_home"
