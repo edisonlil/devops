@@ -1,6 +1,10 @@
 #!/bin/bash
-source ./tools.sh
-source ./devops_help
+
+# 获取脚本所在目录
+ENV_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$ENV_SCRIPT_DIR/tools.sh"
+source "$ENV_SCRIPT_DIR/devops_help"
 
 #必须先声明
 declare -A env

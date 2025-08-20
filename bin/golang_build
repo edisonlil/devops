@@ -1,6 +1,9 @@
 #!/bin/bash
 
-source ./docker_helper.sh
+# 获取脚本所在目录
+GOLANG_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$GOLANG_BUILD_SCRIPT_DIR/docker_helper.sh"
 
 
 function go_build() {
