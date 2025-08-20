@@ -22,6 +22,11 @@ info "埋点: 当前的工作空间为:${env[opt_workspace]}"
 case ${env[cmd_1]} in
         run) run; ;;
         install-tools) install_tools; ;;
+        template)
+            # 调用模板管理工具
+            shift # 移除 'template' 参数
+            exec "$SCRIPT_DIR/devops_template" "$@"
+            ;;
         *) echo "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
 esac
 
