@@ -5,6 +5,22 @@
 
 ## 最新动态
 
+devops 1.7.0发布
+```
+新增 install-tools 功能：
+- 自动检测和安装开发环境所需工具
+- 支持交互式和批量安装模式
+- 支持Java多版本选择（默认JDK 8）
+- 支持15种常用开发工具
+- 智能跳过已安装工具
+
+新增 Kubernetes namespace 支持：
+- 支持通过 --namespace 参数指定命名空间
+- 支持配置文件中设置默认namespace
+- 自动创建不存在的namespace
+- 完善的模板占位符替换
+```
+
 devops 1.6.5发布
 ```
 加入go,tomcat项目自动化部署的支持
@@ -31,16 +47,45 @@ devops 1.5.1已经发布release
 
 ## 快速安装
 
-```bash
-# 一键安装
-chmod +x install.sh
-./install.sh
+### 在线安装（推荐）
 
-# 或在线安装
+```bash
+# 脚本专用安装（推荐用于生产环境）
+curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash -s -- --script-only
+
+# 标准安装（包含Java开发环境）
 curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash
+
+# 完整安装（包含所有开发工具）
+curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash -s -- --full
 ```
 
-详细安装说明请查看 [INSTALL.md](INSTALL.md)
+### 本地安装
+
+```bash
+# 克隆项目
+git clone -b dev https://github.com/edisonlil/devops.git
+cd devops
+
+# 执行安装
+chmod +x install.sh
+./install.sh
+```
+
+### 安装后配置
+
+```bash
+# 重新加载环境变量
+source ~/.bashrc
+
+# 检查环境状态
+devops install-tools --check
+
+# 安装开发工具
+devops install-tools
+```
+
+详细安装说明请查看 [INSTALL.md](INSTALL.md) 和 [INSTALL-TOOLS.md](INSTALL-TOOLS.md)
 
 ## 开始使用
 jenkins的部署
@@ -90,6 +135,11 @@ devops run vue --git-url http://192.168.10.44/sample/sample.git  --dockerfile no
 devops run vue --svn-url https://192.168.10.253/svn/sample  --dockerfile node --template node --build-env "dev" sample
 
 devops run vue --svn-url https://192.168.10.253/svn/sample  --dockerfile node --template node --build-cmds "npm run build:test" sample
+
+# Kubernetes namespace 支持
+devops run java --git-url https://github.com/example/project.git --namespace production my-app
+
+devops run java --git-url https://github.com/example/project.git --namespace dev --build-env dev my-app
 
 注意: 最后一个参数，应该为你需要构建项目的那个直接的项目名.
       如果是单级项目，为主项目名，如果为多级项目，为那个直接的子项目名.

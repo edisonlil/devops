@@ -17,6 +17,7 @@ function devops_help() {
 	      --template string      the use of the docker swram or k8s template for this job
 	      --build-cmds string    the cmd rewrite for building this job
 	      --build-env string     build env "dev" "test" "gray" "prod" etc.
+	      --namespace string     kubernetes namespace (default: "default")
 	      --version              the version of devops
 	      --workspace            the workspace
 
@@ -28,7 +29,7 @@ function devops_help() {
 
 
 function devops_version() {
-	echo -e 'devops version 1.6.5'
+	echo -e 'devops version 1.7.0'
 	echo ""
 	echo "一键安装脚本可用:"
 	echo "  ./install.sh        - 完整安装"

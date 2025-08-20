@@ -6,6 +6,9 @@ BUILD_DOCKER_STACK_NAME="meal"
 
 BUILD_DOCKER_SWARM_NETWORK="meal-over"
 
+#配置Kubernetes namespace
+BUILD_K8S_NAMESPACE="meal"
+
 #配置harbor仓库地址
 BUILD_HARBOR_ADDRESS="harbor.coldweaponera.com"
 

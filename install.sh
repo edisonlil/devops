@@ -164,11 +164,11 @@ install_java() {
         return 0
     fi
 
-    log_info "使用 SDKMAN! 安装 Java 11..."
+    log_info "使用 SDKMAN! 安装 Java 8..."
 
-    # 安装 Java 11 (Temurin 发行版)
-    sdk install java 11.0.21-tem
-    sdk default java 11.0.21-tem
+    # 安装 Java 8 (Temurin 发行版)
+    sdk install java 8.0.392-tem
+    sdk default java 8.0.392-tem
 
     log_info "Java 安装完成"
 }
@@ -275,45 +275,68 @@ install_go() {
 # 配置环境变量
 setup_environment() {
     log_step "配置 DevOps 环境变量..."
-    
+
     local devops_home=$(pwd)
-    
+
     # 创建环境变量配置
     cat > /tmp/devops_env.sh << EOF
 # DevOps Environment Variables
 export DEVOPS_HOME=$devops_home
 export PATH=\$PATH:\$DEVOPS_HOME/bin
 EOF
-    
-    # 添加到系统环境变量
-    sudo cp /tmp/devops_env.sh /etc/profile.d/devops.sh
-    sudo chmod +x /etc/profile.d/devops.sh
-    
-    # 添加到用户的 .bashrc
-    if ! grep -q "DEVOPS_HOME" ~/.bashrc; then
-        echo "source /etc/profile.d/devops.sh" >> ~/.bashrc
+
+    # 添加到系统环境变量（如果有权限）
+    if sudo -n true 2>/dev/null; then
+        sudo cp /tmp/devops_env.sh /etc/profile.d/devops.sh
+        sudo chmod +x /etc/profile.d/devops.sh
+        log_info "系统环境变量配置完成"
+    else
+        log_warn "无sudo权限，跳过系统环境变量配置"
     fi
-    
+
+    # 添加到用户的 .bashrc
+    if ! grep -q "DEVOPS_HOME" ~/.bashrc 2>/dev/null; then
+        cat >> ~/.bashrc << EOF
+
+# DevOps Environment Variables
+export DEVOPS_HOME=$devops_home
+export PATH=\$PATH:\$DEVOPS_HOME/bin
+EOF
+        log_info "用户环境变量配置完成"
+    else
+        log_info "用户环境变量已存在"
+    fi
+
+    # 清理临时文件
+    rm -f /tmp/devops_env.sh
+
     log_info "环境变量配置完成"
 }
 
 # 创建必要的目录和文件
 setup_directories() {
     log_step "创建必要的目录结构..."
-    
+
     # 创建用户配置目录
     mkdir -p $HOME/.devops
     mkdir -p $HOME/.deploy
-    
+
     # 复制示例配置文件
     if [[ -f workspace/deploy-target.sample ]]; then
         cp workspace/deploy-target.sample $HOME/.deploy/deploy-target.sample
         log_info "示例配置文件已复制到 $HOME/.deploy/"
+    else
+        log_warn "示例配置文件不存在，跳过复制"
     fi
-    
+
     # 设置执行权限
-    chmod +x bin/*
-    
+    if [[ -d bin ]]; then
+        chmod +x bin/* 2>/dev/null || true
+        log_info "设置脚本执行权限"
+    else
+        log_warn "bin目录不存在，跳过权限设置"
+    fi
+
     log_info "目录结构创建完成"
 }
 
@@ -389,6 +412,16 @@ ${YELLOW}使用说明:${NC}
 1. 重新加载环境变量: source ~/.bashrc
 2. 或者重新登录终端
 
+${YELLOW}环境工具安装:${NC}
+# 检查当前环境
+devops install-tools --check
+
+# 交互式安装缺失工具
+devops install-tools
+
+# 安装指定工具
+devops install-tools --tools docker,kubectl,java
+
 ${YELLOW}示例命令:${NC}
 # Java 项目构建
 devops run java --git-url https://github.com/example/project.git --build-tool maven my-project
@@ -402,8 +435,52 @@ ${YELLOW}配置文件:${NC}
 
 ${YELLOW}更多帮助:${NC}
 devops -h
+devops install-tools --help
 
 EOF
+}
+
+# 下载DevOps项目
+download_devops_project() {
+    log_step "下载 DevOps 项目..."
+
+    local devops_dir="$HOME/devops"
+    local github_url="https://github.com/edisonlil/devops"
+    local branch="dev"
+
+    # 如果目录已存在，先备份
+    if [[ -d "$devops_dir" ]]; then
+        log_warn "DevOps 目录已存在，创建备份..."
+        mv "$devops_dir" "${devops_dir}.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    # 克隆项目
+    if command_exists git; then
+        log_info "使用 git 克隆项目..."
+        git clone -b "$branch" "$github_url" "$devops_dir"
+    else
+        log_info "使用 wget 下载项目..."
+        local zip_url="${github_url}/archive/refs/heads/${branch}.zip"
+        local temp_dir="/tmp/devops_install_$$"
+
+        mkdir -p "$temp_dir"
+        cd "$temp_dir"
+
+        wget -O devops.zip "$zip_url"
+        unzip -q devops.zip
+        mv "devops-${branch}" "$devops_dir"
+
+        cd - > /dev/null
+        rm -rf "$temp_dir"
+    fi
+
+    if [[ ! -d "$devops_dir" ]]; then
+        log_error "下载 DevOps 项目失败"
+        exit 1
+    fi
+
+    log_info "DevOps 项目下载完成: $devops_dir"
+    echo "$devops_dir"
 }
 
 # 最小化安装（仅安装 DevOps 脚本）
@@ -415,7 +492,7 @@ minimal_install() {
 
     # 只安装必要的基础工具
     log_step "安装基础工具..."
-    local basic_tools=("curl" "wget" "git")
+    local basic_tools=("curl" "wget" "git" "unzip")
 
     for tool in "${basic_tools[@]}"; do
         if ! command_exists $tool; then
@@ -426,12 +503,19 @@ minimal_install() {
         fi
     done
 
+    # 下载DevOps项目
+    local devops_home=$(download_devops_project)
+
+    # 切换到项目目录
+    cd "$devops_home"
+
     setup_environment
     setup_directories
 
     log_info "最小化安装完成！"
+    log_info "DevOps 脚本已安装到: $devops_home"
     log_info "DevOps 脚本已就绪，可以开始使用。"
-    log_warn "注意: 未安装开发环境，使用前请确保目标环境已安装所需工具。"
+    log_warn "注意: 未安装开发环境，使用 'devops install-tools' 安装所需工具。"
 }
 
 # 主函数

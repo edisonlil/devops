@@ -4,6 +4,7 @@ source ./log.sh
 source ./tools.sh
 source ./env.sh
 source ./build.sh
+source ./install_tools.sh
 
 check_env_by_cmd_v docker
 
@@ -16,6 +17,7 @@ info "埋点: 当前的工作空间为:${env[opt_workspace]}"
 #执行first命令
 case ${env[cmd_1]} in
         run) run; ;;
+        install-tools) install_tools; ;;
         *) echo "cannot find the cammand ${env[cmd_1]}"; exit1 ; ;;
 esac
 

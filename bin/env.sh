@@ -40,6 +40,13 @@ function parse_params() {
 										--build-cmds) env[opt_build_cmds]=$2; shift 2;;
                                         --build-env) env[opt_build_env]=$2; shift 2;;
 										--workspace) env[opt_workspace]=$2; shift 2;;
+                                        --namespace) env[opt_namespace]=$2; shift 2;;
+                                        # install-tools 命令参数
+                                        --all) env[opt_install_all]=true; shift 1;;
+                                        --check) env[opt_install_check]=true; shift 1;;
+                                        --tools) env[opt_install_tools]=$2; shift 2;;
+                                        --java-version) env[opt_java_version]=$2; shift 2;;
+                                        --help) env[opt_install_help]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac
                                 else
@@ -94,9 +101,17 @@ env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
 env[cfg_enable_dockerfiles]=$BUILD_ENABEL_DOCKERFILES
 env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
 env[cfg_enable_templates]=$BUILD_ENABEL_TEMPLATES
+env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
 env[cfg_main_project_name]=
 env[cfg_java_extra_opts]=
 
+# namespace处理逻辑：命令行参数优先于配置文件
+if [[ -n "${env[opt_namespace]}" ]]; then
+    env[cfg_k8s_namespace]=${env[opt_namespace]}
+elif [[ -z "${env[cfg_k8s_namespace]}" ]]; then
+    # 如果配置文件和命令行都没有指定，使用默认namespace
+    env[cfg_k8s_namespace]="default"
+fi
 
 #java命令，选项默认值
 if [ ${env[opt_build_tool]} == ""  ]

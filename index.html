@@ -319,8 +319,8 @@
         .demo-grid {
             display: flex;
             flex-direction: column;
-            gap: var(--spacing-16);
-            margin-top: var(--spacing-12);
+            gap: var(--spacing-10);
+            margin-top: var(--spacing-10);
         }
 
         .demo-card {
@@ -447,7 +447,7 @@
         .demo-divider {
             height: 1px;
             background: linear-gradient(90deg, transparent 0%, var(--border-color) 20%, var(--border-color) 80%, transparent 100%);
-            margin: var(--spacing-16) 0;
+            margin: var(--spacing-8) 0;
             position: relative;
         }
 
@@ -732,7 +732,7 @@
             }
 
             .demo-grid {
-                gap: var(--spacing-12);
+                gap: var(--spacing-8);
             }
 
             .demo-card {
@@ -767,29 +767,34 @@
             }
 
             .demo-divider {
-                margin: var(--spacing-12) 0;
+                margin: var(--spacing-8) 0;
             }
+        }
+
         /* Theme toggle button */
         .theme-toggle {
             position: fixed;
-            right: 16px;
-            top: 16px;
-            z-index: 1000;
+            right: 24px;
+            top: 24px;
+            z-index: 9999;
             background: var(--surface-color);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
             border-radius: 999px;
-            padding: 8px 12px;
+            padding: 10px 14px;
             cursor: pointer;
             box-shadow: var(--shadow-sm);
             line-height: 1;
             transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            font-size: 16px;
+            display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+            width: auto;
+            height: auto;
         }
         .theme-toggle:hover {
             background: var(--surface-hover);
             border-color: var(--border-hover);
             box-shadow: var(--shadow-md);
-        }
         }
         /* Dark theme */
         [data-theme="dark"] {
@@ -1096,15 +1101,7 @@
                         </div>
                     </div>
 
-                    <div class="demo-result">
-                        <div class="demo-result-title">🚀 自动化部署完成</div>
-                        <div class="demo-result-content">
-                            ✅ 自动从 Git/SVN 拉取最新代码<br>
-                            ✅ npm install 安装依赖<br>
-                            ✅ npm run build 构建静态资源<br>
-                            ✅ Nginx 容器镜像构建和部署
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

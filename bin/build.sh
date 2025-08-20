@@ -150,6 +150,7 @@ function render_template() {
 	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
 	cmd_job_name=${env[cmd_job_name]}
 	tmp_image_path=${env[tmp_image_path]}
+	cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 
         #info "开始渲染模板文件"
 	cd $cfg_template_path
@@ -180,6 +181,7 @@ function render_template() {
 	sed -i "s#?module_name#${cmd_job_name}#g"  ./${gen_long_time_str}.yml
 	sed -i "s#?image_path#${tmp_image_path}#g"  ./${gen_long_time_str}.yml
 	sed -i "s#?network#${cfg_swarm_network}#g"  ./${gen_long_time_str}.yml
+	sed -i "s#?namespace#${cfg_k8s_namespace}#g"  ./${gen_long_time_str}.yml
 	#生成文件
 	if [ ! -d "$cfg_deploy_gen_location" ];then
 	mkdir -p $cfg_deploy_gen_location
@@ -211,7 +213,9 @@ function local_deploy() {
         if [ "$cfg_build_platform" = "KUBERNETES" ]
         then
                 check_env_by_cmd_v kubectl
-                info "开始使用k8s部署服务"
+                info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
+                # 确保namespace存在
+                kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -
                 kubectl apply -f  ${deploy_job_yml}
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
@@ -265,8 +269,8 @@ function remote_deploy() {
         #创建或者更新镜像
         if [ "$cfg_build_platform" = "KUBERNETES" ]
         then
-                info "开始使用k8s部署服务"
-		remote_command="cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
+                info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
+		remote_command="ssh $user@$ip 'kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
                 info "开始使用docker swarm部署服务"
