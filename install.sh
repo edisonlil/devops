@@ -292,7 +292,7 @@ install_go() {
 setup_environment() {
     log_step "配置 DevOps 环境变量..."
 
-    local devops_home=$(pwd)
+    local devops_home="$HOME/devops"
 
     # 创建环境变量配置
     cat > /tmp/devops_env.sh << EOF
@@ -333,27 +333,80 @@ EOF
 setup_directories() {
     log_step "创建必要的目录结构..."
 
+    local devops_home="$HOME/devops"
+
     # 创建用户配置目录
     mkdir -p $HOME/.devops
     mkdir -p $HOME/.deploy
 
     # 复制示例配置文件
-    if [[ -f workspace/deploy-target.sample ]]; then
-        cp workspace/deploy-target.sample $HOME/.deploy/deploy-target.sample
+    if [[ -f "$devops_home/workspace/deploy-target.sample" ]]; then
+        cp "$devops_home/workspace/deploy-target.sample" $HOME/.deploy/deploy-target.sample
         log_info "示例配置文件已复制到 $HOME/.deploy/"
     else
         log_warn "示例配置文件不存在，跳过复制"
     fi
 
     # 设置执行权限
-    if [[ -d bin ]]; then
-        chmod +x bin/* 2>/dev/null || true
+    if [[ -d "$devops_home/bin" ]]; then
+        chmod +x "$devops_home/bin"/* 2>/dev/null || true
         log_info "设置脚本执行权限"
     else
         log_warn "bin目录不存在，跳过权限设置"
     fi
 
     log_info "目录结构创建完成"
+}
+
+# 验证安装
+verify_installation() {
+    log_step "验证安装..."
+
+    local devops_home="$HOME/devops"
+    local errors=0
+
+    # 检查关键文件
+    local required_files=(
+        "$devops_home/bin/devops"
+        "$devops_home/bin/log.sh"
+        "$devops_home/bin/tools.sh"
+        "$devops_home/bin/env.sh"
+        "$devops_home/bin/build.sh"
+        "$devops_home/bin/install_tools.sh"
+    )
+
+    for file in "${required_files[@]}"; do
+        if [[ -f "$file" ]]; then
+            log_info "✓ $file"
+        else
+            log_error "✗ $file (缺失)"
+            ((errors++))
+        fi
+    done
+
+    # 检查执行权限
+    if [[ -x "$devops_home/bin/devops" ]]; then
+        log_info "✓ devops 脚本有执行权限"
+    else
+        log_error "✗ devops 脚本没有执行权限"
+        ((errors++))
+    fi
+
+    # 检查环境变量
+    if grep -q "DEVOPS_HOME" ~/.bashrc 2>/dev/null; then
+        log_info "✓ 环境变量已配置"
+    else
+        log_error "✗ 环境变量未配置"
+        ((errors++))
+    fi
+
+    if [[ $errors -eq 0 ]]; then
+        log_info "安装验证通过"
+        return 0
+    else
+        log_error "安装验证失败，发现 $errors 个问题"
+        return 1
+    fi
 }
 
 # 验证安装
@@ -557,10 +610,17 @@ minimal_install() {
     setup_environment
     setup_directories
 
-    log_info "最小化安装完成！"
-    log_info "DevOps 脚本已安装到: $devops_home"
-    log_info "DevOps 脚本已就绪，可以开始使用。"
-    log_warn "注意: 未安装开发环境，使用 'devops install-tools' 安装所需工具。"
+    # 验证安装
+    if verify_installation; then
+        log_info "最小化安装完成！"
+        log_info "DevOps 脚本已安装到: $HOME/devops"
+        show_usage
+        log_info "DevOps 脚本已就绪，可以开始使用。"
+        log_warn "注意: 未安装开发环境，使用 'devops install-tools' 安装所需工具。"
+    else
+        log_error "安装验证失败，请检查安装过程"
+        exit 1
+    fi
 }
 
 # 主函数
