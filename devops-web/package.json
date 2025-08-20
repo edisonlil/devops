@@ -1,0 +1,21 @@
+{
+  "name": "devops-web",
+  "version": "1.0.0",
+  "description": "DevOps Web Management Interface",
+  "main": "backend/app.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && node app.js",
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "start": "cd backend && npm start"
+  },
+  "keywords": ["devops", "web", "management", "kubernetes", "docker"],
+  "author": "DevOps Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {}
+}
