@@ -1,7 +1,10 @@
 #!/bin/bash
 
-source ./log.sh
-source ./tools.sh
+# 获取脚本所在目录
+DOCKER_HELPER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$DOCKER_HELPER_SCRIPT_DIR/log.sh"
+source "$DOCKER_HELPER_SCRIPT_DIR/tools.sh"
 
 
 function docker_push(){
