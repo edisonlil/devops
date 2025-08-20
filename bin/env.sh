@@ -26,6 +26,23 @@ function parse_params() {
         *)
                 env[cmd_1]=$1
                 shift 1
+
+                # 特殊处理install-tools命令
+                if [[ "${env[cmd_1]}" == "install-tools" ]]; then
+                    # 对于install-tools命令，直接解析其参数
+                    while [[ $# -gt 0 ]]; do
+                        case "$1" in
+                            --all) env[opt_install_all]=true; shift 1;;
+                            --check) env[opt_install_check]=true; shift 1;;
+                            --tools) env[opt_install_tools]=$2; shift 2;;
+                            --java-version) env[opt_java_version]=$2; shift 2;;
+                            --help) env[opt_install_help]=true; shift 1;;
+                            *) break;;
+                        esac
+                    done
+                    return 0
+                fi
+
                 case "$1" in
                 -h)  echo "thanks for use devops!" ; exit 1;;
                 *)
@@ -45,12 +62,6 @@ function parse_params() {
                                         --build-env) env[opt_build_env]=$2; shift 2;;
 										--workspace) env[opt_workspace]=$2; shift 2;;
                                         --namespace) env[opt_namespace]=$2; shift 2;;
-                                        # install-tools 命令参数
-                                        --all) env[opt_install_all]=true; shift 1;;
-                                        --check) env[opt_install_check]=true; shift 1;;
-                                        --tools) env[opt_install_tools]=$2; shift 2;;
-                                        --java-version) env[opt_java_version]=$2; shift 2;;
-                                        --help) env[opt_install_help]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac
                                 else
