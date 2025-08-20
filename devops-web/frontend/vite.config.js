@@ -15,6 +15,7 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: '0.0.0.0',  // 监听所有IP地址
     port: 5173,
     proxy: {
       '/api': {

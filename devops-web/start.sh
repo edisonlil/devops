@@ -120,11 +120,13 @@ start_services() {
         log_step "启动开发服务器..."
         log_info "前端地址: http://localhost:5173"
         log_info "后端地址: http://localhost:3000"
+        log_info "网络访问: http://YOUR_SERVER_IP:5173"
         log_info "按 Ctrl+C 停止服务"
         npm run dev
     elif [ "$mode" = "prod" ]; then
         log_step "启动生产服务器..."
-        log_info "服务地址: http://localhost:3000"
+        log_info "本地访问: http://localhost:3000"
+        log_info "网络访问: http://YOUR_SERVER_IP:3000"
         log_info "按 Ctrl+C 停止服务"
         npm start
     fi

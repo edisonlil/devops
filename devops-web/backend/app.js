@@ -99,11 +99,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-server.listen(PORT, () => {
-    console.log(`DevOps Web Server running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+    console.log(`DevOps Web Server running on http://${HOST}:${PORT}`);
     console.log(`DevOps Path: ${DEVOPS_PATH}`);
     console.log(`Workspace Path: ${WORKSPACE_PATH}`);
+    console.log(`Access from any IP: http://YOUR_SERVER_IP:${PORT}`);
 });
 
 // 导出broadcast函数供其他模块使用

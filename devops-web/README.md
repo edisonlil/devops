@@ -40,7 +40,8 @@ npm run dev
 ```
 
 3. **访问界面**
-打开浏览器访问: http://localhost:5173
+- 本地访问: http://localhost:5173
+- 网络访问: http://YOUR_SERVER_IP:5173 (任何IP都可以访问)
 
 ### 生产部署
 
@@ -53,6 +54,10 @@ npm run build
 ```bash
 npm start
 ```
+
+3. **访问界面**
+- 本地访问: http://localhost:3000
+- 网络访问: http://YOUR_SERVER_IP:3000 (任何IP都可以访问)
 
 ## 界面功能
 
@@ -162,6 +167,9 @@ DEVOPS_HOME=/path/to/devops
 
 # 服务端口
 PORT=3000
+
+# 服务监听地址 (默认 0.0.0.0，监听所有IP)
+HOST=0.0.0.0
 ```
 
 ### 配置文件

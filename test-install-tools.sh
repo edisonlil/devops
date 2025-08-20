@@ -1,8 +1,54 @@
 #!/bin/bash
 
-# DevOps install-tools 功能测试脚本
+# 测试install-tools功能
 
-echo "=== DevOps install-tools 功能测试 ==="
+echo "=== 测试 install-tools 功能 ==="
+echo
+
+DEVOPS_HOME="${DEVOPS_HOME:-$HOME/devops}"
+BIN_DIR="$DEVOPS_HOME/bin"
+
+# 设置环境变量
+export DEVOPS_HOME
+export PATH="$PATH:$BIN_DIR"
+
+echo "DEVOPS_HOME: $DEVOPS_HOME"
+echo "BIN_DIR: $BIN_DIR"
+echo
+
+# 测试1: 直接调用devops脚本
+echo "1. 测试直接调用 devops install-tools --help"
+echo "命令: $BIN_DIR/devops install-tools --help"
+echo "输出:"
+"$BIN_DIR/devops" install-tools --help
+echo "返回码: $?"
+echo
+
+# 测试2: 通过PATH调用
+echo "2. 测试通过PATH调用 devops install-tools --help"
+echo "命令: devops install-tools --help"
+echo "输出:"
+devops install-tools --help
+echo "返回码: $?"
+echo
+
+# 测试3: 测试其他参数
+echo "3. 测试 devops install-tools --check"
+echo "命令: devops install-tools --check"
+echo "输出:"
+devops install-tools --check
+echo "返回码: $?"
+echo
+
+# 测试4: 测试无参数
+echo "4. 测试 devops install-tools (无参数)"
+echo "命令: devops install-tools"
+echo "输出:"
+timeout 10s devops install-tools || echo "命令超时或需要交互"
+echo "返回码: $?"
+echo
+
+echo "=== 测试完成 ==="
 echo
 
 # 测试帮助信息
