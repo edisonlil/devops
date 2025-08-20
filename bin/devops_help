@@ -29,6 +29,13 @@ function devops_help() {
 
 function devops_version() {
 	echo -e 'devops version 1.6.5'
+	echo ""
+	echo "一键安装脚本可用:"
+	echo "  ./install.sh        - 完整安装"
+	echo "  ./quick-install.sh  - 快速安装"
+	echo "  ./test-install.sh   - 测试安装"
+	echo ""
+	echo "使用 'make help' 查看更多管理命令"
 	exit 1;
 }
 
