@@ -1,184 +1,211 @@
 <template>
-  <el-container class="app-container">
-    <!-- 侧边栏 -->
-    <el-aside width="250px" class="sidebar">
-      <div class="logo">
-        <h2>DevOps Web</h2>
-      </div>
-      <el-menu
-        :default-active="$route.path"
-        router
-        class="sidebar-menu"
-        background-color="#304156"
-        text-color="#bfcbd9"
-        active-text-color="#409EFF"
-      >
-        <el-menu-item index="/">
-          <el-icon><Monitor /></el-icon>
-          <span>仪表板</span>
-        </el-menu-item>
-        
-        <el-sub-menu index="workspace">
-          <template #title>
-            <el-icon><Folder /></el-icon>
-            <span>工作空间</span>
-          </template>
-          <el-menu-item index="/workspace">
-            <el-icon><List /></el-icon>
-            <span>工作空间列表</span>
-          </el-menu-item>
-          <el-menu-item index="/workspace/create">
-            <el-icon><Plus /></el-icon>
-            <span>创建工作空间</span>
-          </el-menu-item>
-        </el-sub-menu>
-        
-        <el-menu-item index="/command">
-          <el-icon><Terminal /></el-icon>
-          <span>命令生成器</span>
-        </el-menu-item>
-        
-        <el-menu-item index="/deploy">
-          <el-icon><Upload /></el-icon>
-          <span>部署管理</span>
-        </el-menu-item>
-        
-        <el-menu-item index="/tools">
-          <el-icon><Tools /></el-icon>
-          <span>工具管理</span>
-        </el-menu-item>
-      </el-menu>
-    </el-aside>
-
-    <!-- 主内容区 -->
-    <el-container>
-      <!-- 顶部导航 -->
-      <el-header class="header">
+  <div class="app-container">
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+      <div class="header-content">
         <div class="header-left">
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="$route.meta.title">{{ $route.meta.title }}</el-breadcrumb-item>
-          </el-breadcrumb>
+          <div class="logo">
+            <el-icon class="logo-icon"><Box /></el-icon>
+            <span class="logo-text">DevOps</span>
+          </div>
+          <div class="breadcrumb" v-if="showBreadcrumb">
+            <el-button
+              text
+              class="breadcrumb-back"
+              @click="goBack"
+            >
+              <el-icon><ArrowLeft /></el-icon>
+              {{ breadcrumbText }}
+            </el-button>
+          </div>
         </div>
         <div class="header-right">
-          <el-dropdown>
-            <span class="user-info">
-              <el-icon><User /></el-icon>
-              DevOps用户
-              <el-icon class="el-icon--right"><arrow-down /></el-icon>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="showSystemInfo">系统信息</el-dropdown-item>
-                <el-dropdown-item divided>退出</el-dropdown-item>
-              </el-dropdown-menu>
+          <el-input
+            v-if="showSearch"
+            v-model="searchQuery"
+            :placeholder="searchPlaceholder"
+            class="search-input"
+            clearable
+            @input="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
             </template>
-          </el-dropdown>
+          </el-input>
+          <el-button
+            text
+            @click="goToTemplates"
+            class="templates-btn"
+          >
+            <el-icon><Setting /></el-icon>
+            模板管理
+          </el-button>
+          <el-button
+            v-if="showCreateButton"
+            type="primary"
+            class="create-btn"
+            @click="handleCreate"
+          >
+            <el-icon><Plus /></el-icon>
+            {{ createButtonText }}
+          </el-button>
         </div>
-      </el-header>
+      </div>
+    </header>
 
-      <!-- 主内容 -->
-      <el-main class="main-content">
-        <router-view />
-      </el-main>
-    </el-container>
-  </el-container>
-
-  <!-- 系统信息对话框 -->
-  <el-dialog v-model="systemInfoVisible" title="系统信息" width="600px">
-    <el-descriptions :column="2" border>
-      <el-descriptions-item label="DevOps版本">{{ systemInfo.version }}</el-descriptions-item>
-      <el-descriptions-item label="Node.js版本">{{ systemInfo.nodeVersion }}</el-descriptions-item>
-      <el-descriptions-item label="平台">{{ systemInfo.platform }}</el-descriptions-item>
-      <el-descriptions-item label="DevOps路径">{{ systemInfo.devopsPath }}</el-descriptions-item>
-      <el-descriptions-item label="工作空间路径" :span="2">{{ systemInfo.workspacePath }}</el-descriptions-item>
-    </el-descriptions>
-  </el-dialog>
+    <!-- 主内容区 -->
+    <main class="app-main">
+      <router-view
+        :search-query="searchQuery"
+        @update-header="updateHeader"
+      />
+    </main>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import api from './api/index.js'
+import { ref, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
-const systemInfoVisible = ref(false)
-const systemInfo = ref({})
+const route = useRoute()
 
-const showSystemInfo = async () => {
-  try {
-    const response = await api.get('/system/info')
-    systemInfo.value = response.data
-    systemInfoVisible.value = true
-  } catch (error) {
-    console.error('获取系统信息失败:', error)
+// 响应式数据
+const searchQuery = ref('')
+
+// 头部状态管理
+const headerState = ref({
+  showBreadcrumb: false,
+  breadcrumbText: '',
+  showSearch: false,
+  searchPlaceholder: '搜索...',
+  showCreateButton: false,
+  createButtonText: '新建'
+})
+
+// 计算属性
+const showBreadcrumb = computed(() => headerState.value.showBreadcrumb)
+const breadcrumbText = computed(() => headerState.value.breadcrumbText)
+const showSearch = computed(() => headerState.value.showSearch)
+const searchPlaceholder = computed(() => headerState.value.searchPlaceholder)
+const showCreateButton = computed(() => headerState.value.showCreateButton)
+const createButtonText = computed(() => headerState.value.createButtonText)
+
+// 方法
+const updateHeader = (config) => {
+  headerState.value = { ...headerState.value, ...config }
+}
+
+const goBack = () => {
+  router.back()
+}
+
+const handleCreate = () => {
+  // 根据当前路由决定创建行为
+  if (route.name === 'WorkspaceList') {
+    router.push('/workspace/create')
+  } else if (route.name === 'Workbench') {
+    router.push(`/workspace/${route.params.id}/job/create`)
   }
 }
 
-onMounted(() => {
-  // 初始化应用
-})
+const handleSearch = () => {
+  // 搜索逻辑将通过事件传递给子组件
+}
+
+const goToTemplates = () => {
+  router.push('/templates')
+}
 </script>
 
 <style scoped>
 .app-container {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f9fa;
 }
 
-.sidebar {
-  background-color: #304156;
-  overflow: hidden;
-}
-
-.logo {
-  padding: 20px;
-  text-align: center;
-  color: #fff;
-  border-bottom: 1px solid #434a50;
-}
-
-.logo h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.sidebar-menu {
-  border: none;
-}
-
-.header {
+.app-header {
   background-color: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
 }
 
 .header-left {
-  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1f2937;
+}
+
+.logo-icon {
+  font-size: 24px;
+  color: #3b82f6;
+}
+
+.breadcrumb-back {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 0;
+}
+
+.breadcrumb-back:hover {
+  color: #3b82f6;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: #606266;
+.search-input {
+  width: 300px;
 }
 
-.user-info .el-icon {
-  margin: 0 5px;
+.templates-btn {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 8px 12px;
 }
 
-.main-content {
-  background-color: #f5f5f5;
-  padding: 20px;
+.templates-btn:hover {
+  color: #3b82f6;
+  background: #f3f4f6;
+}
+
+.create-btn {
+  height: 36px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
 }
 </style>
 

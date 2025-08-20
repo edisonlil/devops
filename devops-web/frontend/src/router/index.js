@@ -3,51 +3,57 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    name: 'Dashboard',
-    component: () => import('../views/Dashboard.vue'),
-    meta: { title: '仪表板' }
-  },
-  {
-    path: '/workspace',
     name: 'WorkspaceList',
-    component: () => import('../views/workspace/WorkspaceList.vue'),
-    meta: { title: '工作空间列表' }
+    component: () => import('../views/WorkspaceList.vue'),
+    meta: { title: 'DevOps 工作台' }
   },
   {
     path: '/workspace/create',
     name: 'WorkspaceCreate',
-    component: () => import('../views/workspace/WorkspaceCreate.vue'),
-    meta: { title: '创建工作空间' }
+    component: () => import('../views/WorkspaceCreate.vue'),
+    meta: { title: '新建工作空间' }
   },
   {
-    path: '/workspace/:name',
+    path: '/workspace/:id',
     name: 'WorkspaceDetail',
-    component: () => import('../views/workspace/WorkspaceDetail.vue'),
+    component: () => import('../views/WorkspaceDetail.vue'),
     meta: { title: '工作空间详情' }
   },
   {
-    path: '/workspace/:name/config',
-    name: 'WorkspaceConfig',
-    component: () => import('../views/workspace/WorkspaceConfig.vue'),
-    meta: { title: '配置编辑' }
+    path: '/workspace/:id/edit',
+    name: 'WorkspaceEdit',
+    component: () => import('../views/WorkspaceEdit.vue'),
+    meta: { title: '编辑工作空间' }
   },
   {
-    path: '/command',
-    name: 'CommandGenerator',
-    component: () => import('../views/CommandGenerator.vue'),
-    meta: { title: '命令生成器' }
+    path: '/workspace/:id/workbench',
+    name: 'Workbench',
+    component: () => import('../views/Workbench.vue'),
+    meta: { title: '工作台' }
   },
   {
-    path: '/deploy',
-    name: 'DeployManagement',
-    component: () => import('../views/DeployManagement.vue'),
-    meta: { title: '部署管理' }
+    path: '/workspace/:id/job/create',
+    name: 'JobCreate',
+    component: () => import('../views/JobCreate.vue'),
+    meta: { title: '新建作业' }
   },
   {
-    path: '/tools',
-    name: 'ToolsManagement',
-    component: () => import('../views/ToolsManagement.vue'),
-    meta: { title: '工具管理' }
+    path: '/workspace/:id/job/:jobId',
+    name: 'JobDetail',
+    component: () => import('../views/JobDetail.vue'),
+    meta: { title: '作业详情' }
+  },
+  {
+    path: '/workspace/:id/job/:jobId/edit',
+    name: 'JobEdit',
+    component: () => import('../views/JobEdit.vue'),
+    meta: { title: '编辑作业' }
+  },
+  {
+    path: '/templates',
+    name: 'TemplateManagement',
+    component: () => import('../views/TemplateManagement.vue'),
+    meta: { title: '模板管理' }
   }
 ]
 

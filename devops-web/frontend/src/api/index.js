@@ -116,3 +116,53 @@ export class WebSocketClient {
 
 // 创建全局WebSocket实例
 export const wsClient = new WebSocketClient()
+
+// API方法
+export const jobsApi = {
+  // 获取工作空间的所有作业
+  getWorkspaceJobs: (workspaceId) => api.get(`/jobs/workspace/${workspaceId}`),
+
+  // 获取单个作业详情
+  getJob: (jobId) => api.get(`/jobs/${jobId}`),
+
+  // 创建新作业
+  createJob: (jobData) => api.post('/jobs', jobData),
+
+  // 更新作业
+  updateJob: (jobId, jobData) => api.put(`/jobs/${jobId}`, jobData),
+
+  // 删除作业
+  deleteJob: (jobId) => api.delete(`/jobs/${jobId}`),
+
+  // 重新部署作业
+  redeployJob: (jobId) => api.post(`/jobs/${jobId}/redeploy`),
+
+  // 获取作业日志
+  getJobLogs: (jobId) => api.get(`/jobs/${jobId}/logs`),
+
+  // 获取部署历史
+  getJobHistory: (jobId) => api.get(`/jobs/${jobId}/history`)
+}
+
+export const templatesApi = {
+  // 获取所有模板
+  getTemplates: (params = {}) => api.get('/templates', { params }),
+
+  // 获取单个模板详情
+  getTemplate: (templateId) => api.get(`/templates/${templateId}`),
+
+  // 创建新模板
+  createTemplate: (templateData) => api.post('/templates', templateData),
+
+  // 更新模板
+  updateTemplate: (templateId, templateData) => api.put(`/templates/${templateId}`, templateData),
+
+  // 删除模板
+  deleteTemplate: (templateId) => api.delete(`/templates/${templateId}`),
+
+  // 获取模板分类
+  getCategories: () => api.get('/templates/categories'),
+
+  // 生成 Dockerfile
+  generateDockerfile: (templateId, data) => api.post(`/templates/${templateId}/dockerfile`, data)
+}

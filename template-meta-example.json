@@ -1,0 +1,105 @@
+{
+  "name": "Spring Boot 标准部署",
+  "description": "适用于 Spring Boot 应用的标准 Kubernetes 部署模板",
+  "version": "1.0.0",
+  "author": "DevOps Team",
+  "category": "java",
+  "platform": "KUBERNETES",
+  "tags": ["spring-boot", "java", "microservice"],
+  
+  "extends": null,  // 可以继承其他模板
+  
+  "parameters": {
+    "basic": {
+      "app_name": {
+        "label": "应用名称",
+        "type": "string",
+        "required": true,
+        "placeholder": "my-spring-app"
+      },
+      "app_port": {
+        "label": "应用端口",
+        "type": "number",
+        "default": 8080,
+        "min": 1000,
+        "max": 65535
+      }
+    },
+    
+    "resources": {
+      "replicas": {
+        "label": "副本数",
+        "type": "slider",
+        "default": 2,
+        "min": 1,
+        "max": 10
+      },
+      "cpu_limit": {
+        "label": "CPU 限制",
+        "type": "select",
+        "default": "500m",
+        "options": [
+          {"label": "0.1 核", "value": "100m"},
+          {"label": "0.5 核", "value": "500m"},
+          {"label": "1 核", "value": "1"},
+          {"label": "2 核", "value": "2"}
+        ]
+      },
+      "memory_limit": {
+        "label": "内存限制",
+        "type": "select",
+        "default": "1Gi",
+        "options": [
+          {"label": "512 MB", "value": "512Mi"},
+          {"label": "1 GB", "value": "1Gi"},
+          {"label": "2 GB", "value": "2Gi"},
+          {"label": "4 GB", "value": "4Gi"}
+        ]
+      }
+    },
+    
+    "network": {
+      "service_type": {
+        "label": "服务类型",
+        "type": "radio",
+        "default": "ClusterIP",
+        "options": [
+          {"label": "集群内访问", "value": "ClusterIP"},
+          {"label": "节点端口", "value": "NodePort"},
+          {"label": "负载均衡", "value": "LoadBalancer"}
+        ]
+      },
+      "enable_ingress": {
+        "label": "启用 Ingress",
+        "type": "switch",
+        "default": false
+      },
+      "domain": {
+        "label": "域名",
+        "type": "string",
+        "condition": "enable_ingress === true",
+        "placeholder": "app.example.com"
+      }
+    },
+    
+    "advanced": {
+      "env_vars": {
+        "label": "环境变量",
+        "type": "key-value",
+        "default": [
+          {"key": "SPRING_PROFILES_ACTIVE", "value": "prod"}
+        ]
+      },
+      "health_check": {
+        "label": "健康检查路径",
+        "type": "string",
+        "default": "/actuator/health"
+      }
+    }
+  },
+  
+  "preview": {
+    "icon": "spring-boot.svg",
+    "screenshots": ["preview1.png", "preview2.png"]
+  }
+}

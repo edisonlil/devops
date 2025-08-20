@@ -9,6 +9,11 @@ const WORKSPACE_PATH = path.join(DEVOPS_PATH, 'workspace');
 // 获取所有工作空间
 router.get('/', async (req, res) => {
     try {
+        console.log('Checking workspace path:', WORKSPACE_PATH);
+
+        // 确保workspace目录存在
+        await fs.ensureDir(WORKSPACE_PATH);
+
         const workspaces = [];
         const items = await fs.readdir(WORKSPACE_PATH);
         
@@ -43,7 +48,12 @@ router.get('/', async (req, res) => {
         
         res.json(workspaces);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error getting workspaces:', error);
+        res.status(500).json({
+            error: error.message,
+            path: WORKSPACE_PATH,
+            timestamp: new Date().toISOString()
+        });
     }
 });
 

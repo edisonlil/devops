@@ -1,0 +1,139 @@
+{
+  "id": "vue-nginx",
+  "name": "Vue.js + Nginx",
+  "description": "前端应用部署模板，使用 Nginx 作为 Web 服务器，支持 SPA 路由",
+  "version": "1.0.0",
+  "category": "frontend",
+  "author": "Frontend Team",
+  "icon": "Monitor",
+  "iconColor": "#3b82f6",
+  "tags": ["vue", "nginx", "spa", "frontend"],
+  "platformTypes": ["KUBERNETES"],
+  "scope": "global",
+  
+  "parameters": [
+    {
+      "name": "module_name",
+      "label": "应用名称",
+      "type": "string",
+      "required": true,
+      "placeholder": "vue-app",
+      "description": "前端应用的名称"
+    },
+    {
+      "name": "git_url",
+      "label": "Git 仓库地址",
+      "type": "string",
+      "required": true,
+      "placeholder": "https://github.com/example/vue-app.git",
+      "description": "前端项目的 Git 仓库地址"
+    },
+    {
+      "name": "git_branch",
+      "label": "Git 分支",
+      "type": "string",
+      "default": "master",
+      "placeholder": "master",
+      "description": "要构建的 Git 分支"
+    },
+    {
+      "name": "image_path",
+      "label": "镜像路径",
+      "type": "string",
+      "required": true,
+      "placeholder": "harbor.company.com/project/vue-app",
+      "description": "Docker 镜像的完整路径"
+    },
+    {
+      "name": "namespace",
+      "label": "K8s 命名空间",
+      "type": "string",
+      "default": "default",
+      "placeholder": "default",
+      "description": "Kubernetes 部署的命名空间"
+    },
+    {
+      "name": "domain",
+      "label": "访问域名",
+      "type": "string",
+      "required": true,
+      "placeholder": "app.example.com",
+      "description": "前端应用的访问域名"
+    },
+    {
+      "name": "replicas",
+      "label": "副本数",
+      "type": "number",
+      "default": 2,
+      "min": 1,
+      "max": 10,
+      "description": "Pod 副本数量"
+    },
+    {
+      "name": "cpu_limit",
+      "label": "CPU 限制",
+      "type": "select",
+      "default": "200m",
+      "options": [
+        {"label": "0.1 核", "value": "100m"},
+        {"label": "0.2 核", "value": "200m"},
+        {"label": "0.5 核", "value": "500m"}
+      ],
+      "description": "Pod CPU 资源限制"
+    },
+    {
+      "name": "memory_limit",
+      "label": "内存限制",
+      "type": "select",
+      "default": "256Mi",
+      "options": [
+        {"label": "128 MB", "value": "128Mi"},
+        {"label": "256 MB", "value": "256Mi"},
+        {"label": "512 MB", "value": "512Mi"}
+      ],
+      "description": "Pod 内存资源限制"
+    },
+    {
+      "name": "api_base_url",
+      "label": "API 基础地址",
+      "type": "string",
+      "default": "https://api.example.com",
+      "placeholder": "https://api.example.com",
+      "description": "后端 API 的基础地址"
+    },
+    {
+      "name": "build_command",
+      "label": "构建命令",
+      "type": "string",
+      "default": "npm run build",
+      "placeholder": "npm run build",
+      "description": "前端项目的构建命令"
+    }
+  ],
+  
+  "buildCommands": [
+    "npm ci",
+    "npm run build",
+    "tar -czf dist.tar.gz dist/",
+    "docker build -t ${image_path} .",
+    "docker push ${image_path}"
+  ],
+  
+  "files": [
+    {
+      "name": "dockerfile",
+      "description": "Docker 构建文件"
+    },
+    {
+      "name": "deploy.yaml",
+      "description": "Kubernetes 部署文件"
+    },
+    {
+      "name": "nginx.conf",
+      "description": "Nginx 配置文件"
+    }
+  ],
+  
+  "createdAt": "2024-01-10T00:00:00Z",
+  "updatedAt": "2024-01-10T00:00:00Z"
+}

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps 模板管理 - Dockerfile + 部署文件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #1f2937;
+        }
+        
+        .container {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 24px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #6b7280;
+            font-size: 16px;
+        }
+        
+        .template-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .template-card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .template-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: #dcfce7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #10b981;
+        }
+        
+        .scope-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #10b981;
+            color: white;
+        }
+        
+        .template-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .template-description {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #059669;
+            background: #ecfdf5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            width: fit-content;
+        }
+        
+        .template-files {
+            margin-top: 16px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 16px;
+        }
+        
+        .file-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .tab-button {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-button.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: #f3f4f6;
+        }
+        
+        .file-content {
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .platform-tags {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .platform-tag {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #eff6ff;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DevOps 模板管理</h1>
+            <p>包含 Dockerfile + 部署文件的完整模板</p>
+        </div>
+        
+        <!-- Spring Boot 模板 -->
+        <div class="template-card">
+            <div class="card-header">
+                <div class="template-icon">☕</div>
+                <div class="scope-badge">全局</div>
+            </div>
+            
+            <div class="template-title">Spring Boot 标准部署</div>
+            <div class="template-description">
+                适用于 Spring Boot 应用的标准 Kubernetes 部署模板，包含服务发现、健康检查等功能
+            </div>
+            
+            <div class="platform-tags">
+                <span class="platform-tag">Kubernetes</span>
+            </div>
+            
+            <div class="file-info">
+                📄 包含 Dockerfile + K8s 部署文件
+            </div>
+            
+            <div class="template-files">
+                <div class="file-tabs">
+                    <button class="tab-button active" onclick="showFile('dockerfile')">Dockerfile</button>
+                    <button class="tab-button" onclick="showFile('k8s')">K8s 部署文件</button>
+                </div>
+                
+                <div id="dockerfile" class="file-content">FROM openjdk:11-jre-slim
+MAINTAINER devops@company.com
+LABEL maintainer='corp'
+
+ARG jar_name
+ARG java_opts
+ENV JAR_NAME=$jar_name
+ENV JAVA_OPTS=$java_opts
+ENV TZ=Asia/Shanghai
+
+COPY ./$JAR_NAME /opt/$JAR_NAME
+WORKDIR /opt
+EXPOSE 8080
+
+CMD java -jar ${JAVA_OPTS} ${JAR_NAME}</div>
+                
+                <div id="k8s" class="file-content" style="display: none;">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ?module_name
+  namespace: ?namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ?module_name
+  template:
+    metadata:
+      labels:
+        app: ?module_name
+    spec:
+      containers:
+      - name: ?module_name
+        image: ?image_path
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 200m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ?module_name-service
+  namespace: ?namespace
+spec:
+  selector:
+    app: ?module_name
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP</div>
+            </div>
+            
+            <div class="actions">
+                <button class="btn btn-primary">使用此模板</button>
+                <button class="btn btn-secondary">编辑模板</button>
+                <button class="btn btn-secondary">复制模板</button>
+            </div>
+        </div>
+        
+        <!-- Vue.js 模板 -->
+        <div class="template-card">
+            <div class="card-header">
+                <div class="template-icon" style="background: #dbeafe; color: #3b82f6;">🖥️</div>
+                <div class="scope-badge">全局</div>
+            </div>
+            
+            <div class="template-title">Vue.js + Nginx</div>
+            <div class="template-description">
+                前端应用部署模板，使用 Nginx 作为 Web 服务器，支持 SPA 路由
+            </div>
+            
+            <div class="platform-tags">
+                <span class="platform-tag">Kubernetes</span>
+                <span class="platform-tag">Docker Swarm</span>
+            </div>
+            
+            <div class="file-info">
+                📄 包含 Dockerfile + K8s 部署文件 + Ingress
+            </div>
+            
+            <div class="actions">
+                <button class="btn btn-primary">使用此模板</button>
+                <button class="btn btn-secondary">查看详情</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showFile(type) {
+            // 隐藏所有文件内容
+            document.getElementById('dockerfile').style.display = 'none';
+            document.getElementById('k8s').style.display = 'none';
+            
+            // 移除所有按钮的 active 状态
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 显示选中的文件内容
+            document.getElementById(type).style.display = 'block';
+            
+            // 添加对应按钮的 active 状态
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${module_name}
+  namespace: ${namespace}
+  labels:
+    app: ${module_name}
+    type: frontend
+spec:
+  replicas: ${replicas}
+  selector:
+    matchLabels:
+      app: ${module_name}
+  template:
+    metadata:
+      labels:
+        app: ${module_name}
+        type: frontend
+    spec:
+      containers:
+      - name: ${module_name}
+        image: ${image_path}
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: API_BASE_URL
+          value: "${api_base_url}"
+        resources:
+          limits:
+            cpu: ${cpu_limit}
+            memory: ${memory_limit}
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${module_name}-service
+  namespace: ${namespace}
+  labels:
+    app: ${module_name}
+spec:
+  selector:
+    app: ${module_name}
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${module_name}-ingress
+  namespace: ${namespace}
+  labels:
+    app: ${module_name}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: ${domain}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ${module_name}-service
+            port:
+              number: 80

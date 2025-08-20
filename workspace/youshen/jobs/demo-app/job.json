@@ -1,0 +1,21 @@
+{
+  "name": "demo-app",
+  "template": "spring-boot",
+  "workspace": "youshen",
+  "parameters": {
+    "module_name": "demo-app",
+    "git_url": "https://github.com/example/demo.git",
+    "git_branch": "master",
+    "image_path": "harbor.youshen.com/project/demo-app",
+    "namespace": "youshen",
+    "app_port": 8080,
+    "replicas": 2,
+    "cpu_limit": "500m",
+    "memory_limit": "1Gi",
+    "java_opts": "-Xmx512m -Xms256m",
+    "health_check_path": "/actuator/health"
+  },
+  "createdAt": "2024-01-20T10:00:00Z",
+  "updatedAt": "2024-01-20T10:00:00Z",
+  "status": "configured"
+}

@@ -15,7 +15,8 @@
     "child_process": "^1.0.2",
     "fs-extra": "^11.1.1",
     "path": "^0.12.7",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
