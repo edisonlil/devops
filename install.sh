@@ -4,7 +4,18 @@
 # 作者: edison, srillia
 # 版本: 1.0.0
 
+# 错误处理
 set -e
+set -o pipefail
+
+# 错误处理函数
+error_exit() {
+    echo "错误: $1" >&2
+    exit 1
+}
+
+# 捕获错误
+trap 'error_exit "脚本在第 $LINENO 行执行失败"' ERR
 
 # 颜色定义
 RED='\033[0;31m'
@@ -34,10 +45,15 @@ log_step() {
 check_root() {
     if [[ $EUID -eq 0 ]]; then
         log_warn "检测到以root用户运行，建议使用普通用户运行此脚本"
-        read -p "是否继续? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+        # 检查是否在交互式终端中
+        if [[ -t 0 ]]; then
+            read -p "是否继续? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        else
+            log_info "非交互式模式，自动继续安装"
         fi
     fi
 }
@@ -457,22 +473,48 @@ download_devops_project() {
     # 克隆项目
     if command_exists git; then
         log_info "使用 git 克隆项目..."
-        git clone -b "$branch" "$github_url" "$devops_dir"
-    else
-        log_info "使用 wget 下载项目..."
-        local zip_url="${github_url}/archive/refs/heads/${branch}.zip"
-        local temp_dir="/tmp/devops_install_$$"
-
-        mkdir -p "$temp_dir"
-        cd "$temp_dir"
-
-        wget -O devops.zip "$zip_url"
-        unzip -q devops.zip
-        mv "devops-${branch}" "$devops_dir"
-
-        cd - > /dev/null
-        rm -rf "$temp_dir"
+        if ! git clone -b "$branch" "$github_url" "$devops_dir"; then
+            log_error "git 克隆失败，尝试使用 curl 下载"
+            rm -rf "$devops_dir" 2>/dev/null || true
+        else
+            return 0
+        fi
     fi
+
+    # 使用 curl 或 wget 下载
+    log_info "使用 HTTP 下载项目..."
+    local zip_url="${github_url}/archive/refs/heads/${branch}.zip"
+    local temp_dir="/tmp/devops_install_$$"
+
+    mkdir -p "$temp_dir"
+    cd "$temp_dir"
+
+    # 尝试使用 curl
+    if command_exists curl; then
+        log_info "使用 curl 下载..."
+        curl -fsSL -o devops.zip "$zip_url"
+    elif command_exists wget; then
+        log_info "使用 wget 下载..."
+        wget -O devops.zip "$zip_url"
+    else
+        log_error "curl 和 wget 都不可用，无法下载项目"
+        exit 1
+    fi
+
+    # 解压
+    if ! unzip -q devops.zip; then
+        log_error "解压失败"
+        exit 1
+    fi
+
+    # 移动到目标目录
+    if ! mv "devops-${branch}" "$devops_dir"; then
+        log_error "移动文件失败"
+        exit 1
+    fi
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
 
     if [[ ! -d "$devops_dir" ]]; then
         log_error "下载 DevOps 项目失败"
@@ -486,8 +528,11 @@ download_devops_project() {
 # 最小化安装（仅安装 DevOps 脚本）
 minimal_install() {
     log_info "最小化安装模式 - 仅安装 DevOps 脚本"
+    echo "开始最小化安装..."
 
+    echo "检查root权限..."
     check_root
+    echo "检测操作系统..."
     detect_os
 
     # 只安装必要的基础工具
@@ -520,6 +565,11 @@ minimal_install() {
 
 # 主函数
 main() {
+    echo "DevOps 安装脚本启动..."
+    echo "参数: $*"
+    echo "当前用户: $(whoami)"
+    echo "当前目录: $(pwd)"
+
     case "${1:-}" in
         --minimal|--script-only)
             log_info "开始 DevOps 脚本专用安装..."
@@ -581,6 +631,7 @@ main() {
 }
 
 # 脚本入口
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# 支持通过curl管道执行
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]] || [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]}" ]]; then
     main "$@"
 fi
