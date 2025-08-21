@@ -49,3 +49,68 @@ function check_multiple_tools() {
     fi
     return 0
 }
+
+# 交互式确认
+function confirm() {
+    if [[ "${env[opt_interactive]}" != "true" ]]; then
+        return 0
+    fi
+
+    local message=$1
+    local default_choice=${2:-y}
+
+    local prompt="[y/n]"
+    if [[ "$default_choice" == "y" ]]; then
+        prompt="[Y/n]"
+    else
+        prompt="[y/N]"
+    fi
+
+    while true; do
+        read -p "❓ $message $prompt " -r answer
+        answer=${answer:-$default_choice}
+        case "$answer" in
+            [Yy]|[Yy][Ee][Ss]) return 0 ;;
+            [Nn]|[Nn][Oo]) error "操作已取消" ; exit 1 ;;
+            *) warn "请输入 'y' 或 'n'" ;;
+        esac
+    done
+}
+
+
+# 提示输入(必填)
+function prompt_required() {
+    local message=$1
+    local var_name=$2
+    local value=""
+    while [[ -z "$value" ]]; do
+        read -p "🔹 $message: " value
+        if [[ -z "$value" ]]; then
+            warn "此项为必填项，请输入有效值。"
+        fi
+    done
+    eval "$var_name=\"$value\""
+}
+
+# 提示输入(可选)
+function prompt_optional() {
+    local message=$1
+    local var_name=$2
+    local answer
+    read -p "🔸 是否需要配置 '$message'? [y/N] " -r answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        read -p "   请输入 '$message': " value
+        eval "$var_name=\"$value\""
+    fi
+}
+
+# 提示输入(带默认值)
+function prompt_with_default() {
+    local message=$1
+    local var_name=$2
+    local default_value=$3
+    local value
+    read -p "🔸 $message (默认: $default_value): " value
+    value=${value:-$default_value}
+    eval "$var_name=\"$value\""
+}

@@ -20,6 +20,7 @@ function devops_help() {
 	      --namespace string     kubernetes namespace (default: "default")
 	      --version              the version of devops
 	      --workspace            the workspace
+              -i, --interactive      进入引导式交互配置模式
 
 	Commands:
 	  run                          now you can "run java" or "run vue"
@@ -39,6 +40,10 @@ function devops_help() {
 	    --maven-settings /path/to/settings.xml \
 	    --gradle-init-script /path/to/init.gradle \
 	    --set-default
+
+                  # 使用引导式交互模式运行构建
+                  devops run java -i
+
 
 	  # 运行构建（若未传 --git-url/--git-branch，使用工作空间默认配置）
 	  devops run java my-app --template spring-boot'

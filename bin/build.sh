@@ -10,8 +10,11 @@ source "$BUILD_SCRIPT_DIR/vue_build"
 source "$BUILD_SCRIPT_DIR/nginx_build"
 
 function run() {
+    if [[ "${env[opt_interactive]}" == "true" ]]; then
+        run_interactive
+    else
         case ${env[cmd_1]} in
-        run) 
+        run)
                 if test -n ${env[cmd_2]}; then
                         run_${env[cmd_2]}
                 else
@@ -20,6 +23,7 @@ function run() {
          ;;
         *) error "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
 	esac
+    fi
 }
 
 function check_post_parmas() {
@@ -36,7 +40,7 @@ function check_post_parmas() {
 }
 
 function run_tomcat() {
-  run_devops tomcat_build  
+  run_devops tomcat_build
 }
 
 function run_java() {
@@ -61,17 +65,17 @@ function run_devops() {
   #检测前置参数
 	check_post_parmas
 	#从版本管理工具加载代码
-	scm 
+	scm
 	#复制dockerfile文件
-	choose_dockerfile 
+	choose_dockerfile
 	#开始构建，构建不同的项目，java,vue,go等
 	$1
 	#渲染模板
-	render_template 
+	render_template
 	#执行部署
-	deploy 
+	deploy
 	#清除冗余镜像
-	prune 
+	prune
 
 }
 
@@ -99,7 +103,7 @@ function scm() {
 		return 0
 	fi
 
-	if [ -n "$opt_git_url" ]; then 
+	if [ -n "$opt_git_url" ]; then
 		check_env_by_cmd_v git
 		#克隆代码
 		if test -n "${opt_git_branch}" ; then
@@ -108,7 +112,7 @@ function scm() {
 			real_branch=${opt_git_branch##*/}
 			echo "埋点:git的real_branch:$real_branch"
 			git clone -b  ${real_branch}  --single-branch $opt_git_url  $cfg_temp_dir
-		else 
+		else
 			 info "开始使用git拉取代码,当前使用默认分支"
 		        git clone --single-branch $opt_git_url  $cfg_temp_dir
 		fi
@@ -117,7 +121,7 @@ function scm() {
 		date=`date +%Y-%m-%d_%H-%M-%S`
 		last_log=`git log --pretty=format:%h | head -1`
 		env[tmp_docker_image_suffix]="${date}_${last_log}"
-	elif [ -n "$opt_svn_url" ]; then 
+	elif [ -n "$opt_svn_url" ]; then
 		check_env_by_cmd_v svn
 		info '开始使用 svn 拉取代码'
 		debug '此处忽略svn拉取日志'
@@ -127,7 +131,7 @@ function scm() {
 		tmp_log=`svn log | head -2 | tail -1`
 		last_log=${tmp_log%% *}
                 env[tmp_docker_image_suffix]="${date}_${last_log}"
-	else 
+	else
 		error "--git-url and --svn-url must has one"; exit 1;
 	fi
 }
@@ -316,7 +320,7 @@ function remote_deploy() {
                 info "开始使用docker swarm部署服务"
 		remote_command="cat $deploy_job_yml | ssh $user@$ip 'docker stack deploy -c - ${cfg_swarm_stack_name} --with-registry-auth'"
         fi
-	
+
 	remote_common_command="echo 'start prune remote images:';docker image prune -af --filter='label=maintainer=corp'"
 
 	remote_command="$remote_command;$remote_common_command"
@@ -346,6 +350,96 @@ function prune() {
 	 rm -rf $cfg_temp_dir
   fi
 	#!清除没有运行的无用镜像
+
+function run_interactive() {
+    info "进入交互式配置模式..."
+
+        # 1. 收集参数 (已修正)
+    # 确保我们知道要运行什么类型
+    if [[ -z "${env[cmd_2]}" ]]; then
+        prompt_required "运行类型 (e.g., java, vue)" env[cmd_2]
+    fi
+
+    # 项目/模块名称
+    if [[ -z "${env[cmd_3]}" ]]; then
+        prompt_required "项目/模块名称" env[cmd_3]
+    fi
+
+    # SCM (代码库)
+    if [[ -z "${env[opt_git_url]}" && -z "${env[opt_svn_url]}" ]]; then
+        prompt_required "Git/SVN URL" scm_url
+        if [[ "$scm_url" == *.git ]]; then
+            env[opt_git_url]=$scm_url
+        else
+            env[opt_svn_url]=$scm_url
+        fi
+    fi
+
+    # Git 分支
+    if [[ -n "${env[opt_git_url]}" && -z "${env[opt_git_branch]}" ]]; then
+        prompt_with_default "Git 分支" env[opt_git_branch] "main"
+    fi
+
+    # 特定于类型的参数
+    case "${env[cmd_2]}" in
+        java)
+            if [[ -z "${env[opt_build_tool]}" ]]; then
+                prompt_with_default "构建工具 (maven/gradle)" env[opt_build_tool] "gradle"
+            fi
+            if [[ -z "${env[opt_build_cmds]}" ]]; then
+                prompt_optional "自定义构建命令" env[opt_build_cmds]
+            fi
+            if [[ -z "${env[opt_java_opts]}" ]]; then
+                prompt_optional "Java 启动参数 (JAVA_OPTS)" env[opt_java_opts]
+            fi
+            ;;
+        # 其他类型的参数可在此处扩展
+    esac
+
+    # 部署模板
+    if [[ -z "${env[opt_template]}" ]]; then
+        default_template="spring-boot"
+        if [[ "${env[cmd_2]}" == "vue" ]]; then default_template="vue-nginx"; fi
+        prompt_with_default "部署模板" env[opt_template] "$default_template"
+    fi
+
+    # K8s Namespace
+    if [[ -z "${env[opt_namespace]}" ]]; then
+        prompt_with_default "Kubernetes Namespace" env[opt_namespace] "${env[cfg_k8s_namespace]:-default}"
+    fi
+
+        # 2. 生成并打印命令
+    local final_command="devops run ${env[cmd_2]} ${env[cmd_3]}"
+    for key in "${!env[@]}"; do
+        if [[ "$key" == opt_* && -n "${env[$key]}" ]]; then
+            local param_name="--${key#opt_}"
+            # 特殊处理 interactive 标志
+            if [[ "$param_name" == "--interactive" ]]; then continue; fi
+            final_command+=" $param_name \"${env[$key]}\""
+        fi
+    done
+
+    info "根据您的输入，生成的等效命令如下:"
+    echo "--------------------------------------------------"
+    echo -e "  \033[1;32m$final_command\033[0m"
+    echo "--------------------------------------------------"
+
+    # 3. 最终确认
+    confirm "是否执行以上命令?"
+
+    # 3. 最终确认 (待实现)
+
+        # 4. 执行构建
+    case "${env[cmd_2]}" in
+        java) run_devops java_build ;;
+        vue) run_devops vue_build ;;
+        go) run_devops go_build ;;
+        nginx) run_devops nginx_build ;;
+        tomcat) run_devops tomcat_build ;;
+        *) error "不支持的运行类型: ${env[cmd_2]}" ; exit 1 ;;
+    esac
+}
+
 	echo 'start prune local images:'
 	docker image prune -af --filter="label=maintainer=corp" --filter="until=24h"
 }

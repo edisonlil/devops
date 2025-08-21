@@ -68,6 +68,7 @@ function parse_params() {
                                         --build-env) env[opt_build_env]=$2; shift 2;;
 										--workspace) env[opt_workspace]=$2; shift 2;;
                                         --namespace) env[opt_namespace]=$2; shift 2;;
+                                        -i|--interactive) env[opt_interactive]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac
                                 else
