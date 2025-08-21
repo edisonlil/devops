@@ -19,10 +19,15 @@ env[cfg_devops_bin_path]=$(dirname $(readlink -f "$0"))
 env[cfg_devops_path]=`cd ${env[cfg_devops_bin_path]} && cd ../ && pwd`
 
 function parse_params() {
+        # 无参数时显示帮助
+        if [[ -z "$1" ]]; then
+                devops_help ; exit 1;
+        fi
         case "$1" in
-	      -v) devops_version ; exit 1;;
-	      -h)  devops_help ; exit 1;;
+              -v) devops_version ; exit 1;;
+              -h)  devops_help ; exit 1;;
         --version) devops_version ; exit 1;;
+        --help) devops_help ; exit 1;;
         *)
                 env[cmd_1]=$1
                 shift 1
@@ -115,7 +120,6 @@ env[cfg_build_platform]=$BUILD_PLATFORM
 env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
 env[cfg_enable_dockerfiles]=$BUILD_ENABEL_DOCKERFILES
 env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
-env[cfg_enable_templates]=$BUILD_ENABEL_TEMPLATES
 env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
 env[cfg_main_project_name]=
 env[cfg_java_extra_opts]=
@@ -137,7 +141,8 @@ fi
 
 env[cfg_dockerfile_path]=${env[cfg_workspace_path]}/dockerfile
 
-env[cfg_template_path]=${env[cfg_workspace_path]}/template
+# 模板路径改为全局 templates 目录
+env[cfg_template_path]=${env[cfg_devops_path]}/templates
 
 
 env[cfg_deploy_gen_location]=${env[cfg_devops_path]}/deploy/${env[opt_workspace]}

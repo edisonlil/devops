@@ -112,86 +112,96 @@ function scm() {
 
 function choose_dockerfile() {
 	cmd_job_name=${env[cmd_job_name]}
-	opt_dockerfile=${env[opt_dockerfile]}
-	cfg_dockerfile_path=${env[cfg_dockerfile_path]}
-	cfg_enable_dockerfiles=${env[cfg_enable_dockerfiles]}
 	tmp_build_dist_path=${env[tmp_build_dist_path]}
+	cfg_template_path=${env[cfg_template_path]}
+	cfg_build_platform=${env[cfg_build_platform]}
+	cmd_type=${env[cmd_2]}
+	template_id=${env[opt_template]}
 
-        if test ! -d ${tmp_build_dist_path} ; then
-		error "please check scm url or job name(the last command),job name must be the module name";
-                exit 1;
-	fi		
-	#info "开始复制dockerfile到构建目录"
-	if test -n "${opt_dockerfile}"
-	then
-		echo "埋点:执行命令行指定dockerfile${opt_dockerfile}"
-   		env[tmp_dockerfile]=$cfg_dockerfile_path/${opt_dockerfile}-dockerfile
-	else
-		dockerfiles=(${cfg_enable_dockerfiles//,/ })
-		is_has_enable_docker_file=false
-		for dockerfile in ${dockerfiles[@]} ;do
-			if [[ $cmd_job_name == $dockerfile ]]
-			then
-			  echo "埋点:执行在config.conf配置的dockerfile:${dockerfile}"
-			  env[tmp_dockerfile]=$cfg_dockerfile_path/${dockerfile}-dockerfile
-			  is_has_enable_docker_file=true
-			fi
-		done
-		if [ "$is_has_enable_docker_file" = false ]; then
-			echo "埋点:执行默认指定dockerfile"
-		   	env[tmp_dockerfile]=$cfg_dockerfile_path/dockerfile
-		fi
+	# 预检构建产物目录
+	if test ! -d ${tmp_build_dist_path} ; then
+		error "please check scm url or job name(the last command),job name must be the module name"; exit 1;
 	fi
+
+	# 平台目录映射
+	platform_dir=""
+	case "$cfg_build_platform" in
+		KUBERNETES) platform_dir="k8s" ;;
+		DOCKER_SWARM) platform_dir="swarm" ;;
+		DOCKER_COMPOSE) platform_dir="compose" ;;
+		*) error "unsupported platform: $cfg_build_platform"; exit 1;;
+	esac
+
+	# 模板名缺省映射
+	if [ -z "$template_id" ]; then
+		case "$cmd_type" in
+			vue) template_id="vue-nginx" ;;
+			*) template_id="spring-boot" ;;
+		esac
+	fi
+
+	template_dir="$cfg_template_path/$platform_dir/$template_id"
+	dockerfile_tpl="$template_dir/dockerfile"
+	if [ ! -f "$dockerfile_tpl" ]; then
+		error "模板 dockerfile 不存在: $dockerfile_tpl"; exit 1
+	fi
+	env[cfg_template_dir]="$template_dir"
+	env[tmp_dockerfile]="$dockerfile_tpl"
+	info "使用模板 dockerfile: $dockerfile_tpl"
 }
 
 
 
 function render_template() {
 	opt_template=${env[opt_template]}
-	cfg_devops_path=${env[cfg_devops_path]}
 	cfg_swarm_network=${env[cfg_swarm_network]}
 	cfg_template_path=${env[cfg_template_path]}
-	cfg_enable_templates=${env[cfg_enable_templates]}
 	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
 	cmd_job_name=${env[cmd_job_name]}
 	tmp_image_path=${env[tmp_image_path]}
 	cfg_k8s_namespace=${env[cfg_k8s_namespace]}
+	cfg_build_platform=${env[cfg_build_platform]}
+	cmd_type=${env[cmd_2]}
 
-        #info "开始渲染模板文件"
-	cd $cfg_template_path
+	# 平台目录
+	platform_dir=""
+	case "$cfg_build_platform" in
+		KUBERNETES) platform_dir="k8s" ;;
+		DOCKER_SWARM) platform_dir="swarm" ;;
+		DOCKER_COMPOSE) platform_dir="compose" ;;
+		*) error "unsupported platform: $cfg_build_platform"; exit 1;;
+	esac
+
+	# 模板名
+	template_id="$opt_template"
+	if [ -z "$template_id" ]; then
+		case "$cmd_type" in
+			vue) template_id="vue-nginx" ;;
+			*) template_id="spring-boot" ;;
+		esac
+	fi
+
+	template_dir="$cfg_template_path/$platform_dir/$template_id"
+	deploy_tpl="$template_dir/deploy.yaml"
+	if [ ! -f "$deploy_tpl" ]; then
+		error "模板 deploy.yaml 不存在: $deploy_tpl"; exit 1
+	fi
+
 	gen_long_time_str=`date +%s%N`
+	tmp_render_file="/tmp/${gen_long_time_str}.yml"
+	\cp "$deploy_tpl" "$tmp_render_file"
 
-	 #处理模板路由信息
-	if test -n "${opt_template}"; then
-		\cp ./${opt_template}-template.yml ./${gen_long_time_str}.yml
-	else
-		templates=(${cfg_enable_templates//,/ })
-	        is_has_enable_template=false
-	        for template in ${templates[@]}
-	        do
-	        if [[ $cmd_job_name == $template ]]
-	        then
-	           \cp ./$cmd_job_name-template.yml ./${gen_long_time_str}.yml
-	           is_has_enable_template=true
-       		fi
-	        done
-       		if [ "$is_has_enable_template" = false ]
-        	then
-            	\cp ./template.yml ./${gen_long_time_str}.yml
-        	fi
-	fi
+	# 仅处理 ? 占位符
+	sed -i "s#?module_name#${cmd_job_name}#g" "$tmp_render_file"
+	sed -i "s#?image_path#${tmp_image_path}#g" "$tmp_render_file"
+	sed -i "s#?namespace#${cfg_k8s_namespace}#g" "$tmp_render_file"
+	sed -i "s#?network#${cfg_swarm_network}#g" "$tmp_render_file" 2>/dev/null || true
 
-	#执行替换
-	sed -i "s#?module_name#${cmd_job_name}#g"  ./${gen_long_time_str}.yml
-	sed -i "s#?module_name#${cmd_job_name}#g"  ./${gen_long_time_str}.yml
-	sed -i "s#?image_path#${tmp_image_path}#g"  ./${gen_long_time_str}.yml
-	sed -i "s#?network#${cfg_swarm_network}#g"  ./${gen_long_time_str}.yml
-	sed -i "s#?namespace#${cfg_k8s_namespace}#g"  ./${gen_long_time_str}.yml
-	#生成文件
+	# 生成文件
 	if [ ! -d "$cfg_deploy_gen_location" ];then
-	mkdir -p $cfg_deploy_gen_location
+		mkdir -p $cfg_deploy_gen_location
 	fi
-	\mv ./${gen_long_time_str}.yml $cfg_deploy_gen_location/${cmd_job_name}.yml
+	\mv "$tmp_render_file" $cfg_deploy_gen_location/${cmd_job_name}.yml
 }
 
 function deploy() {
