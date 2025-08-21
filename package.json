@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "mcp-ssh": "^1.0.1"
+  }
+}

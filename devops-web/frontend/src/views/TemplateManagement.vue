@@ -224,21 +224,19 @@
         <div class="template-files-detail" v-if="currentTemplate.files">
           <el-tabs>
             <el-tab-pane label="Dockerfile" name="dockerfile">
-              <el-input
-                type="textarea"
+              <Codemirror
                 :model-value="currentTemplate.files.dockerfile"
-                :rows="20"
-                readonly
-                class="code-editor"
+                :extensions="[StreamLanguage.define(dockerFile)]"
+                :disabled="true"
+                style="height: 400px"
               />
             </el-tab-pane>
             <el-tab-pane label="部署文件" name="deploy">
-              <el-input
-                type="textarea"
+              <Codemirror
                 :model-value="currentTemplate.files.deployYaml"
-                :rows="20"
-                readonly
-                class="code-editor"
+                :extensions="[yaml()]"
+                :disabled="true"
+                style="height: 400px"
               />
             </el-tab-pane>
           </el-tabs>
@@ -262,6 +260,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { templatesApi } from '../api/index.js'
 import TemplateEditor from '../components/TemplateEditor.vue'
+import { Codemirror } from 'vue-codemirror'
+import { yaml } from '@codemirror/lang-yaml'
+import { StreamLanguage } from '@codemirror/language'
+import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 
 const router = useRouter()
 const emit = defineEmits(['update-header'])
@@ -455,7 +457,7 @@ const deleteTemplate = async (template) => {
         confirmButtonClass: 'el-button--danger'
       }
     )
-    
+
     await templatesApi.deleteTemplate(template.id)
     ElMessage.success('模板删除成功')
     loadTemplates()
@@ -476,7 +478,7 @@ const handleSave = async (templateData) => {
       await templatesApi.updateTemplate(currentTemplate.value.id, templateData)
       ElMessage.success('模板更新成功')
     }
-    
+
     dialogVisible.value = false
     loadTemplates()
   } catch (error) {
@@ -517,7 +519,7 @@ onMounted(() => {
     showSearch: false,
     showCreateButton: false
   })
-  
+
   loadTemplates()
 })
 </script>

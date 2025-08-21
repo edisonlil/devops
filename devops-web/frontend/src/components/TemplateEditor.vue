@@ -122,13 +122,11 @@
         <!-- Dockerfile -->
         <el-tab-pane label="Dockerfile" name="dockerfile">
           <el-form-item label="Dockerfile 内容">
-            <el-input
+            <Codemirror
               v-model="form.dockerfile"
-              type="textarea"
-              :rows="20"
-              placeholder="请输入 Dockerfile 内容"
+              :extensions="[StreamLanguage.define(dockerFile)]"
               :disabled="mode === 'view'"
-              class="code-editor"
+              style="height: 400px"
             />
           </el-form-item>
         </el-tab-pane>
@@ -138,19 +136,19 @@
           <div class="build-commands">
             <div class="commands-header">
               <h3>构建命令</h3>
-              <el-button 
+              <el-button
                 v-if="mode !== 'view'"
-                type="primary" 
-                text 
+                type="primary"
+                text
                 @click="addBuildCommand"
               >
                 <el-icon><Plus /></el-icon>
                 添加命令
               </el-button>
             </div>
-            
+
             <div class="commands-list">
-              <div 
+              <div
                 v-for="(command, index) in form.buildCommands"
                 :key="index"
                 class="command-item"
@@ -160,9 +158,9 @@
                   placeholder="请输入构建命令"
                   :disabled="mode === 'view'"
                 />
-                <el-button 
+                <el-button
                   v-if="mode !== 'view'"
-                  type="danger" 
+                  type="danger"
                   text
                   @click="removeBuildCommand(index)"
                 >
@@ -178,19 +176,19 @@
           <div class="default-params">
             <div class="params-header">
               <h3>默认参数</h3>
-              <el-button 
+              <el-button
                 v-if="mode !== 'view'"
-                type="primary" 
-                text 
+                type="primary"
+                text
                 @click="addDefaultParam"
               >
                 <el-icon><Plus /></el-icon>
                 添加参数
               </el-button>
             </div>
-            
+
             <div class="params-list">
-              <div 
+              <div
                 v-for="(param, index) in form.defaultParams"
                 :key="index"
                 class="param-item"
@@ -213,9 +211,9 @@
                   :disabled="mode === 'view'"
                   class="param-desc"
                 />
-                <el-button 
+                <el-button
                   v-if="mode !== 'view'"
-                  type="danger" 
+                  type="danger"
                   text
                   @click="removeDefaultParam(index)"
                 >
@@ -240,6 +238,9 @@
 
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
+import { Codemirror } from 'vue-codemirror'
+import { StreamLanguage } from '@codemirror/language'
+import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 
 const props = defineProps({
   mode: {
@@ -354,15 +355,15 @@ const removeDefaultParam = (index) => {
 const handleSave = async () => {
   try {
     await formRef.value.validate()
-    
+
     saving.value = true
-    
+
     const templateData = {
       ...form,
       defaultParams: form.defaultParams.filter(p => p.key && p.value),
       buildCommands: form.buildCommands.filter(c => c.trim())
     }
-    
+
     emit('save', templateData)
   } catch (error) {
     console.error('表单验证失败:', error)
@@ -415,10 +416,7 @@ onMounted(() => {
   color: #1f2937;
 }
 
-.commands-list,
-.params-list {
-  space-y: 12px;
-}
+
 
 .command-item,
 .param-item {
