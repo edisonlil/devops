@@ -1,0 +1,38 @@
+#!/bin/bash
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker_helper.sh"
+
+function nginx_build() {
+	# 这里假定 scm() 已经将静态内容打包为 ${env[cfg_temp_dir]}/dist.tar.gz
+	cfg_temp_dir=${env[cfg_temp_dir]}
+	cmd_job_name=${env[cmd_job_name]}
+	tmp_dockerfile=${env[tmp_dockerfile]}
+	cfg_harbor_address=${env[cfg_harbor_address]}
+	cfg_harbor_project=${env[cfg_harbor_project]}
+	tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
+
+	# 构建目录即为打包后的临时目录
+	if [ ! -f "$cfg_temp_dir/dist.tar.gz" ]; then
+		# 兼容 dist.tar 的情况
+		if [ -f "$cfg_temp_dir/dist.tar" ]; then
+			gzip -f "$cfg_temp_dir/dist.tar"
+		else
+			error "未找到静态资源包: $cfg_temp_dir/dist.tar.gz"; exit 1
+		fi
+	fi
+
+	env[tmp_build_dist_path]=$cfg_temp_dir
+
+	# 构建镜像
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${env[cfg_enable_harbor]} -eq 1; then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+	fi
+
+	docker build -t $image_path -f $tmp_dockerfile ${env[tmp_build_dist_path]}
+
+	# 推送镜像
+	docker_push $image_path
+}
+
+

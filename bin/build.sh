@@ -7,6 +7,7 @@ source "$BUILD_SCRIPT_DIR/golang_build"
 source "$BUILD_SCRIPT_DIR/java_build"
 source "$BUILD_SCRIPT_DIR/tomcat_build"
 source "$BUILD_SCRIPT_DIR/vue_build"
+source "$BUILD_SCRIPT_DIR/nginx_build"
 
 function run() {
         case ${env[cmd_1]} in
@@ -50,6 +51,10 @@ function run_vue() {
 	run_devops vue_build
 }
 
+function run_nginx() {
+	run_devops nginx_build
+}
+
 function run_devops() {
   #检查docker环境
 	check_env_by_cmd_v docker
@@ -76,6 +81,23 @@ function scm() {
 	opt_git_url=${env[opt_git_url]}
 	opt_git_branch=${env[opt_git_branch]}
 	opt_svn_url=${env[opt_svn_url]}
+	opt_static_dir=${env[opt_static_dir]}
+
+	# 支持本地静态资源目录，跳过SCM
+	if [ -n "$opt_static_dir" ]; then
+		if [ ! -d "$opt_static_dir" ]; then
+			error "--static-dir 不存在: $opt_static_dir"; exit 1
+		fi
+		mkdir -p "$cfg_temp_dir"
+		# 打包静态资源为 dist.tar.gz
+		( cd "$opt_static_dir" && tar -czf "$cfg_temp_dir/dist.tar.gz" . )
+		# 供后续 docker build 使用
+		env[tmp_build_dist_path]="$cfg_temp_dir"
+		# 生成镜像后缀（仅日期）
+		date=`date +%Y-%m-%d_%H-%M-%S`
+		env[tmp_docker_image_suffix]="${date}"
+		return 0
+	fi
 
 	if [ -n "$opt_git_url" ]; then 
 		check_env_by_cmd_v git

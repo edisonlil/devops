@@ -61,6 +61,7 @@ function parse_params() {
                                         --svn-url) env[opt_svn_url]=$2; shift 2;;
                                         --java-opts) env[opt_java_opts]=$2; shift 2;;
                                         --dockerfile) env[opt_dockerfile]=$2; shift 2;;
+                                        --static-dir) env[opt_static_dir]=$2; shift 2;;
 										--template) env[opt_template]=$2; shift 2;;
 										--git-branch) env[opt_git_branch]=$2; shift 2;;
 										--build-cmds) env[opt_build_cmds]=$2; shift 2;;
