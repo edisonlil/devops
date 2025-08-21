@@ -22,8 +22,26 @@ function devops_help() {
 	      --workspace            the workspace
 
 	Commands:
-	  run      now you can "run java" or "run vue"
-	  env use <workspace>  切换默认工作空间'
+	  run                          now you can "run java" or "run vue"
+	  env use <workspace>          切换默认工作空间
+	  create workspace <name>      创建工作空间（支持交互式 -i）
+
+	Examples:
+	  # 创建工作空间（K8s，交互模式）
+	  devops create workspace demo -i
+
+	  # 创建工作空间（K8s，非交互）
+	  devops create workspace demo \
+	    --platform KUBERNETES \
+	    --namespace dev \
+	    --git-url https://git.example.com/org/repo.git \
+	    --git-branch main \
+	    --maven-settings /path/to/settings.xml \
+	    --gradle-init-script /path/to/init.gradle \
+	    --set-default
+
+	  # 运行构建（若未传 --git-url/--git-branch，使用工作空间默认配置）
+	  devops run java my-app --template spring-boot'
 	exit 1;
 
 }

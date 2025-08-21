@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/tools.sh"
 source "$SCRIPT_DIR/env.sh"
 source "$SCRIPT_DIR/build.sh"
 source "$SCRIPT_DIR/install_tools.sh"
+source "$SCRIPT_DIR/workspace.sh"
 
 # Docker检查移到具体命令处理中
 
@@ -16,27 +17,6 @@ if test ! -d $HOME/.devops ; then mkdir $HOME/.devops ; fi
 
 #设置deploy文件生成位置
 info "埋点: 当前的工作空间为:${env[opt_workspace]}"
-
-
-# env 子命令实现
-function env_use() {
-	local workspace_name="$1"
-	if [ -z "$workspace_name" ]; then
-		error "用法: devops env use <workspace>"; exit 1
-	fi
-	local devops_home="${env[cfg_devops_path]}"
-	local workspace_dir="$devops_home/workspace/$workspace_name"
-	local enable_file="$devops_home/workspace/enable"
-	if [ ! -d "$workspace_dir" ]; then
-		error "工作空间不存在: $workspace_name"; exit 1
-	fi
-	# 写入 enable 文件
-	cat > "$enable_file" << EOF
-#命令行也可以传入 --workspace foo来指定工作目录 
-ENABEL_WORKSPACE_PATH="$workspace_name"
-EOF
-	info "已切换默认工作空间为: $workspace_name"
-}
 
 #执行first命令
 case ${env[cmd_1]} in
@@ -48,13 +28,19 @@ case ${env[cmd_1]} in
             exec "$SCRIPT_DIR/devops_template" "$@"
             ;;
         env)
-            case ${env[cmd_2]} in
+            shift
+            subcmd="$1"; shift || true
+            case "$subcmd" in
                 use)
-                    env_use "${env[cmd_3]}";
+                    env_use "$1";
                     ;;
                 *)
-                    echo "Usage: devops env use <workspace>"; exit 1 ;;
+                    echo "Usage: devops env <use> ..."; exit 1 ;;
             esac
+            ;;
+        create)
+            shift
+            create_workspace "$@";
             ;;
         help|--help|-h) devops_help ;;
         *) devops_help ; exit 1 ; ;;

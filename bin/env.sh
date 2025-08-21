@@ -121,7 +121,11 @@ env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
 env[cfg_enable_dockerfiles]=$BUILD_ENABEL_DOCKERFILES
 env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
 env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
+env[cfg_git_branch]=$BUILD_GIT_BRANCH
+env[cfg_git_url]=$BUILD_GIT_URL
 env[cfg_main_project_name]=
+env[cfg_maven_settings]=$BUILD_MAVEN_SETTINGS
+env[cfg_gradle_init_script]=$BUILD_GRADLE_INIT_SCRIPT
 env[cfg_java_extra_opts]=
 
 # namespace处理逻辑：命令行参数优先于配置文件
@@ -130,6 +134,16 @@ if [[ -n "${env[opt_namespace]}" ]]; then
 elif [[ -z "${env[cfg_k8s_namespace]}" ]]; then
     # 如果配置文件和命令行都没有指定，使用默认namespace
     env[cfg_k8s_namespace]="default"
+fi
+
+# 若未显式传入 --git-branch，使用 workspace 默认分支
+if [[ -z "${env[opt_git_branch]}" && -n "${env[cfg_git_branch]}" ]]; then
+    env[opt_git_branch]=${env[cfg_git_branch]}
+fi
+
+# 若未显式传入 --git-url 或 --svn-url，使用 workspace 默认 git 地址
+if [[ -z "${env[opt_git_url]}" && -z "${env[opt_svn_url]}" && -n "${env[cfg_git_url]}" ]]; then
+    env[opt_git_url]=${env[cfg_git_url]}
 fi
 
 #java命令，选项默认值

@@ -10,7 +10,7 @@ _devops_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # 主命令选项
-    local main_commands="run install-tools template env"
+    local main_commands="run install-tools template env create"
 
     # 项目类型选项
     local project_types="java vue golang tomcat"
@@ -47,6 +47,10 @@ _devops_completion() {
                     ;;
                 "env")
                     COMPREPLY=($(compgen -W "use" -- ${cur}))
+                    return 0
+                    ;;
+                "create")
+                    COMPREPLY=($(compgen -W "workspace" -- ${cur}))
                     return 0
                     ;;
             esac
@@ -99,6 +103,13 @@ _devops_completion() {
                         COMPREPLY=($(compgen -W "${templates}" -- ${cur}))
                     fi
                     return 0
+                    ;;
+                "workspace")
+                    # 补全 create workspace 参数
+                    if [[ ${COMP_WORDS[1]} == "create" ]]; then
+                        COMPREPLY=($(compgen -W "--platform --namespace --stack --network --git-url --git-branch --maven-settings --gradle-init-script --set-default -i --interactive" -- ${cur}))
+                        return 0
+                    fi
                     ;;
                 "--dockerfile")
                     # 补全dockerfile文件

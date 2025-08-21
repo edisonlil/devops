@@ -26,21 +26,31 @@ function java_build() {
 		check_env_by_cmd_v gradle
 		info "开始使用gradle构建项目"
 		#构建代码
+		gradle_init_opt=""
+		if [[ -n ${env[cfg_gradle_init_script]} && -f ${env[cfg_gradle_init_script]} ]]; then
+			gradle_init_opt="--init-script ${env[cfg_gradle_init_script]}"
+			info "使用工作空间 Gradle init script: ${env[cfg_gradle_init_script]}"
+		fi
 		if test -n "$opt_build_cmds" ;then
 			cd $module_path && $opt_build_cmds
         	else
-			cd $module_path && gradle -x test clean build
+			cd $module_path && gradle $gradle_init_opt -x test clean build
         	fi
 		env[tmp_build_dist_path]=$module_path/build/libs
 	 ;;
 	maven)
 		check_env_by_cmd_v mvn
 		info "开始使用maven构建项目"
-		 #构建代码
+		# 构建代码
+		maven_settings_opt=""
+		if [[ -n ${env[cfg_maven_settings]} && -f ${env[cfg_maven_settings]} ]]; then
+			maven_settings_opt="-s ${env[cfg_maven_settings]}"
+			info "使用工作空间 Maven settings: ${env[cfg_maven_settings]}"
+		fi
     if test -n "$opt_build_cmds" ;then
 			cd $module_path && ${opt_build_cmds}
 		else
-			cd $module_path && mvn clean -Dmaven.test.skip=true  compile package -U -am
+			cd $module_path && mvn $maven_settings_opt clean -Dmaven.test.skip=true  compile package -U -am
 		fi
 		env[tmp_build_dist_path]=$module_path/target
        	#to do
