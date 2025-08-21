@@ -22,7 +22,8 @@ function devops_help() {
 	      --workspace            the workspace
 
 	Commands:
-	  run      now you can "run java" or "run vue"'
+	  run      now you can "run java" or "run vue"
+	  env use <workspace>  切换默认工作空间'
 	exit 1;
 
 }

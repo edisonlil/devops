@@ -10,7 +10,7 @@ _devops_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # 主命令选项
-    local main_commands="run install-tools template"
+    local main_commands="run install-tools template env"
 
     # 项目类型选项
     local project_types="java vue golang tomcat"
@@ -45,6 +45,10 @@ _devops_completion() {
                     COMPREPLY=($(compgen -W "list create delete update export import validate" -- ${cur}))
                     return 0
                     ;;
+                "env")
+                    COMPREPLY=($(compgen -W "use" -- ${cur}))
+                    return 0
+                    ;;
             esac
             ;;
         *)
@@ -70,6 +74,17 @@ _devops_completion() {
                         COMPREPLY=($(compgen -W "${workspaces}" -- ${cur}))
                     fi
                     return 0
+                    ;;
+                "use")
+                    # 补全: devops env use <workspace>
+                    if [[ ${COMP_WORDS[1]} == "env" ]]; then
+                        local workspace_dir="workspace"
+                        if [[ -d "${workspace_dir}" ]]; then
+                            local workspaces=$(ls -1 "${workspace_dir}" 2>/dev/null | grep -v "deploy-target.sample")
+                            COMPREPLY=($(compgen -W "${workspaces}" -- ${cur}))
+                        fi
+                        return 0
+                    fi
                     ;;
                 "--namespace")
                     # 常用的k8s namespace
