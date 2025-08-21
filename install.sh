@@ -317,10 +317,28 @@ EOF
 # DevOps Environment Variables
 export DEVOPS_HOME=$devops_home
 export PATH=\$PATH:\$DEVOPS_HOME/bin
+
+# DevOps Command Auto-completion
+if [[ -f "\$DEVOPS_HOME/bin/devops-completion.bash" ]]; then
+    source "\$DEVOPS_HOME/bin/devops-completion.bash"
+fi
 EOF
         log_info "用户环境变量配置完成"
     else
         log_info "用户环境变量已存在"
+        # 检查是否已有自动补全配置
+        if ! grep -q "devops-completion.bash" ~/.bashrc 2>/dev/null; then
+            cat >> ~/.bashrc << EOF
+
+# DevOps Command Auto-completion
+if [[ -f "\$DEVOPS_HOME/bin/devops-completion.bash" ]]; then
+    source "\$DEVOPS_HOME/bin/devops-completion.bash"
+fi
+EOF
+            log_info "自动补全配置已添加"
+        else
+            log_info "自动补全配置已存在"
+        fi
     fi
 
     # 清理临时文件
@@ -373,6 +391,7 @@ verify_installation() {
         "$devops_home/bin/env.sh"
         "$devops_home/bin/build.sh"
         "$devops_home/bin/install_tools.sh"
+        "$devops_home/bin/devops-completion.bash"
     )
 
     for file in "${required_files[@]}"; do
@@ -480,6 +499,7 @@ ${GREEN}DevOps 工具安装成功！${NC}
 ${YELLOW}使用说明:${NC}
 1. 重新加载环境变量: source ~/.bashrc
 2. 或者重新登录终端
+3. 使用Tab键自动补全devops命令
 
 ${YELLOW}环境工具安装:${NC}
 # 检查当前环境
@@ -490,6 +510,16 @@ devops install-tools
 
 # 安装指定工具
 devops install-tools --tools docker,kubectl,java
+
+${YELLOW}Tab自动补全:${NC}
+# 显示主命令
+devops <Tab>                    # 输出: run install-tools template
+
+# 显示项目类型
+devops run <Tab>                # 输出: java vue golang tomcat
+
+# 显示所有选项
+devops run java --<Tab>         # 显示所有可用选项
 
 ${YELLOW}示例命令:${NC}
 # Java 项目构建

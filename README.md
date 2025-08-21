@@ -19,6 +19,11 @@ devops 1.7.0发布
 - 支持配置文件中设置默认namespace
 - 自动创建不存在的namespace
 - 完善的模板占位符替换
+
+新增命令自动补全功能：
+- 支持Tab键自动补全devops命令和选项
+- 智能补全项目类型、构建工具、环境等
+- 支持workspace和template目录补全
 ```
 
 devops 1.6.5发布
@@ -173,6 +178,36 @@ meal 示例工作目录,同级的都是示例工作目录
 + config 当前工作空间的主配置文件
 + dockerfile 存放每一个服务的dockerfile
 + template 存放，不同构建平台的模板文件，支持docker-swarm,k8s等平台
+
+## 命令自动补全
+
+为了提高使用效率，devops支持Tab键自动补全功能。
+
+### 自动安装
+运行 `./install.sh` 时会自动配置Tab补全功能，无需额外操作。
+
+### 使用方法
+安装后，你可以使用Tab键自动补全devops命令：
+
+```bash
+# 显示主命令
+devops <Tab>
+# 输出: run install-tools template
+
+# 显示项目类型
+devops run <Tab>
+# 输出: java vue golang tomcat
+
+# 显示所有可用选项
+devops run java --<Tab>
+# 输出: --build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --workspace --namespace
+```
+
+### 手动加载（如果需要）
+```bash
+source bin/devops-completion.bash
+```
+
 ### readme.md
 + 项目简介文件
 ### 注意事项
