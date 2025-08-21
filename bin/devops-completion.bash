@@ -110,11 +110,11 @@ if command -v devops >/dev/null 2>&1; then
     complete -F _devops_completion devops
 fi
 
-echo "devops命令自动补全已启用"
-echo "使用方法: 输入 'devops' 然后按Tab键查看可用选项"
-echo ""
-echo "示例:"
-echo "  devops <Tab>           # 显示主命令: run, install-tools, template, shortcuts"
-echo "  devops run <Tab>       # 显示项目类型: java, vue, golang, tomcat"
-echo "  devops shortcuts <Tab> # 显示shortcuts选项"
-echo "  devops run java --<Tab> # 显示可用选项"
+#echo "devops命令自动补全已启用"
+#echo "使用方法: 输入 'devops' 然后按Tab键查看可用选项"
+#echo ""
+#echo "示例:"
+#echo "  devops <Tab>           # 显示主命令: run, install-tools, template, shortcuts"
+#echo "  devops run <Tab>       # 显示项目类型: java, vue, golang, tomcat"
+#echo "  devops shortcuts <Tab> # 显示shortcuts选项"
+#echo "  devops run java --<Tab> # 显示可用选项"
