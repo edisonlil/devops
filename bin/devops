@@ -56,6 +56,7 @@ case ${env[cmd_1]} in
                     echo "Usage: devops env use <workspace>"; exit 1 ;;
             esac
             ;;
-        *) echo "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
+        help|--help|-h) devops_help ;;
+        *) devops_help ; exit 1 ; ;;
 esac
 
