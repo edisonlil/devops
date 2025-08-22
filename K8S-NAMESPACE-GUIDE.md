@@ -237,7 +237,7 @@ kubectl get all -n your-namespace
 
 ## 更新日志
 
-### v1.7.0
+### v1.7.1
 - 新增 `--namespace` 命令行参数支持
 - 新增 `BUILD_K8S_NAMESPACE` 配置文件支持
 - 自动创建不存在的namespace

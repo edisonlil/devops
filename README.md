@@ -5,7 +5,7 @@
 
 ## 最新动态
 
-devops 1.7.0发布
+devops 1.7.1发布
 ```
 新增 install-tools 功能：
 - 自动检测和安装开发环境所需工具
@@ -26,7 +26,7 @@ devops 1.7.0发布
 - 支持workspace和template目录补全
 ```
 
-devops 1.6.5发布
+devops 1.7.1发布
 ```
 加入go,tomcat项目自动化部署的支持
 ```
@@ -45,7 +45,7 @@ deploy-target 不配置不启用远程部署，使用本地构建
 
 	--workspace meal ,工作目录 meal, deploy-target 文件中存在 key 为meal 的主机配置
 ```
-devops 1.5.1已经发布release
+devops 1.7.1已经发布release
 
 ## 简介
 基于jenkins publish over ssh 插件，执行的devops cicd远程脚本
@@ -90,15 +90,32 @@ devops install-tools --check
 devops install-tools
 ```
 
-详细安装说明请查看 [INSTALL.md](INSTALL.md) 和 [INSTALL-TOOLS.md](INSTALL-TOOLS.md)
+详细安装说明请查看 [安装指南](docs/installation/README.md)
 
 ## 开始使用
-jenkins的部署
+
+### 快速开始
+```bash
+# 1. 安装DevOps工具
+curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash
+
+# 2. 创建工作空间
+devops create workspace demo -i
+
+# 3. 部署应用
+devops run java my-app --template spring-boot
 ```
+
+### 详细文档
+- 📖 [完整文档](docs/README.md) - 所有文档的导航
+- 🚀 [快速入门](docs/getting-started/README.md) - 5分钟快速上手
+- 🛠️ [安装指南](docs/installation/README.md) - 详细的安装说明
+- 📋 [命令参考](docs/commands/README.md) - 完整的命令列表
+
+### Jenkins集成
 直接在任何一台机器上部署jenkins，安装publish over ssh插件，详细说明，后补0.0
 
 如果通过 publish over ssh 远程执行脚本找不到命令，则需要在/$HOME/.bashrc文件中添加环境变量
-```
 添加环境变量
 ```
 vim /etc/profile 添加环境变量

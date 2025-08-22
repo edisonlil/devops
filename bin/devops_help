@@ -28,6 +28,7 @@ function devops_help() {
 	  env harbor-login             登录当前工作空间的Harbor
 	  env harbor-secret            管理K8s Harbor Secret
 	  create workspace <name>      创建工作空间（支持交互式 -i）
+	  template                     模板管理（list/show/create/validate）
 
 	Examples:
 	  # 创建工作空间（K8s，交互模式）
@@ -48,14 +49,20 @@ function devops_help() {
 
 
 	  # 运行构建（若未传 --git-url/--git-branch，使用工作空间默认配置）
-	  devops run java my-app --template spring-boot'
+	  devops run java my-app --template spring-boot
+
+	  # 模板管理
+	  devops template list                    # 列出所有可用模板
+	  devops template show spring-boot        # 显示模板详情
+	  devops template create spring-boot demo # 基于模板创建作业
+	  devops template validate demo demo-app  # 验证模板配置'
 	exit 1;
 
 }
 
 
 function devops_version() {
-	echo -e 'devops version 1.7.0'
+	echo -e 'devops version 1.7.1'
 	echo ""
 	echo "一键安装脚本可用:"
 	echo "  ./install.sh        - 完整安装"
