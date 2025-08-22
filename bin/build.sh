@@ -61,6 +61,7 @@ function check_harbor_login_status() {
 
 function create_k8s_harbor_secret() {
 	# 如果启用了Harbor且是K8s平台，创建docker-registry secret
+	# 注意：此函数现在假设namespace已经存在，由调用方负责创建namespace
 	if [[ "${env[cfg_enable_harbor]}" == "1" && "${env[cfg_build_platform]}" == "KUBERNETES" ]]; then
 		local harbor_address="${env[cfg_harbor_address]}"
 		local harbor_username="${env[cfg_harbor_username]}"
@@ -75,6 +76,7 @@ function create_k8s_harbor_secret() {
 			# 检查secret是否已存在
 			if kubectl get secret "$secret_name" -n "$namespace" >/dev/null 2>&1; then
 				info "Secret $secret_name 已存在，跳过创建"
+				env[cfg_harbor_secret_name]="$secret_name"
 			else
 				info "创建 K8s Harbor Secret: $secret_name"
 				if kubectl create secret docker-registry "$secret_name" \
@@ -124,8 +126,6 @@ function run_devops() {
 	fi
 	#检查Harbor登录状态
 	check_harbor_login_status
-	#创建K8s Harbor Secret
-	create_k8s_harbor_secret
 	#从版本管理工具加载代码
 	scm
 	#复制dockerfile文件
@@ -391,6 +391,8 @@ function local_deploy() {
                 info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
                 # 确保namespace存在
                 kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -
+                # 创建Harbor Secret（在namespace创建后）
+                create_k8s_harbor_secret
                 kubectl apply -f  ${deploy_job_yml}
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
@@ -445,7 +447,13 @@ function remote_deploy() {
         if [ "$cfg_build_platform" = "KUBERNETES" ]
         then
                 info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
-		remote_command="ssh $user@$ip 'kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
+                # 构建远程命令：创建namespace + 创建Harbor Secret + 部署应用
+                local harbor_secret_cmd=""
+                if [[ "${env[cfg_enable_harbor]}" == "1" && -n "${env[cfg_harbor_address]}" && -n "${env[cfg_harbor_username]}" && -n "${env[cfg_harbor_password]}" ]]; then
+                    local secret_name="harbor-registry-${env[cfg_k8s_namespace]}"
+                    harbor_secret_cmd="kubectl get secret $secret_name -n ${env[cfg_k8s_namespace]} >/dev/null 2>&1 || kubectl create secret docker-registry $secret_name --docker-server=${env[cfg_harbor_address]} --docker-username=${env[cfg_harbor_username]} --docker-password=${env[cfg_harbor_password]} --namespace=${env[cfg_k8s_namespace]} >/dev/null 2>&1;"
+                fi
+		remote_command="ssh $user@$ip 'kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f - && $harbor_secret_cmd' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
                 info "开始使用docker swarm部署服务"
