@@ -50,7 +50,7 @@ function java_build() {
     if test -n "$opt_build_cmds" ;then
 			cd $module_path && ${opt_build_cmds}
 		else
-			cd $module_path && mvn $maven_settings_opt clean -Dmaven.test.skip=true  compile package -U -am
+			cd $module_path && mvn --no-project-config $maven_settings_opt clean -Dmaven.test.skip=true  compile package -U -am
 		fi
 		env[tmp_build_dist_path]=$module_path/target
        	#to do
