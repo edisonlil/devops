@@ -7,7 +7,7 @@ metadata:
     app: ?module_name
     version: "1.0"
 spec:
-  replicas: ?replicas
+  replicas: 1
   selector:
     matchLabels:
       app: ?module_name
@@ -30,13 +30,6 @@ spec:
           value: "?java_opts"
         - name: SERVER_PORT
           value: "?app_port"
-        resources:
-          limits:
-            cpu: ?cpu_limit
-            memory: ?memory_limit
-          requests:
-            cpu: 200m
-            memory: 512Mi
       restartPolicy: Always
 ---
 apiVersion: v1

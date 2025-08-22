@@ -7,7 +7,7 @@ metadata:
     app: ?module_name
     type: frontend
 spec:
-  replicas: ?replicas
+  replicas: 1
   selector:
     matchLabels:
       app: ?module_name
@@ -25,16 +25,6 @@ spec:
           name: http
       imagePullSecrets:
       - name: ?harbor_secret_name
-        env:
-        - name: API_BASE_URL
-          value: "?api_base_url"
-        resources:
-          limits:
-            cpu: ?cpu_limit
-            memory: ?memory_limit
-          requests:
-            cpu: 100m
-            memory: 128Mi
       restartPolicy: Always
 ---
 apiVersion: v1
