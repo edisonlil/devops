@@ -153,7 +153,7 @@ fi
 #java命令，选项默认值
 if [ "${env[opt_build_tool]}" == "" ]
 then
-env[opt_build_tool]=gradle
+env[opt_build_tool]=maven
 fi
 
 
