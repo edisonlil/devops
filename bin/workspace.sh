@@ -13,12 +13,175 @@ function env_use() {
 	if [ ! -d "$workspace_dir" ]; then
 		error "工作空间不存在: $workspace_name"; exit 1
 	fi
+	
+	# 加载工作空间配置
+	local config_file="$workspace_dir/config"
+	if [ -f "$config_file" ]; then
+		source "$config_file"
+		# 如果启用了Harbor，执行登录
+		if [ "$BUILD_ENABEL_HARBOR" = "1" ] && [ -n "$BUILD_HARBOR_ADDRESS" ] && [ -n "$BUILD_HARBOR_USERNAME" ] && [ -n "$BUILD_HARBOR_PASSWORD" ]; then
+			info "正在登录 Harbor: $BUILD_HARBOR_ADDRESS"
+			if docker login "$BUILD_HARBOR_ADDRESS" -u "$BUILD_HARBOR_USERNAME" -p "$BUILD_HARBOR_PASSWORD" >/dev/null 2>&1; then
+				success "Harbor 登录成功"
+			else
+				warn "Harbor 登录失败，请检查用户名和密码"
+			fi
+		fi
+	fi
+	
 	# 写入 enable 文件
 	cat > "$enable_file" << EOF
 #命令行也可以传入 --workspace foo来指定工作目录 
 ENABEL_WORKSPACE_PATH="$workspace_name"
 EOF
 	info "已切换默认工作空间为: $workspace_name"
+}
+
+function harbor_login_current() {
+	local devops_home="${env[cfg_devops_path]}"
+	local enable_file="$devops_home/workspace/enable"
+	
+	if [ ! -f "$enable_file" ]; then
+		error "未找到默认工作空间配置"; exit 1
+	fi
+	
+	source "$enable_file"
+	local workspace_name="$ENABEL_WORKSPACE_PATH"
+	local workspace_dir="$devops_home/workspace/$workspace_name"
+	local config_file="$workspace_dir/config"
+	
+	if [ ! -f "$config_file" ]; then
+		error "工作空间配置文件不存在: $config_file"; exit 1
+	fi
+	
+	source "$config_file"
+	
+	if [ "$BUILD_ENABEL_HARBOR" != "1" ]; then
+		info "当前工作空间未启用 Harbor"; exit 0
+	fi
+	
+	if [ -z "$BUILD_HARBOR_ADDRESS" ] || [ -z "$BUILD_HARBOR_USERNAME" ] || [ -z "$BUILD_HARBOR_PASSWORD" ]; then
+		error "Harbor 配置不完整，请检查配置文件"; exit 1
+	fi
+	
+	info "正在登录 Harbor: $BUILD_HARBOR_ADDRESS"
+	if docker login "$BUILD_HARBOR_ADDRESS" -u "$BUILD_HARBOR_USERNAME" -p "$BUILD_HARBOR_PASSWORD" >/dev/null 2>&1; then
+		success "Harbor 登录成功"
+	else
+		error "Harbor 登录失败，请检查用户名和密码"
+		exit 1
+	fi
+}
+
+function harbor_secret_manage() {
+	local devops_home="${env[cfg_devops_path]}"
+	local enable_file="$devops_home/workspace/enable"
+	
+	if [ ! -f "$enable_file" ]; then
+		error "未找到默认工作空间配置"; exit 1
+	fi
+	
+	source "$enable_file"
+	local workspace_name="$ENABEL_WORKSPACE_PATH"
+	local workspace_dir="$devops_home/workspace/$workspace_name"
+	local config_file="$workspace_dir/config"
+	
+	if [ ! -f "$config_file" ]; then
+		error "工作空间配置文件不存在: $config_file"; exit 1
+	fi
+	
+	source "$config_file"
+	
+	if [ "$BUILD_ENABEL_HARBOR" != "1" ]; then
+		info "当前工作空间未启用 Harbor"; exit 0
+	fi
+	
+	if [ "$BUILD_PLATFORM" != "KUBERNETES" ]; then
+		info "当前工作空间不是 KUBERNETES 平台"; exit 0
+	fi
+	
+	if [ -z "$BUILD_HARBOR_ADDRESS" ] || [ -z "$BUILD_HARBOR_USERNAME" ] || [ -z "$BUILD_HARBOR_PASSWORD" ]; then
+		error "Harbor 配置不完整，请检查配置文件"; exit 1
+	fi
+	
+	local namespace="$BUILD_K8S_NAMESPACE"
+	local secret_name="harbor-registry-${namespace}"
+	
+	echo "Harbor Secret 管理"
+	echo "=================="
+	echo "工作空间: $workspace_name"
+	echo "命名空间: $namespace"
+	echo "Secret名称: $secret_name"
+	echo "Harbor地址: $BUILD_HARBOR_ADDRESS"
+	echo ""
+	
+	# 检查kubectl是否可用
+	if ! command -v kubectl >/dev/null 2>&1; then
+		error "kubectl 命令未找到，请先安装 kubectl"; exit 1
+	fi
+	
+	# 检查secret是否存在
+	if kubectl get secret "$secret_name" -n "$namespace" >/dev/null 2>&1; then
+		echo "✅ Secret $secret_name 已存在"
+		echo ""
+		echo "操作选项:"
+		echo "1) 重新创建 Secret"
+		echo "2) 删除 Secret"
+		echo "3) 查看 Secret 详情"
+		echo "4) 退出"
+		echo ""
+		read -p "请选择操作 [1-4]: " choice
+		
+		case "$choice" in
+			1)
+				info "删除现有 Secret..."
+				kubectl delete secret "$secret_name" -n "$namespace" >/dev/null 2>&1
+				info "重新创建 Secret..."
+				;;
+			2)
+				info "删除 Secret..."
+				if kubectl delete secret "$secret_name" -n "$namespace" >/dev/null 2>&1; then
+					success "Secret 删除成功"
+				else
+					error "Secret 删除失败"
+				fi
+				exit 0
+				;;
+			3)
+				info "Secret 详情:"
+				kubectl describe secret "$secret_name" -n "$namespace"
+				exit 0
+				;;
+			4|*)
+				info "操作已取消"
+				exit 0
+				;;
+		esac
+	else
+		echo "❌ Secret $secret_name 不存在"
+		echo ""
+		read -p "是否创建 Secret? [Y/n]: " choice
+		if [[ "$choice" =~ ^[Nn]$ ]]; then
+			info "操作已取消"
+			exit 0
+		fi
+	fi
+	
+	# 创建或重新创建secret
+	info "创建 K8s Harbor Secret: $secret_name"
+	if kubectl create secret docker-registry "$secret_name" \
+		--docker-server="$BUILD_HARBOR_ADDRESS" \
+		--docker-username="$BUILD_HARBOR_USERNAME" \
+		--docker-password="$BUILD_HARBOR_PASSWORD" \
+		--namespace="$namespace" >/dev/null 2>&1; then
+		success "K8s Harbor Secret 创建成功"
+		info "Secret 名称: $secret_name"
+		info "命名空间: $namespace"
+		info "Harbor 地址: $BUILD_HARBOR_ADDRESS"
+	else
+		error "K8s Harbor Secret 创建失败，请检查kubectl权限"
+		exit 1
+	fi
 }
 
 function create_workspace() {
@@ -104,6 +267,13 @@ function create_workspace() {
 		if [ "$enable_harbor" = "1" ] && [ -z "$harbor_full" ]; then
 			read -p "Harbor 地址与项目 (addr/project): " harbor_full
 		fi
+		if [ "$enable_harbor" = "1" ] && [ -z "$harbor_username" ]; then
+			read -p "Harbor 用户名: " harbor_username
+		fi
+		if [ "$enable_harbor" = "1" ] && [ -z "$harbor_password" ]; then
+			read -s -p "Harbor 密码: " harbor_password
+			echo
+		fi
 		if [ -z "$git_branch" ]; then
 			read -p "Git 默认分支 [main]: " git_branch
 			git_branch=${git_branch:-main}
@@ -178,6 +348,10 @@ function create_workspace() {
 			echo "BUILD_HARBOR_ADDRESS=\"$harbor_addr\""
 			echo "#配置harbor仓库"
 			echo "BUILD_HARBOR_PROJECT=\"$harbor_project\""
+			echo "#配置harbor用户名"
+			echo "BUILD_HARBOR_USERNAME=\"$harbor_username\""
+			echo "#配置harbor密码"
+			echo "BUILD_HARBOR_PASSWORD=\"$harbor_password\""
 		fi
 		echo ""
 		echo "#Git 默认分支"
@@ -201,6 +375,16 @@ function create_workspace() {
 
 	info "已创建工作空间: $workspace_name"
 	info "配置文件: $cfg_file"
+
+	# 如果启用了Harbor，执行登录
+	if [ "$enable_harbor" = "1" ] && [ -n "$harbor_addr" ] && [ -n "$harbor_username" ] && [ -n "$harbor_password" ]; then
+		info "正在登录 Harbor: $harbor_addr"
+		if docker login "$harbor_addr" -u "$harbor_username" -p "$harbor_password" >/dev/null 2>&1; then
+			success "Harbor 登录成功"
+		else
+			warn "Harbor 登录失败，请检查用户名和密码"
+		fi
+	fi
 
 	if [ "$set_default" = true ]; then
 		env_use "$workspace_name"

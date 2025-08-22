@@ -118,6 +118,8 @@ source ${env[cfg_workspace_path]}/config
 env[cfg_enable_harbor]=$BUILD_ENABEL_HARBOR
 env[cfg_harbor_address]=$BUILD_HARBOR_ADDRESS
 env[cfg_harbor_project]=$BUILD_HARBOR_PROJECT
+env[cfg_harbor_username]=$BUILD_HARBOR_USERNAME
+env[cfg_harbor_password]=$BUILD_HARBOR_PASSWORD
 env[cfg_build_platform]=$BUILD_PLATFORM
 env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
 env[cfg_enable_dockerfiles]=$BUILD_ENABEL_DOCKERFILES

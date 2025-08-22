@@ -34,8 +34,14 @@ case ${env[cmd_1]} in
                 use)
                     env_use "$1";
                     ;;
+                harbor-login)
+                    harbor_login_current;
+                    ;;
+                harbor-secret)
+                    harbor_secret_manage;
+                    ;;
                 *)
-                    echo "Usage: devops env <use> ..."; exit 1 ;;
+                    echo "Usage: devops env <use|harbor-login|harbor-secret> ..."; exit 1 ;;
             esac
             ;;
         create)

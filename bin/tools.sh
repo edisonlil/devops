@@ -114,3 +114,28 @@ function prompt_with_default() {
     value=${value:-$default_value}
     eval "$var_name=\"$value\""
 }
+
+# Harbor登录检查函数
+function check_harbor_login() {
+    local harbor_address=$1
+    local harbor_username=$2
+    local harbor_password=$3
+    
+    if [ -z "$harbor_address" ] || [ -z "$harbor_username" ] || [ -z "$harbor_password" ]; then
+        return 1
+    fi
+    
+    # 检查是否已经登录
+    if docker info | grep -q "$harbor_address"; then
+        return 0
+    fi
+    
+    # 尝试登录
+    if docker login "$harbor_address" -u "$harbor_username" -p "$harbor_password" >/dev/null 2>&1; then
+        success "Harbor 登录成功: $harbor_address"
+        return 0
+    else
+        warn "Harbor 登录失败: $harbor_address"
+        return 1
+    fi
+}

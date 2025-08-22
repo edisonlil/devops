@@ -23,6 +23,8 @@ spec:
         ports:
         - containerPort: ?app_port
           name: http
+      imagePullSecrets:
+      - name: ?harbor_secret_name
         env:
         - name: JAVA_OPTS
           value: "?java_opts"

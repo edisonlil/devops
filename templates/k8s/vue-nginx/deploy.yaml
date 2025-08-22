@@ -23,6 +23,8 @@ spec:
         ports:
         - containerPort: 80
           name: http
+      imagePullSecrets:
+      - name: ?harbor_secret_name
         env:
         - name: API_BASE_URL
           value: "?api_base_url"

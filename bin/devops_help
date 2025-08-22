@@ -25,6 +25,8 @@ function devops_help() {
 	Commands:
 	  run                          now you can "run java" or "run vue"
 	  env use <workspace>          切换默认工作空间
+	  env harbor-login             登录当前工作空间的Harbor
+	  env harbor-secret            管理K8s Harbor Secret
 	  create workspace <name>      创建工作空间（支持交互式 -i）
 
 	Examples:

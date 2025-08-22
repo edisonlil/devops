@@ -39,6 +39,62 @@ function check_post_parmas() {
   fi
 }
 
+function check_harbor_login_status() {
+	# 如果启用了Harbor，检查登录状态
+	if [[ "${env[cfg_enable_harbor]}" == "1" ]]; then
+		local harbor_address="${env[cfg_harbor_address]}"
+		local harbor_username="${env[cfg_harbor_username]}"
+		local harbor_password="${env[cfg_harbor_password]}"
+		
+		if [[ -n "$harbor_address" && -n "$harbor_username" && -n "$harbor_password" ]]; then
+			info "检查 Harbor 登录状态: $harbor_address"
+			if check_harbor_login "$harbor_address" "$harbor_username" "$harbor_password"; then
+				success "Harbor 登录状态正常"
+			else
+				warn "Harbor 登录失败，镜像推送可能会失败"
+			fi
+		else
+			warn "Harbor 配置不完整，请检查用户名和密码配置"
+		fi
+	fi
+}
+
+function create_k8s_harbor_secret() {
+	# 如果启用了Harbor且是K8s平台，创建docker-registry secret
+	if [[ "${env[cfg_enable_harbor]}" == "1" && "${env[cfg_build_platform]}" == "KUBERNETES" ]]; then
+		local harbor_address="${env[cfg_harbor_address]}"
+		local harbor_username="${env[cfg_harbor_username]}"
+		local harbor_password="${env[cfg_harbor_password]}"
+		local namespace="${env[cfg_k8s_namespace]}"
+		
+		if [[ -n "$harbor_address" && -n "$harbor_username" && -n "$harbor_password" ]]; then
+			local secret_name="harbor-registry-${namespace}"
+			
+			info "检查 K8s Harbor Secret: $secret_name"
+			
+			# 检查secret是否已存在
+			if kubectl get secret "$secret_name" -n "$namespace" >/dev/null 2>&1; then
+				info "Secret $secret_name 已存在，跳过创建"
+			else
+				info "创建 K8s Harbor Secret: $secret_name"
+				if kubectl create secret docker-registry "$secret_name" \
+					--docker-server="$harbor_address" \
+					--docker-username="$harbor_username" \
+					--docker-password="$harbor_password" \
+					--namespace="$namespace" >/dev/null 2>&1; then
+					success "K8s Harbor Secret 创建成功"
+					env[cfg_harbor_secret_name]="$secret_name"
+				else
+					warn "K8s Harbor Secret 创建失败，请检查kubectl权限"
+					env[cfg_harbor_secret_name]=""
+				fi
+			fi
+		else
+			warn "Harbor 配置不完整，跳过 K8s Secret 创建"
+		fi
+	fi
+}
+
 function run_tomcat() {
   run_devops tomcat_build
 }
@@ -64,6 +120,10 @@ function run_devops() {
 	check_env_by_cmd_v docker
   #检测前置参数
 	check_post_parmas
+	#检查Harbor登录状态
+	check_harbor_login_status
+	#创建K8s Harbor Secret
+	create_k8s_harbor_secret
 	#从版本管理工具加载代码
 	scm
 	#复制dockerfile文件
@@ -188,6 +248,7 @@ function render_template() {
 	cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 	cfg_build_platform=${env[cfg_build_platform]}
 	cmd_type=${env[cmd_2]}
+	cfg_harbor_secret_name=${env[cfg_harbor_secret_name]}
 
 	# 平台目录
 	platform_dir=""
@@ -217,11 +278,83 @@ function render_template() {
 	tmp_render_file="/tmp/${gen_long_time_str}.yml"
 	\cp "$deploy_tpl" "$tmp_render_file"
 
-	# 仅处理 ? 占位符
+	# 处理 ? 占位符
 	sed -i "s#?module_name#${cmd_job_name}#g" "$tmp_render_file"
 	sed -i "s#?image_path#${tmp_image_path}#g" "$tmp_render_file"
 	sed -i "s#?namespace#${cfg_k8s_namespace}#g" "$tmp_render_file"
 	sed -i "s#?network#${cfg_swarm_network}#g" "$tmp_render_file" 2>/dev/null || true
+	
+	# 处理Harbor secret占位符
+	if [[ -n "$cfg_harbor_secret_name" ]]; then
+		sed -i "s#?harbor_secret_name#${cfg_harbor_secret_name}#g" "$tmp_render_file"
+	else
+		# 如果没有secret，移除imagePullSecrets配置
+		sed -i '/imagePullSecrets:/,/^[[:space:]]*- name: \?harbor_secret_name/d' "$tmp_render_file"
+		sed -i '/^[[:space:]]*imagePullSecrets:/d' "$tmp_render_file"
+	fi
+
+	# 如果是K8s平台且启用了Harbor，自动添加imagePullSecrets
+	if [[ "$cfg_build_platform" == "KUBERNETES" && "${env[cfg_enable_harbor]}" == "1" && -n "$cfg_harbor_secret_name" ]]; then
+		info "为 K8s 部署添加 Harbor imagePullSecrets: $cfg_harbor_secret_name"
+		
+		# 检查Deployment中是否已经有imagePullSecrets
+		if awk '/kind: Deployment/,/^---/ { if ($0 ~ /imagePullSecrets:/) { found=1; exit } } END { exit !found }' "$tmp_render_file"; then
+			# 如果已存在，检查是否包含我们的secret
+			if awk '/kind: Deployment/,/^---/ { if ($0 ~ /name: '"$cfg_harbor_secret_name"'/) { found=1; exit } } END { exit !found }' "$tmp_render_file"; then
+				info "模板中已包含 Harbor Secret，跳过添加"
+			else
+				# 在现有的imagePullSecrets中添加我们的secret
+				sed -i "/kind: Deployment/,/^---/{ /imagePullSecrets:/a\        - name: $cfg_harbor_secret_name }" "$tmp_render_file"
+			fi
+		else
+			# 如果不存在imagePullSecrets，使用awk精确定位Deployment的template.spec
+			# 创建一个临时文件来处理YAML结构
+			local temp_file=$(mktemp)
+			local in_deployment=false
+			local in_template=false
+			local in_spec=false
+			local added_imagepullsecrets=false
+			
+			while IFS= read -r line; do
+				echo "$line" >> "$temp_file"
+				
+				# 检测是否进入Deployment
+				if [[ "$line" =~ ^kind:[[:space:]]*Deployment ]]; then
+					in_deployment=true
+					in_template=false
+					in_spec=false
+					added_imagepullsecrets=false
+				fi
+				
+				# 检测是否离开Deployment（遇到---分隔符）
+				if [[ "$line" =~ ^--- ]] && [ "$in_deployment" = true ]; then
+					in_deployment=false
+					in_template=false
+					in_spec=false
+				fi
+				
+				# 在Deployment内检测template
+				if [ "$in_deployment" = true ] && [[ "$line" =~ ^[[:space:]]*template: ]]; then
+					in_template=true
+					in_spec=false
+				fi
+				
+				# 在template内检测spec
+				if [ "$in_deployment" = true ] && [ "$in_template" = true ] && [[ "$line" =~ ^[[:space:]]*spec: ]]; then
+					in_spec=true
+					# 在spec行后添加imagePullSecrets
+					if [ "$added_imagepullsecrets" = false ]; then
+						echo "      imagePullSecrets:" >> "$temp_file"
+						echo "        - name: $cfg_harbor_secret_name" >> "$temp_file"
+						added_imagepullsecrets=true
+					fi
+				fi
+			done < "$tmp_render_file"
+			
+			# 替换原文件
+			mv "$temp_file" "$tmp_render_file"
+		fi
+	fi
 
 	# 生成文件
 	if [ ! -d "$cfg_deploy_gen_location" ];then

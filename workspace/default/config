@@ -1,0 +1,22 @@
+#构建平台，是 DOCKER_SWARM,KUBERNETES,DOCKER_COMPOSE
+BUILD_PLATFORM="KUBERNETES"
+
+#配置Kubernetes namespace
+BUILD_K8S_NAMESPACE="default"
+
+#是否启用harbor仓库
+BUILD_ENABEL_HARBOR=1
+#配置harbor仓库地址
+BUILD_HARBOR_ADDRESS="harbor.example.com"
+#配置harbor仓库
+BUILD_HARBOR_PROJECT="myproject"
+#配置harbor用户名
+BUILD_HARBOR_USERNAME="admin"
+#配置harbor密码
+BUILD_HARBOR_PASSWORD="Harbor12345"
+
+#Git 默认分支
+BUILD_GIT_BRANCH="main"
+
+#启用dockerfile,路由dockerfile
+#BUILD_ENABEL_DOCKERFILES=""
