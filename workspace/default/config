@@ -18,5 +18,8 @@ BUILD_HARBOR_PASSWORD="Harbor12345"
 #Git 默认分支
 BUILD_GIT_BRANCH="main"
 
+#Maven settings文件路径 (指向workspace中的settings.xml)
+BUILD_MAVEN_SETTINGS=""
+
 #启用dockerfile,路由dockerfile
 #BUILD_ENABEL_DOCKERFILES=""
