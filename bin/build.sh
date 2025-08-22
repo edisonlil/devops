@@ -170,8 +170,7 @@ function scm() {
 		#克隆代码
 		if test -n "${opt_git_branch}" ; then
 			info "开始使用git拉取代码,当前分支:${opt_git_branch}"
-			#处理存在orgin/test的问题
-			real_branch=${opt_git_branch##*/}
+			real_branch=${opt_git_branch}
 			echo "埋点:git的real_branch:$real_branch"
 			git clone -b  ${real_branch}  --single-branch $opt_git_url  $cfg_temp_dir
 		else
