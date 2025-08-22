@@ -63,7 +63,7 @@ function java_build() {
 
 	# 查找jar包名
 	cd ${env[tmp_build_dist_path]}
-	jar_name=`ls | grep -v 'source'| grep ${cmd_job_name}`
+	jar_name=`ls | grep -v 'source' | grep -v '\.original$' | grep ${cmd_job_name} | head -1`
 
 
 	# 构建镜像
