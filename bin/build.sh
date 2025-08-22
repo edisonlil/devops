@@ -544,6 +544,9 @@ function prune() {
 	 rm -rf $cfg_temp_dir
   fi
 	#!清除没有运行的无用镜像
+	echo 'start prune local images:'
+	docker image prune -af --filter="label=maintainer=corp" --filter="until=24h"
+}
 
 function run_interactive() {
     info "进入交互式配置模式..."
@@ -602,6 +605,16 @@ function run_interactive() {
         prompt_with_default "Kubernetes Namespace" env[opt_namespace] "${env[cfg_k8s_namespace]:-default}"
     fi
 
+    # 端口配置
+    prompt_optional "容器应用端口 (默认80)" env[opt_app_port]
+    prompt_optional "外部暴露端口 (NodePort)" env[opt_expose_port]
+    if [[ -n "${env[opt_expose_port]}" ]]; then
+        read -p "🔸 是否强制覆盖模板固定端口? [y/N] " -r answer
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            env[opt_force_port]=true
+        fi
+    fi
+
         # 2. 生成并打印命令
     local final_command="devops run ${env[cmd_2]} ${env[cmd_3]}"
     for key in "${!env[@]}"; do
@@ -636,8 +649,4 @@ function run_interactive() {
         tomcat) run_devops tomcat_build ;;
         *) error "不支持的运行类型: ${env[cmd_2]}" ; exit 1 ;;
     esac
-}
-
-	echo 'start prune local images:'
-	docker image prune -af --filter="label=maintainer=corp" --filter="until=24h"
 }
