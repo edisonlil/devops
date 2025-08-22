@@ -5,6 +5,21 @@
 
 ## 最新动态
 
+devops 1.8.0发布
+```
+新增端口配置功能：
+- 支持 --app-port 参数配置容器内应用端口（默认80）
+- 支持 --expose-port 参数配置NodePort外部端口
+- 智能NodePort动态注入，支持模板变量替换
+- 支持 --force-port 强制覆盖模板固定端口
+- 完美兼容ClusterIP、NodePort、LoadBalancer等服务类型
+
+优化Harbor Secret创建逻辑：
+- 修复namespace不存在时Secret创建失败的问题
+- 优化Secret创建时机，在namespace创建后执行
+- 改进本地和远程部署的Secret管理逻辑
+```
+
 devops 1.7.1发布
 ```
 新增 install-tools 功能：
@@ -103,7 +118,7 @@ curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | b
 devops create workspace demo -i
 
 # 3. 部署应用
-devops run java my-app --template spring-boot
+devops run java my-app --template spring-boot --app-port 8080 --expose-port 30080
 ```
 
 ### 详细文档
@@ -162,6 +177,11 @@ devops run vue --svn-url https://192.168.10.253/svn/sample  --dockerfile node --
 devops run java --git-url https://github.com/example/project.git --namespace production my-app
 
 devops run java --git-url https://github.com/example/project.git --namespace dev --build-env dev my-app
+
+# 端口配置支持
+devops run java --git-url https://github.com/example/project.git --app-port 8080 --expose-port 30080 my-app
+
+devops run vue --git-url https://github.com/example/frontend.git --expose-port 30081 my-frontend
 
 注意: 最后一个参数，应该为你需要构建项目的那个直接的项目名.
       如果是单级项目，为主项目名，如果为多级项目，为那个直接的子项目名.

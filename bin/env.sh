@@ -68,6 +68,9 @@ function parse_params() {
                                         --build-env) env[opt_build_env]=$2; shift 2;;
 										--workspace) env[opt_workspace]=$2; shift 2;;
                                         --namespace) env[opt_namespace]=$2; shift 2;;
+                                        --app-port) env[opt_app_port]=$2; shift 2;;
+                                        --expose-port) env[opt_expose_port]=$2; shift 2;;
+                                        --force-port) env[opt_force_port]=true; shift 1;;
                                         -i|--interactive) env[opt_interactive]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac

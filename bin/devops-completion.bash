@@ -22,7 +22,7 @@ _devops_completion() {
     local build_envs="dev test gray prod"
     
     # 全局选项
-    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --workspace --namespace --version --help"
+    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --workspace --namespace --app-port --expose-port --force-port --version --help"
 
     case ${COMP_CWORD} in
         1)

@@ -25,6 +25,9 @@ devops [OPTIONS] COMMAND [ARGS...]
 | `--build-env` | string | - | 构建环境 "dev" "test" "gray" "prod" 等 |
 | `--namespace` | string | "default" | Kubernetes命名空间 |
 | `--workspace` | string | - | 指定工作空间 |
+| `--app-port` | integer | 80 | 容器内应用端口 |
+| `--expose-port` | integer | - | 外部暴露端口（自动启用NodePort） |
+| `--force-port` | - | - | 强制覆盖模板中的固定NodePort |
 | `-i, --interactive` | - | - | 进入引导式交互配置模式 |
 | `--version` | - | - | 显示版本信息 |
 
@@ -59,6 +62,15 @@ devops run java my-app --git-url https://github.com/example/my-app.git
 
 # 指定命名空间
 devops run java my-app --namespace production
+
+# 指定应用端口
+devops run java my-app --app-port 8080
+
+# 暴露NodePort端口（自动设置为NodePort类型）
+devops run java my-app --expose-port 30080
+
+# 强制覆盖模板中的固定NodePort
+devops run java my-app --expose-port 30090 --force-port
 
 ## 交互式模式详解
 
@@ -340,7 +352,9 @@ devops run java my-service \
   --git-url https://github.com/example/my-service.git \
   --template spring-boot \
   --namespace production \
-  --java-opts "-Xmx1g -Xms512m"
+  --java-opts "-Xmx1g -Xms512m" \
+  --app-port 8080 \
+  --expose-port 30080
 ```
 
 ### 2. 前端项目部署
@@ -360,6 +374,80 @@ devops run go my-api \
   --template go \
   --namespace dev
 ```
+
+## 端口配置详解
+
+DevOps工具提供了灵活的端口配置选项，支持Kubernetes NodePort的智能管理。
+
+### 端口参数
+
+| 参数 | 说明 | 默认值 | 示例 |
+|------|------|--------|------|
+| `--app-port` | 容器内应用监听端口 | 80 | `--app-port 8080` |
+| `--expose-port` | 外部暴露端口（NodePort） | - | `--expose-port 30080` |
+| `--force-port` | 强制覆盖模板固定端口 | - | `--force-port` |
+
+### 端口配置规则
+
+#### 1. 基本规则
+- 指定 `--expose-port` 自动将Service类型设置为NodePort
+- 未指定 `--expose-port` 时保持Service为ClusterIP类型
+- `--app-port` 影响容器端口和Service的targetPort
+
+#### 2. 模板兼容性
+**模板有 `?node_port` 变量**
+```bash
+# 替换变量
+devops run java my-app --expose-port 30080
+# 结果：nodePort: 30080，type: NodePort
+```
+
+**模板有固定NodePort值**
+```bash
+# 默认使用模板值
+devops run java my-app --expose-port 30080
+# 提示：模板已有固定NodePort: 30123，使用 --force-port 可强制覆盖
+
+# 强制覆盖
+devops run java my-app --expose-port 30080 --force-port
+# 结果：nodePort: 30080，type: NodePort
+```
+
+**模板没有NodePort配置**
+```bash
+# 动态添加
+devops run java my-app --expose-port 30080
+# 结果：自动添加 nodePort: 30080，type: NodePort
+```
+
+### 使用示例
+
+```bash
+# 1. 默认配置（ClusterIP，应用端口80）
+devops run java my-app
+
+# 2. 自定义应用端口
+devops run java my-app --app-port 8080
+
+# 3. 暴露NodePort
+devops run java my-app --app-port 8080 --expose-port 30080
+
+# 4. 强制覆盖模板端口
+devops run java my-app --expose-port 30090 --force-port
+
+# 5. 前端项目（默认80端口）
+devops run vue my-frontend --expose-port 30081
+```
+
+### NodePort范围
+
+Kubernetes NodePort端口范围：**30000-32767**
+
+建议按用途分配：
+- **30000-30099**: 开发环境
+- **30100-30199**: 测试环境  
+- **30200-30299**: 预生产环境
+- **30300-30399**: 生产环境
 
 ## 环境变量
 

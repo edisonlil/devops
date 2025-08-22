@@ -238,6 +238,49 @@ function choose_dockerfile() {
 }
 
 
+function enhance_service_nodeport() {
+	local tmp_file=$1
+	local expose_port="${env[opt_expose_port]}"
+	local force_override="${env[opt_force_port]}"
+	
+	if [[ -n "$expose_port" ]]; then
+		info "处理NodePort配置: $expose_port"
+		
+		# 检测模板中是否存在nodePort变量
+		if grep -q "?node_port" "$tmp_file"; then
+			# 场景1: 模板有变量，直接替换
+			sed -i "s/?node_port/$expose_port/g" "$tmp_file"
+			sed -i "s/type: .*/type: NodePort/" "$tmp_file"
+			info "替换模板NodePort变量为: $expose_port"
+		elif grep -q "nodePort:" "$tmp_file"; then
+			# 场景2: 模板有固定值
+			if [[ "$force_override" == "true" ]]; then
+				# 强制覆盖固定值
+				sed -i "s/nodePort: [0-9]*/nodePort: $expose_port/" "$tmp_file"
+				sed -i "s/type: .*/type: NodePort/" "$tmp_file"
+				info "强制覆盖模板NodePort为: $expose_port"
+			else
+				# 有固定值但用户未强制覆盖，给出提示
+				local template_port=$(grep "nodePort:" "$tmp_file" | head -1 | awk '{print $2}')
+				warn "模板已有固定NodePort: $template_port，使用 --force-port 可强制覆盖为 $expose_port"
+			fi
+		else
+			# 场景3: 模板没有NodePort，动态添加
+			sed -i "s/type: .*/type: NodePort/" "$tmp_file"
+			# 在targetPort行后添加nodePort
+			sed -i "/targetPort: /a\    nodePort: $expose_port" "$tmp_file"
+			info "动态添加NodePort: $expose_port"
+		fi
+	else
+		# 用户未指定expose_port，保持模板原样
+		if grep -q "?node_port" "$tmp_file"; then
+			# 模板有变量但用户未提供值，移除变量行
+			sed -i '/nodePort: ?node_port/d' "$tmp_file"
+			info "移除未指定的NodePort变量"
+		fi
+		# 其他情况保持模板原样
+	fi
+}
 
 function render_template() {
 	opt_template=${env[opt_template]}
@@ -284,6 +327,10 @@ function render_template() {
 	sed -i "s#?image_path#${tmp_image_path}#g" "$tmp_render_file"
 	sed -i "s#?namespace#${cfg_k8s_namespace}#g" "$tmp_render_file"
 	sed -i "s#?network#${cfg_swarm_network}#g" "$tmp_render_file" 2>/dev/null || true
+	
+	# 处理端口相关占位符
+	local app_port="${env[opt_app_port]:-80}"  # 默认80
+	sed -i "s#?app_port#${app_port}#g" "$tmp_render_file"
 	
 	# 处理Harbor secret占位符
 	if [[ -n "$cfg_harbor_secret_name" ]]; then
@@ -355,6 +402,11 @@ function render_template() {
 			# 替换原文件
 			mv "$temp_file" "$tmp_render_file"
 		fi
+	fi
+
+	# 处理NodePort动态注入 (仅K8s平台)
+	if [[ "$cfg_build_platform" == "KUBERNETES" ]]; then
+		enhance_service_nodeport "$tmp_render_file"
 	fi
 
 	# 生成文件

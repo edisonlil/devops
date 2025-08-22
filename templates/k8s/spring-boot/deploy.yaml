@@ -37,22 +37,6 @@ spec:
           requests:
             cpu: 200m
             memory: 512Mi
-        livenessProbe:
-          httpGet:
-            path: ?health_check_path
-            port: ?app_port
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: ?health_check_path
-            port: ?app_port
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 3
       restartPolicy: Always
 ---
 apiVersion: v1
@@ -71,27 +55,5 @@ spec:
     protocol: TCP
     name: http
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ?module_name-ingress
-  namespace: ?namespace
-  labels:
-    app: ?module_name
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  rules:
-  - host: ?module_name.?namespace.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ?module_name-service
-            port:
-              number: 80
 
 
