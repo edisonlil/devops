@@ -118,8 +118,10 @@ function run_nginx() {
 function run_devops() {
   #检查docker环境
 	check_env_by_cmd_v docker
-  #检测前置参数
-	check_post_parmas
+  #检测前置参数（仅在非交互模式下）
+	if [[ "${env[opt_interactive]}" != "true" ]]; then
+		check_post_parmas
+	fi
 	#检查Harbor登录状态
 	check_harbor_login_status
 	#创建K8s Harbor Secret
@@ -502,9 +504,9 @@ function run_interactive() {
     if [[ -z "${env[opt_git_url]}" && -z "${env[opt_svn_url]}" ]]; then
         prompt_required "Git/SVN URL" scm_url
         if [[ "$scm_url" == *.git ]]; then
-            env[opt_git_url]=$scm_url
+            env[opt_git_url]="$scm_url"
         else
-            env[opt_svn_url]=$scm_url
+            env[opt_svn_url]="$scm_url"
         fi
     fi
 
@@ -562,7 +564,11 @@ function run_interactive() {
 
     # 3. 最终确认 (待实现)
 
-        # 4. 执行构建
+        # 4. 设置必要的环境变量
+    env[cmd_job_name]=${env[cmd_3]}
+    env[cfg_temp_dir]=/tmp/devops/${env[opt_workspace]}/${env[cmd_job_name]}
+    
+    # 5. 执行构建
     case "${env[cmd_2]}" in
         java) run_devops java_build ;;
         vue) run_devops vue_build ;;
