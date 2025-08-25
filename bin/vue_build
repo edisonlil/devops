@@ -5,8 +5,6 @@ VUE_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$VUE_BUILD_SCRIPT_DIR/docker_helper.sh"
 source "$VUE_BUILD_SCRIPT_DIR/version_manager.sh"
-source "$VUE_BUILD_SCRIPT_DIR/build.sh"
-
 
 function vue_build() {
   cfg_temp_dir=${env[cfg_temp_dir]}
