@@ -29,7 +29,7 @@ devops run <java|vue|golang|tomcat> <jobName> [--git-url URL] [--git-branch BRAN
 - --java-opts：仅 java/tomcat 时可带
 - --dockerfile：用户给了就带
 - --build-cmds：用户给了就带（覆盖默认构建）
-- --build-env：多用于 vue/golang；用户给了就带（dev|test|gray|prod）
+- --build-env：多用于 vue/golang；用户给了就带（dev|test|gray|prod 或版本管理格式如"node:18.12,jdk:17"）
 - --namespace：仅当用户给出时带（优先于 workspace 配置）
 - --app-port：容器内应用端口，默认80，用户给了就带
 - --expose-port：外部暴露端口，自动启用NodePort，用户给了就带
@@ -70,3 +70,12 @@ devops run <java|vue|golang|tomcat> <jobName> [--git-url URL] [--git-branch BRAN
 
 6) "vue 前端，仓库 https://git.example.com/frontend/admin-ui.git，模板 vue-nginx，暴露NodePort 30081，强制覆盖模板端口，workspace test"
 → devops run vue admin-ui --git-url "https://git.example.com/frontend/admin-ui.git" --template "vue-nginx" --workspace "test" --expose-port 30081 --force-port
+
+7) "vue 项目，仓库 https://git.example.com/frontend/app.git，模板 vue-nginx，使用Node.js 18.12版本，构建环境prod，workspace dev"
+→ devops run vue app --git-url "https://git.example.com/frontend/app.git" --template "vue-nginx" --build-env "node:18.12,prod" --workspace "dev"
+
+8) "java 项目，仓库 https://git.example.com/backend/service.git，模板 spring-boot，使用JDK 17和Maven 3.9.3，workspace prod"
+→ devops run java service --git-url "https://git.example.com/backend/service.git" --template "spring-boot" --build-env "jdk:17,maven:3.9.3" --workspace "prod"
+
+9) "vue 项目，仓库 https://git.example.com/frontend/dashboard.git，模板 vue-nginx，使用Volta管理Node.js 18.12版本，workspace test"
+→ devops run vue dashboard --git-url "https://git.example.com/frontend/dashboard.git" --template "vue-nginx" --build-env "volta:18.12" --workspace "test"

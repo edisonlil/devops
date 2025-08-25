@@ -21,6 +21,9 @@ _devops_completion() {
     # 环境选项
     local build_envs="dev test gray prod"
     
+    # 版本管理选项
+    local version_specs="node: volta: jdk: java: maven: gradle:"
+    
     # 全局选项
     local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --workspace --namespace --app-port --expose-port --force-port --version --help"
 
@@ -63,7 +66,14 @@ _devops_completion() {
                     return 0
                     ;;
                 "--build-env")
-                    COMPREPLY=($(compgen -W "${build_envs}" -- ${cur}))
+                    # 如果当前输入包含冒号，提供版本建议
+                    if [[ "${cur}" == *":"* ]]; then
+                        # 已经输入了版本格式，提供环境建议
+                        COMPREPLY=($(compgen -W "${build_envs}" -- ${cur}))
+                    else
+                        # 提供版本管理选项
+                        COMPREPLY=($(compgen -W "${version_specs}" -- ${cur}))
+                    fi
                     return 0
                     ;;
                 "--git-url"|"--svn-url")
