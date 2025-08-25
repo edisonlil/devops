@@ -149,6 +149,8 @@ function copy_template_files_to_build_context() {
 		if [[ "${DEBUG}" == "true" ]]; then
 			echo "DEBUG: 模板目录中没有需要复制的额外文件"
 		fi
+		# 可选：显示友好提示
+		# info "模板目录中只包含系统文件（dockerfile, deploy.yaml），无额外文件需要复制"
 	fi
 }
 
@@ -312,6 +314,8 @@ function scm() {
 		date=`date +%Y-%m-%d_%H-%M-%S`
 		last_log=`git log --pretty=format:%h | head -1`
 		env[tmp_docker_image_suffix]="${date}_${last_log}"
+		# 设置构建上下文路径
+		env[tmp_build_dist_path]="$cfg_temp_dir"
 	elif [ -n "$opt_svn_url" ]; then
 		check_env_by_cmd_v svn
 		info '开始使用 svn 拉取代码'
@@ -322,6 +326,8 @@ function scm() {
 		tmp_log=`svn log | head -2 | tail -1`
 		last_log=${tmp_log%% *}
                 env[tmp_docker_image_suffix]="${date}_${last_log}"
+		# 设置构建上下文路径
+		env[tmp_build_dist_path]="$cfg_temp_dir"
 	else
 		error "--git-url and --svn-url must has one"; exit 1;
 	fi
@@ -334,6 +340,17 @@ function choose_dockerfile() {
 	cfg_build_platform=${env[cfg_build_platform]}
 	cmd_type=${env[cmd_2]}
 	template_id=${env[opt_template]}
+
+	if [[ "${DEBUG}" == "true" ]]; then
+		echo "DEBUG: choose_dockerfile() - tmp_build_dist_path='$tmp_build_dist_path'"
+		echo "DEBUG: choose_dockerfile() - cfg_template_path='$cfg_template_path'"
+		echo "DEBUG: choose_dockerfile() - cmd_type='$cmd_type'"
+	fi
+
+	if [[ -z "$tmp_build_dist_path" ]]; then
+		error "构建上下文路径为空，请检查代码拉取是否成功"
+		exit 1
+	fi
 
 	# 预检构建产物目录
 	if test ! -d ${tmp_build_dist_path} ; then
