@@ -11,26 +11,28 @@ source "$BUILD_SCRIPT_DIR/nginx_build"
 
 function run() {
     # 调试信息
-    if [[ "${env[opt_debug]}" == "true" ]]; then
-        echo "DEBUG: cmd_1=${env[cmd_1]}"
-        echo "DEBUG: cmd_2=${env[cmd_2]}"
-        echo "DEBUG: cmd_3=${env[cmd_3]}"
-        echo "DEBUG: opt_interactive=${env[opt_interactive]}"
+    if [[ "${DEBUG}" == "true" || "${env[opt_debug]}" == "true" ]]; then
+        echo "DEBUG: cmd_1='${env[cmd_1]}'"
+        echo "DEBUG: cmd_2='${env[cmd_2]}'"
+        echo "DEBUG: cmd_3='${env[cmd_3]}'"
+        echo "DEBUG: opt_interactive='${env[opt_interactive]}'"
+        echo "DEBUG: 进入run()函数"
     fi
 
     if [[ "${env[opt_interactive]}" == "true" ]]; then
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 调用run_interactive()"
+        fi
         run_interactive
     else
-        case ${env[cmd_1]} in
-        run)
-                if test -n ${env[cmd_2]}; then
-                        run_${env[cmd_2]}
-                else
-                        echo "run need be followed by a cammand"; exit 1
-                fi
-         ;;
-        *) error "cannot find the cammand ${env[cmd_1]}"; exit 1 ; ;;
-	esac
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 非交互式模式，cmd_2='${env[cmd_2]}'"
+        fi
+        if test -n "${env[cmd_2]}"; then
+            run_${env[cmd_2]}
+        else
+            echo "run need be followed by a cammand"; exit 1
+        fi
     fi
 }
 
@@ -63,26 +65,90 @@ function copy_template_files_to_build_context() {
 	local build_context="$2"
 
 	if [ ! -d "$template_dir" ]; then
+		if [[ "${DEBUG}" == "true" ]]; then
+			echo "DEBUG: 模板目录不存在: $template_dir"
+		fi
 		return 0
 	fi
 
+	if [[ "${DEBUG}" == "true" ]]; then
+		echo "DEBUG: 复制模板文件从 $template_dir 到 $build_context"
+	fi
+
+	# 确保构建上下文目录存在
+	mkdir -p "$build_context"
+
 	# 查找模板目录中除了dockerfile和deploy.yaml之外的其他文件
 	local copied_files=()
+	local skipped_files=()
+	local overwritten_files=()
+
 	for file in "$template_dir"/*; do
 		if [ -f "$file" ]; then
 			local filename=$(basename "$file")
+			local target_file="$build_context/$filename"
+
 			# 跳过dockerfile和deploy.yaml文件
 			if [[ "$filename" != "dockerfile" && "$filename" != "deploy.yaml" && "$filename" != "deploy.yml" && "$filename" != "meta.json" ]]; then
-				cp "$file" "$build_context/"
-				copied_files+=("$filename")
-				info "复制模板文件到构建上下文: $filename"
+
+				# 检查目标文件是否已存在
+				if [ -f "$target_file" ]; then
+					# 比较文件内容是否相同
+					if cmp -s "$file" "$target_file"; then
+						if [[ "${DEBUG}" == "true" ]]; then
+							echo "DEBUG: 文件内容相同，跳过: $filename"
+						fi
+						skipped_files+=("$filename")
+					else
+						# 强制覆盖已存在的文件
+						cp -f "$file" "$build_context/"
+						overwritten_files+=("$filename")
+						info "覆盖模板文件到构建上下文: $filename"
+					fi
+				else
+					# 复制新文件
+					cp "$file" "$build_context/"
+					copied_files+=("$filename")
+					info "复制模板文件到构建上下文: $filename"
+				fi
+
+				# 验证复制是否成功
+				if [ ! -f "$target_file" ]; then
+					error "复制文件失败: $filename"
+				elif [[ "${DEBUG}" == "true" ]]; then
+					echo "DEBUG: 文件复制成功: $filename ($(stat -c%s "$target_file") bytes)"
+				fi
+			else
+				if [[ "${DEBUG}" == "true" ]]; then
+					echo "DEBUG: 跳过系统文件: $filename"
+				fi
 			fi
 		fi
 	done
 
-	# 如果有复制的文件，显示提示信息
-	if [ ${#copied_files[@]} -gt 0 ]; then
-		info "已复制 ${#copied_files[@]} 个模板文件到构建上下文，可在dockerfile中使用 COPY 指令引用"
+	# 显示详细的复制结果
+	local total_processed=$((${#copied_files[@]} + ${#overwritten_files[@]} + ${#skipped_files[@]}))
+
+	if [ $total_processed -gt 0 ]; then
+		info "模板文件处理完成: 新复制 ${#copied_files[@]} 个，覆盖 ${#overwritten_files[@]} 个，跳过 ${#skipped_files[@]} 个"
+
+		if [[ "${DEBUG}" == "true" ]]; then
+			if [ ${#copied_files[@]} -gt 0 ]; then
+				echo "DEBUG: 新复制的文件: ${copied_files[*]}"
+			fi
+			if [ ${#overwritten_files[@]} -gt 0 ]; then
+				echo "DEBUG: 覆盖的文件: ${overwritten_files[*]}"
+			fi
+			if [ ${#skipped_files[@]} -gt 0 ]; then
+				echo "DEBUG: 跳过的文件: ${skipped_files[*]}"
+			fi
+		fi
+
+		info "这些文件可在dockerfile中使用 COPY 指令引用"
+	else
+		if [[ "${DEBUG}" == "true" ]]; then
+			echo "DEBUG: 模板目录中没有需要复制的额外文件"
+		fi
 	fi
 }
 
@@ -691,6 +757,9 @@ function prune() {
 }
 
 function run_interactive() {
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 进入run_interactive()函数"
+    fi
     info "进入交互式配置模式..."
     echo
 

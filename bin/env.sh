@@ -65,7 +65,7 @@ function parse_params() {
                             shift 1
                         fi
 
-                        while [ true ] ; do
+                        while [[ $# -gt 0 ]] ; do
                                 if [[ $1 == -* ]];then
                                         case "$1" in
                                         --build-tool) env[opt_build_tool]=$2; shift 2;;
@@ -104,6 +104,15 @@ function parse_params() {
 #解析命令行参数
 parse_params "$@"
 
+# 调试信息
+if [[ "${DEBUG}" == "true" ]]; then
+    echo "DEBUG: 参数解析完成"
+    echo "DEBUG: cmd_1='${env[cmd_1]}'"
+    echo "DEBUG: cmd_2='${env[cmd_2]}'"
+    echo "DEBUG: cmd_3='${env[cmd_3]}'"
+    echo "DEBUG: opt_interactive='${env[opt_interactive]}'"
+fi
+
 
 #激活配置
 env[cfg_workspace_dir_name]="workspace"
@@ -127,7 +136,7 @@ fi
 
 
 #设置deploy文件生成位置
-info "埋点: 当前的工作空间为:${opt_workspace}"
+info "埋点: 当前的工作空间为:${env[opt_workspace]}"
 env[cfg_deploy_gen_location]=${env[cfg_workspace_path]}/deploy
 
 #加载配置
