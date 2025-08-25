@@ -5,7 +5,7 @@ LABEL maintainer='corp'
 # 复制构建产物（与现有构建保持一致）
 COPY dist.tar /tmp/
 RUN cd /usr/share/nginx/html && \
-    tar -xzf /tmp/dist.tar --strip-components=1 && \
+    tar -xf /tmp/dist.tar --strip-components=1 && \
     rm /tmp/dist.tar
 
 # 暴露端口
