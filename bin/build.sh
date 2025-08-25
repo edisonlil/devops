@@ -163,8 +163,16 @@ function check_post_parmas() {
 
 	if [[ -n ${env[cfg_temp_dir]} && ${env[cfg_temp_dir]} != '/' && ${env[cfg_temp_dir]} != '.' ]]
 	then
-	  rm -rf ${env[cfg_temp_dir]}
-  fi
+		if [[ "${DEBUG}" == "true" ]]; then
+			echo "DEBUG: 初始清理构建目录: ${env[cfg_temp_dir]}"
+		fi
+		rm -rf ${env[cfg_temp_dir]}
+
+		# 验证清理是否成功
+		if [ -d "${env[cfg_temp_dir]}" ]; then
+			warn "警告: 构建目录清理不完全，可能影响后续构建: ${env[cfg_temp_dir]}"
+		fi
+	fi
 }
 
 function check_harbor_login_status() {
@@ -286,6 +294,14 @@ function scm() {
 		if [ ! -d "$opt_static_dir" ]; then
 			error "--static-dir 不存在: $opt_static_dir"; exit 1
 		fi
+
+		# 确保目标目录干净
+		if [ -d "$cfg_temp_dir" ]; then
+			if [[ "${DEBUG}" == "true" ]]; then
+				echo "DEBUG: 清理已存在的构建目录: $cfg_temp_dir"
+			fi
+			rm -rf "$cfg_temp_dir"
+		fi
 		mkdir -p "$cfg_temp_dir"
 		# 打包静态资源为 dist.tar.gz
 		( cd "$opt_static_dir" && tar -czf "$cfg_temp_dir/dist.tar.gz" . )
@@ -299,6 +315,15 @@ function scm() {
 
 	if [ -n "$opt_git_url" ]; then
 		check_env_by_cmd_v git
+
+		# 确保目标目录不存在，避免 "already exists and is not an empty directory" 错误
+		if [ -d "$cfg_temp_dir" ]; then
+			if [[ "${DEBUG}" == "true" ]]; then
+				echo "DEBUG: 清理已存在的构建目录: $cfg_temp_dir"
+			fi
+			rm -rf "$cfg_temp_dir"
+		fi
+
 		#克隆代码
 		if test -n "${opt_git_branch}" ; then
 			info "开始使用git拉取代码,当前分支:${opt_git_branch}"
@@ -306,8 +331,8 @@ function scm() {
 			echo "埋点:git的real_branch:$real_branch"
 			git clone -b  ${real_branch}  --single-branch $opt_git_url  $cfg_temp_dir
 		else
-			 info "开始使用git拉取代码,当前使用默认分支"
-		        git clone --single-branch $opt_git_url  $cfg_temp_dir
+			info "开始使用git拉取代码,当前使用默认分支"
+			git clone --single-branch $opt_git_url  $cfg_temp_dir
 		fi
 		cd $cfg_temp_dir
 		#生成日期和git日志版本后六位
@@ -318,6 +343,15 @@ function scm() {
 		env[tmp_build_dist_path]="$cfg_temp_dir"
 	elif [ -n "$opt_svn_url" ]; then
 		check_env_by_cmd_v svn
+
+		# 确保目标目录不存在，避免SVN checkout冲突
+		if [ -d "$cfg_temp_dir" ]; then
+			if [[ "${DEBUG}" == "true" ]]; then
+				echo "DEBUG: 清理已存在的构建目录: $cfg_temp_dir"
+			fi
+			rm -rf "$cfg_temp_dir"
+		fi
+
 		info '开始使用 svn 拉取代码'
 		debug '此处忽略svn拉取日志'
 		svn checkout -q $opt_svn_url $cfg_temp_dir
