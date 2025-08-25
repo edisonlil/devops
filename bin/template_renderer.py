@@ -76,12 +76,12 @@ class TemplateRenderer:
             '?expose_port': str(self.variables.get('expose_port', 80)),
         }
         
+        # 先处理Harbor Secret的特殊逻辑（在替换占位符之前）
+        content = self._handle_harbor_secret(content)
+        
         # 替换占位符
         for placeholder, value in placeholder_mapping.items():
             content = content.replace(placeholder, str(value))
-            
-        # 处理Harbor Secret的特殊逻辑
-        content = self._handle_harbor_secret(content)
         
         return content
     
@@ -93,8 +93,8 @@ class TemplateRenderer:
         
         # 如果没有Harbor Secret或未启用Harbor，移除相关配置
         if not harbor_secret_name or not enable_harbor:
-            # 更精确地移除imagePullSecrets配置
-            # 匹配完整的imagePullSecrets块
+            # 移除imagePullSecrets配置（此时占位符还未被替换）
+            # 匹配完整的imagePullSecrets块，包括占位符
             content = re.sub(
                 r'^\s*imagePullSecrets:\s*\n\s*-\s*name:\s*\?harbor_secret_name\s*\n',
                 '',
