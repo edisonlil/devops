@@ -437,8 +437,6 @@ function choose_dockerfile() {
 		info "使用全局模板 dockerfile: $dockerfile_tpl"
 	fi
 
-	# 复制模板目录中的额外文件到构建上下文
-	copy_template_files_to_build_context "$template_dir" "$tmp_build_dist_path"
 }
 
 

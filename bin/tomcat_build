@@ -4,8 +4,7 @@
 TOMCAT_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$TOMCAT_BUILD_SCRIPT_DIR/version_manager.sh"
-source "$TOMCAT_BUILD_SCRIPT_DIR/build.sh"
-
+source "$TOMCAT_BUILD_SCRIPT_DIR/docker_helper.sh"
 function tomcat_build() {
 
   cfg_temp_dir=${env[cfg_temp_dir]}
