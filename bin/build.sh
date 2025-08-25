@@ -707,8 +707,20 @@ function local_deploy() {
                 info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
                 # 确保namespace存在
                 kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -
-                # Harbor Secret已在render_template之前创建，这里直接部署
-                kubectl apply -f  ${deploy_job_yml}
+                if [[ -f $deploy_job_yml ]]; then
+                    # 检查部署是否已经存在
+                    if kubectl get -f ${deploy_job_yml} -n ${cfg_k8s_namespace} >/dev/null 2>&1; then
+                        info "服务已存在，先删除再重新部署"
+                        kubectl delete -f ${deploy_job_yml} -n ${cfg_k8s_namespace}
+                        kubectl apply -f ${deploy_job_yml} -n ${cfg_k8s_namespace}
+                    else
+                        info "服务不存在，直接部署"
+                        kubectl apply -f ${deploy_job_yml} -n ${cfg_k8s_namespace}
+                    fi
+                else
+                    error "部署文件不存在: $deploy_job_yml"
+                    exit 1
+                fi
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
                 info "开始使用docker swarm部署服务"
