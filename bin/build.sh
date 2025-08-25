@@ -132,6 +132,10 @@ function run_devops() {
 	choose_dockerfile
 	#开始构建，构建不同的项目，java,vue,go等
 	$1
+	#预先创建Harbor Secret（如果启用Harbor且是K8s平台，仅本地部署）
+	if [[ "${env[cfg_enable_harbor]}" == "1" && "${env[cfg_build_platform]}" == "KUBERNETES" && -z "${env[cfg_deploy_target]}" ]]; then
+		create_k8s_harbor_secret
+	fi
 	#渲染模板
 	render_template
 	#执行部署
@@ -427,8 +431,7 @@ function local_deploy() {
                 info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
                 # 确保namespace存在
                 kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -
-                # 创建Harbor Secret（在namespace创建后）
-                create_k8s_harbor_secret
+                # Harbor Secret已在render_template之前创建，这里直接部署
                 kubectl apply -f  ${deploy_job_yml}
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
@@ -487,6 +490,8 @@ function remote_deploy() {
                 local harbor_secret_cmd=""
                 if [[ "${env[cfg_enable_harbor]}" == "1" && -n "${env[cfg_harbor_address]}" && -n "${env[cfg_harbor_username]}" && -n "${env[cfg_harbor_password]}" ]]; then
                     local secret_name="harbor-registry-${env[cfg_k8s_namespace]}"
+                    # 设置secret名称，供模板渲染器使用
+                    env[cfg_harbor_secret_name]="$secret_name"
                     harbor_secret_cmd="kubectl get secret $secret_name -n ${env[cfg_k8s_namespace]} >/dev/null 2>&1 || kubectl create secret docker-registry $secret_name --docker-server=${env[cfg_harbor_address]} --docker-username=${env[cfg_harbor_username]} --docker-password=${env[cfg_harbor_password]} --namespace=${env[cfg_k8s_namespace]} >/dev/null 2>&1;"
                 fi
 		remote_command="ssh $user@$ip 'kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f - && $harbor_secret_cmd' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"

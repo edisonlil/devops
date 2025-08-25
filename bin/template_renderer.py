@@ -91,8 +91,9 @@ class TemplateRenderer:
         enable_harbor = self.variables.get('enable_harbor', False)
         build_platform = self.variables.get('build_platform', '')
         
-        # 如果没有Harbor Secret或未启用Harbor，移除相关配置
-        if not harbor_secret_name or not enable_harbor:
+        # 只有在明确未启用Harbor时才移除相关配置
+        # 注意：当enable_harbor=True时，即使harbor_secret_name为空，也应该保留imagePullSecrets结构
+        if not enable_harbor:
             # 移除imagePullSecrets配置（此时占位符还未被替换）
             # 匹配完整的imagePullSecrets块，包括占位符
             content = re.sub(
