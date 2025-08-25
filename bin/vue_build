@@ -25,12 +25,12 @@ function vue_build() {
     module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
     if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
 	if test -n "$opt_build_cmds" ;then
-		cd $module_path &&  npm --unsafe-perm install && $opt_build_cmds
+		cd $module_path &&  npm --unsafe-perm install --legacy-peer-deps && $opt_build_cmds
 	else
 		if test -n "$opt_build_env" ;then
-			cd $module_path && npm --unsafe-perm install && npm run build:$opt_build_env
+			cd $module_path && npm --unsafe-perm install --legacy-peer-deps && npm run build:$opt_build_env
 		else
-			cd $module_path && npm --unsafe-perm install && npm run build
+			cd $module_path && npm --unsafe-perm install --legacy-peer-deps && npm run build
 		fi
 	fi
 

@@ -3,17 +3,13 @@ MAINTAINER devops@company.com
 LABEL maintainer='corp'
 
 # 复制构建产物（与现有构建保持一致）
-COPY dist.tar.gz /tmp/
+COPY dist.tar /tmp/
 RUN cd /usr/share/nginx/html && \
-    tar -xzf /tmp/dist.tar.gz --strip-components=1 && \
-    rm /tmp/dist.tar.gz
+    tar -xzf /tmp/dist.tar --strip-components=1 && \
+    rm /tmp/dist.tar
 
 # 暴露端口
 EXPOSE 80
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost/ || exit 1
 
 # 启动 Nginx
 CMD ["nginx", "-g", "daemon off;"]
