@@ -26,6 +26,58 @@ function run() {
     fi
 }
 
+# 查找模板目录，优先使用workspace模板
+function find_template_dir() {
+	local platform_dir="$1"
+	local template_id="$2"
+
+	# 优先查找workspace模板
+	local workspace_template_dir="${env[cfg_workspace_template_path]}/$platform_dir/$template_id"
+	if [ -d "$workspace_template_dir" ]; then
+		echo "$workspace_template_dir"
+		return 0
+	fi
+
+	# fallback到全局模板
+	local global_template_dir="${env[cfg_global_template_path]}/$platform_dir/$template_id"
+	if [ -d "$global_template_dir" ]; then
+		echo "$global_template_dir"
+		return 0
+	fi
+
+	# 模板不存在
+	return 1
+}
+
+# 复制模板目录中的额外文件到构建上下文
+function copy_template_files_to_build_context() {
+	local template_dir="$1"
+	local build_context="$2"
+
+	if [ ! -d "$template_dir" ]; then
+		return 0
+	fi
+
+	# 查找模板目录中除了dockerfile和deploy.yaml之外的其他文件
+	local copied_files=()
+	for file in "$template_dir"/*; do
+		if [ -f "$file" ]; then
+			local filename=$(basename "$file")
+			# 跳过dockerfile和deploy.yaml文件
+			if [[ "$filename" != "dockerfile" && "$filename" != "deploy.yaml" && "$filename" != "deploy.yml" && "$filename" != "meta.json" ]]; then
+				cp "$file" "$build_context/"
+				copied_files+=("$filename")
+				info "复制模板文件到构建上下文: $filename"
+			fi
+		fi
+	done
+
+	# 如果有复制的文件，显示提示信息
+	if [ ${#copied_files[@]} -gt 0 ]; then
+		info "已复制 ${#copied_files[@]} 个模板文件到构建上下文，可在dockerfile中使用 COPY 指令引用"
+	fi
+}
+
 function check_post_parmas() {
  	if [[ -z ${env[cmd_3]} ]];then
                 warn "job name can not be null ## $1 ##."; exit 1;
@@ -231,14 +283,29 @@ function choose_dockerfile() {
 		esac
 	fi
 
-	template_dir="$cfg_template_path/$platform_dir/$template_id"
+	# 使用新的模板查找逻辑
+	template_dir=$(find_template_dir "$platform_dir" "$template_id")
+	if [ $? -ne 0 ] || [ -z "$template_dir" ]; then
+		error "模板不存在: $template_id (平台: $platform_dir)"; exit 1
+	fi
+
 	dockerfile_tpl="$template_dir/dockerfile"
 	if [ ! -f "$dockerfile_tpl" ]; then
 		error "模板 dockerfile 不存在: $dockerfile_tpl"; exit 1
 	fi
+
 	env[cfg_template_dir]="$template_dir"
 	env[tmp_dockerfile]="$dockerfile_tpl"
-	info "使用模板 dockerfile: $dockerfile_tpl"
+
+	# 显示使用的模板类型
+	if [[ "$template_dir" == "${env[cfg_workspace_template_path]}"* ]]; then
+		info "使用workspace模板 dockerfile: $dockerfile_tpl"
+	else
+		info "使用全局模板 dockerfile: $dockerfile_tpl"
+	fi
+
+	# 复制模板目录中的额外文件到构建上下文
+	copy_template_files_to_build_context "$template_dir" "$tmp_build_dist_path"
 }
 
 
@@ -246,15 +313,15 @@ function enhance_service_nodeport() {
 	local tmp_file=$1
 	local expose_port="${env[opt_expose_port]}"
 	local force_override="${env[opt_force_port]}"
-	
+
 	# 使用Python端口配置处理器
 	info "使用Python端口配置处理器"
-	
+
 	# 检查Python环境
 	if ! command -v python3 &> /dev/null; then
 		error "Python3 未安装，无法使用端口配置处理器"; exit 1
 	fi
-	
+
 	# 检查PyYAML依赖
 	if ! python3 -c "import yaml" &> /dev/null; then
 		warn "PyYAML 未安装，尝试安装..."
@@ -264,34 +331,94 @@ function enhance_service_nodeport() {
 			error "pip3 未安装，无法安装PyYAML依赖"; exit 1
 		fi
 	fi
-	
+
 	# 调用Python端口配置处理器
 	local python_script="${BUILD_SCRIPT_DIR}/port_config_handler.py"
 	if [ ! -f "$python_script" ]; then
 		error "Python端口配置处理器不存在: $python_script"; exit 1
 	fi
-	
+
 	# 构建Python处理器参数
 	local python_args=(
 		"$python_script"
 		"--yaml-file" "$tmp_file"
 	)
-	
+
 	# 添加端口参数
 	if [ -n "$expose_port" ]; then
 		python_args+=("--expose-port" "$expose_port")
 	fi
-	
+
 	# 添加强制覆盖参数
 	if [ "$force_override" = "true" ]; then
 		python_args+=("--force-port")
 	fi
-	
+
 	# 执行Python端口配置处理
 	if python3 "${python_args[@]}"; then
 		success "端口配置处理成功"
 	else
 		error "端口配置处理失败"; exit 1
+	fi
+}
+
+# 处理多端口配置
+function enhance_multi_ports() {
+	local tmp_file=$1
+	local service_port="${env[opt_service_port]}"
+	local export_port="${env[opt_export_port]}"
+
+	# 如果没有多端口配置，跳过
+	if [[ -z "$service_port" && -z "$export_port" ]]; then
+		return 0
+	fi
+
+	info "处理多端口配置"
+
+	# 检查Python环境
+	if ! command -v python3 &> /dev/null; then
+		error "Python3 未安装，无法使用多端口配置处理器"; exit 1
+	fi
+
+	# 检查PyYAML依赖
+	if ! python3 -c "import yaml" &> /dev/null; then
+		warn "PyYAML 未安装，尝试安装..."
+		if command -v pip3 &> /dev/null; then
+			pip3 install PyYAML
+		else
+			error "pip3 未安装，无法安装PyYAML依赖"; exit 1
+		fi
+	fi
+
+	# 调用统一端口配置处理器
+	local python_script="${BUILD_SCRIPT_DIR}/port_config_handler.py"
+	if [ ! -f "$python_script" ]; then
+		error "端口配置处理器不存在: $python_script"; exit 1
+	fi
+
+	# 构建Python处理器参数
+	local python_args=(
+		"$python_script"
+		"--yaml-file" "$tmp_file"
+	)
+
+	# 添加服务端口参数
+	if [ -n "$service_port" ]; then
+		python_args+=("--service-port" "$service_port")
+		info "配置服务端口: $service_port"
+	fi
+
+	# 添加导出端口参数
+	if [ -n "$export_port" ]; then
+		python_args+=("--export-port" "$export_port")
+		info "配置导出端口: $export_port"
+	fi
+
+	# 执行多端口配置处理
+	if python3 "${python_args[@]}"; then
+		success "多端口配置处理成功"
+	else
+		error "多端口配置处理失败"; exit 1
 	fi
 }
 
@@ -325,10 +452,22 @@ function render_template() {
 		esac
 	fi
 
-	template_dir="$cfg_template_path/$platform_dir/$template_id"
+	# 使用新的模板查找逻辑
+	template_dir=$(find_template_dir "$platform_dir" "$template_id")
+	if [ $? -ne 0 ] || [ -z "$template_dir" ]; then
+		error "模板不存在: $template_id (平台: $platform_dir)"; exit 1
+	fi
+
 	deploy_tpl="$template_dir/deploy.yaml"
 	if [ ! -f "$deploy_tpl" ]; then
 		error "模板 deploy.yaml 不存在: $deploy_tpl"; exit 1
+	fi
+
+	# 显示使用的模板类型
+	if [[ "$template_dir" == "${env[cfg_workspace_template_path]}"* ]]; then
+		info "使用workspace模板: $template_dir"
+	else
+		info "使用全局模板: $template_dir"
 	fi
 
 	# 使用Python模板渲染器替代sed
@@ -400,7 +539,13 @@ function render_template() {
 	
 	# 处理NodePort动态注入 (仅K8s平台)
 	if [[ "$cfg_build_platform" == "KUBERNETES" ]]; then
-		enhance_service_nodeport "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		# 优先处理多端口配置
+		enhance_multi_ports "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+
+		# 如果没有多端口配置，使用传统的单端口处理
+		if [[ -z "${env[opt_service_port]}" && -z "${env[opt_export_port]}" ]]; then
+			enhance_service_nodeport "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		fi
 	fi
 }
 
@@ -539,11 +684,29 @@ function prune() {
 
 function run_interactive() {
     info "进入交互式配置模式..."
+    echo
 
-        # 1. 收集参数 (已修正)
+    # 1. 收集基本参数
     # 确保我们知道要运行什么类型
     if [[ -z "${env[cmd_2]}" ]]; then
-        prompt_required "运行类型 (e.g., java, vue)" env[cmd_2]
+        echo "支持的部署类型："
+        echo "  1) java   - Java项目（Spring Boot等）"
+        echo "  2) vue    - Vue.js前端项目"
+        echo "  3) go     - Go语言项目"
+        echo "  4) nginx  - Nginx静态项目"
+        echo "  5) tomcat - Tomcat Web项目"
+        echo
+        while true; do
+            read -p "🔹 请选择部署类型（输入序号或名称）: " deploy_type
+            case "$deploy_type" in
+                1|java) env[cmd_2]="java"; break ;;
+                2|vue) env[cmd_2]="vue"; break ;;
+                3|go) env[cmd_2]="go"; break ;;
+                4|nginx) env[cmd_2]="nginx"; break ;;
+                5|tomcat) env[cmd_2]="tomcat"; break ;;
+                *) warn "无效选择，请重试" ;;
+            esac
+        done
     fi
 
     # 项目/模块名称
@@ -551,22 +714,53 @@ function run_interactive() {
         prompt_required "项目/模块名称" env[cmd_3]
     fi
 
-    # SCM (代码库)
+    echo
+    info "开始配置部署参数..."
+    echo
+
+    # 2. 代码拉取配置
     if [[ -z "${env[opt_git_url]}" && -z "${env[opt_svn_url]}" ]]; then
-        prompt_required "Git/SVN URL" scm_url
-        if [[ "$scm_url" == *.git ]]; then
-            env[opt_git_url]="$scm_url"
-        else
-            env[opt_svn_url]="$scm_url"
-        fi
+        echo "代码拉取方式："
+        echo "  1) Git"
+        echo "  2) SVN"
+        while true; do
+            read -p "🔹 请选择代码拉取方式（1/2）: " scm_choice
+            case "$scm_choice" in
+                1|git|Git)
+                    prompt_smart_required "请输入Git地址" scm_url "${env[cfg_git_url]}"
+                    env[opt_git_url]="$scm_url"
+                    break
+                    ;;
+                2|svn|SVN)
+                    prompt_required "请输入SVN地址" scm_url
+                    env[opt_svn_url]="$scm_url"
+                    break
+                    ;;
+                *) warn "无效选择，请重试" ;;
+            esac
+        done
     fi
 
     # Git 分支
     if [[ -n "${env[opt_git_url]}" && -z "${env[opt_git_branch]}" ]]; then
-        prompt_with_default "Git 分支" env[opt_git_branch] "main"
+        prompt_with_workspace_default "Git 分支" env[opt_git_branch] "${env[cfg_git_branch]}" "main"
     fi
 
-    # 特定于类型的参数
+    # 3. 版本管理配置
+    if [[ -z "${env[opt_build_version]}" ]]; then
+        if [[ -n "${env[cfg_build_version]}" ]]; then
+            read -p "🔸 构建工具版本 (可选，默认值为：${env[cfg_build_version]}，回车使用默认值): " build_version_input
+            env[opt_build_version]=${build_version_input:-${env[cfg_build_version]}}
+        else
+            echo "构建工具版本配置 (可选):"
+            echo "  格式: 工具:版本,工具:版本"
+            echo "  示例: node:18.12,jdk:17,maven:3.9.3"
+            echo "  支持: node, jdk/java, maven, gradle, volta"
+            read -p "🔸 构建工具版本 (可留空): " env[opt_build_version]
+        fi
+    fi
+
+    # 4. 特定于类型的参数
     case "${env[cmd_2]}" in
         java)
             if [[ -z "${env[opt_build_tool]}" ]]; then
@@ -579,30 +773,107 @@ function run_interactive() {
                 prompt_optional "Java 启动参数 (JAVA_OPTS)" env[opt_java_opts]
             fi
             ;;
+        vue)
+            if [[ -z "${env[opt_build_cmds]}" ]]; then
+                prompt_optional "自定义构建命令 (如: npm run build:prod)" env[opt_build_cmds]
+            fi
+            ;;
         # 其他类型的参数可在此处扩展
     esac
 
-    # 部署模板
+    # 5. 部署模板配置
     if [[ -z "${env[opt_template]}" ]]; then
         default_template="spring-boot"
-        if [[ "${env[cmd_2]}" == "vue" ]]; then default_template="vue-nginx"; fi
-        prompt_with_default "部署模板" env[opt_template] "$default_template"
+        case "${env[cmd_2]}" in
+            vue) default_template="vue-nginx" ;;
+            go) default_template="go" ;;
+            nginx) default_template="nginx" ;;
+            tomcat) default_template="tomcat" ;;
+        esac
+
+        echo
+        echo "选择模板 (可选，默认模板：$default_template):"
+        echo "  回车使用默认模板，或输入自定义模板名称"
+        read -p "🔸 部署模板: " template_input
+        env[opt_template]=${template_input:-$default_template}
     fi
 
-    # K8s Namespace
+    # 6. 部署环境配置
     if [[ -z "${env[opt_namespace]}" ]]; then
-        prompt_with_default "Kubernetes Namespace" env[opt_namespace] "${env[cfg_k8s_namespace]:-default}"
+        prompt_with_workspace_default "Kubernetes Namespace" env[opt_namespace] "${env[cfg_k8s_namespace]}" "default"
     fi
 
-    # 端口配置
-    prompt_optional "容器应用端口 (默认80)" env[opt_app_port]
-    prompt_optional "外部暴露端口 (NodePort)" env[opt_expose_port]
-    if [[ -n "${env[opt_expose_port]}" ]]; then
-        read -p "🔸 是否强制覆盖模板固定端口? [y/N] " -r answer
-        if [[ "$answer" =~ ^[Yy]$ ]]; then
-            env[opt_force_port]=true
+    # 7. 构建环境配置
+    if [[ -z "${env[opt_build_env]}" ]]; then
+        echo
+        echo "构建环境配置 (可选):"
+        echo "  常用环境: dev, test, staging, prod"
+        read -p "🔸 构建环境 (可留空): " env[opt_build_env]
+    fi
+
+    # 8. 端口配置
+    echo
+    info "端口配置 (可选)"
+
+    # 应用端口配置
+    if [[ -z "${env[opt_app_port]}" ]]; then
+        read -p "🔸 容器应用端口 (默认80): " app_port_input
+        if [[ -n "$app_port_input" ]]; then
+            env[opt_app_port]="$app_port_input"
         fi
     fi
+
+    # 端口配置方式选择
+    echo
+    echo "端口配置方式："
+    echo "  1) 传统方式 - 单端口配置"
+    echo "  2) 多端口方式 - 支持多个服务端口和导出端口"
+    read -p "🔸 选择端口配置方式 (1/2，默认1): " port_config_mode
+    port_config_mode=${port_config_mode:-1}
+
+    case "$port_config_mode" in
+        1)
+            # 传统单端口配置
+            if [[ -z "${env[opt_expose_port]}" ]]; then
+                read -p "🔸 外部暴露端口 (NodePort，范围30000-32767，可留空): " expose_port_input
+                if [[ -n "$expose_port_input" ]]; then
+                    env[opt_expose_port]="$expose_port_input"
+                    read -p "🔸 是否强制覆盖模板固定端口? [y/N] " -r answer
+                    if [[ "$answer" =~ ^[Yy]$ ]]; then
+                        env[opt_force_port]=true
+                    fi
+                fi
+            fi
+            ;;
+        2)
+            # 多端口配置
+            echo
+            info "多端口配置"
+            echo "支持的格式："
+            echo "  - 单端口: 8080"
+            echo "  - 多端口: 8080,9090,3000"
+            echo "  - 命名端口: http:8080,admin:9090"
+            echo "  - 混合格式: 8080,admin:9090,3000"
+            echo
+
+            if [[ -z "${env[opt_service_port]}" ]]; then
+                read -p "🔸 服务端口配置 (可留空): " service_port_input
+                if [[ -n "$service_port_input" ]]; then
+                    env[opt_service_port]="$service_port_input"
+                fi
+            fi
+
+            if [[ -z "${env[opt_export_port]}" ]]; then
+                read -p "🔸 导出端口配置 (NodePort，范围30000-32767，可留空): " export_port_input
+                if [[ -n "$export_port_input" ]]; then
+                    env[opt_export_port]="$export_port_input"
+                fi
+            fi
+            ;;
+        *)
+            warn "无效选择，使用传统单端口配置"
+            ;;
+    esac
 
         # 2. 生成并打印命令
     local final_command="devops run ${env[cmd_2]} ${env[cmd_3]}"

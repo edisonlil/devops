@@ -1,45 +1,58 @@
-# DevOps 项目文档
+# DevOps 文档中心
+
+欢迎使用 DevOps 工具链！这里是完整的文档中心，帮助您快速上手和深入使用 DevOps 的各项功能。
 
 ## 📚 文档导航
 
 ### 🚀 快速开始
-- [安装指南](./installation/README.md) - 完整的安装和配置指南
-- [快速入门](./getting-started/README.md) - 5分钟快速上手教程
+- [01-安装指南](01-安装指南/安装指南.md) - 系统安装和环境配置
+- [02-快速入门](02-快速入门/快速入门.md) - 5分钟上手指南
 
-### 📖 用户指南
-- [工作空间管理](./workspace/README.md) - 工作空间创建、配置和管理
-- [项目部署](./deployment/README.md) - 各种项目类型的部署指南
-- [Harbor集成](./harbor/README.md) - Harbor镜像仓库集成指南
-- [Kubernetes支持](./kubernetes/README.md) - K8s部署和namespace管理
+### 💻 核心功能
+- [03-命令参考](03-命令参考/命令参考.md) - 完整的命令行参考
+- [05-部署指南](05-部署指南/部署指南.md) - 应用部署和管理
+- [06-模板系统](06-模板系统/模板系统.md) - 模板创建和管理
+- [07-工作空间](07-工作空间/工作空间管理.md) - 工作空间配置和使用
 
-### 🛠️ 开发指南
-- [架构设计](./architecture/README.md) - 系统架构和设计理念
-- [模板系统](./templates/README.md) - 模板创建和管理
-- [Web界面](./web-interface/README.md) - Web可视化管理界面
+### 🔧 高级配置
+- [04-配置指南](04-配置指南/配置总览.md) - 配置功能总览
+  - [01-版本管理](04-配置指南/01-版本管理.md) - 构建工具版本管理
+  - [02-多端口配置](04-配置指南/02-多端口配置.md) - 服务端口配置
+  - [03-交互式部署](04-配置指南/03-交互式部署.md) - 引导式部署
 
-### 📋 参考文档
-- [命令参考](./commands/README.md) - 完整的命令列表和参数说明
-- [配置参考](./configuration/README.md) - 配置文件格式和选项
-- [故障排除](./troubleshooting/README.md) - 常见问题和解决方案
+### ☸️ Kubernetes & 集成
+- [08-Kubernetes](08-Kubernetes/Kubernetes集成.md) - Kubernetes集成
+  - [01-命名空间管理](08-Kubernetes/01-命名空间管理.md) - 命名空间配置
+  - [02-服务暴露](08-Kubernetes/02-服务暴露.md) - 服务和端口管理
+- [09-Harbor集成](09-Harbor集成/Harbor集成.md) - 镜像仓库配置
 
-## 🔄 文档更新
+### 🛠️ 运维支持
+- [10-架构设计](10-架构设计/架构设计.md) - 整体架构设计
+- [11-故障排除](11-故障排除/故障排除.md) - 问题诊断和解决
 
-本文档与代码实现保持同步，最后更新时间：2024年8月22日
+## 🆕 最新更新
 
-### 版本信息
-- **当前版本**: 1.7.1
-- **最新功能**: Harbor登录凭证管理、K8s imagePullSecrets自动管理
-- **文档状态**: ✅ 与实现同步
+### v1.8.5 - 多端口配置
+- 新增 `--service-port` 和 `--export-port` 参数
+- 支持多端口和命名端口配置
+- 智能端口映射和NodePort管理
 
-## 📝 文档贡献
+### v1.8.4 - 交互式部署
+- 支持 `devops run -i` 交互式部署
+- 智能显示workspace默认值
+- 引导式配置体验
 
-如果您发现文档与实现有差异，请：
-1. 检查当前实现状态
-2. 更新相应文档
-3. 提交Pull Request
+### v1.8.3 - Workspace版本配置
+- 支持workspace级别的版本配置
+- 版本优先级：命令行 > workspace配置
 
-## 🔗 相关链接
+## 📞 获取帮助
 
-- [GitHub仓库](https://github.com/edisonlil/devops)
-- [在线安装](https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh)
-- [问题反馈](https://github.com/edisonlil/devops/issues)
+- 查看 [故障排除](troubleshooting/) 文档
+- 使用 `devops --help` 查看命令帮助
+- 使用 `devops <command> --help` 查看具体命令帮助
+- 在项目仓库提交 Issue
+
+---
+
+**快速链接**: [安装](installation/) | [快速入门](getting-started/) | [命令参考](commands/) | [故障排除](troubleshooting/)

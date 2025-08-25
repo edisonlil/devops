@@ -16,14 +16,21 @@ function devops_help() {
 	      --dockerfile string    the use of the dockerfile for this job
 	      --template string      the use of the docker swram or k8s template for this job
 	      --build-cmds string    the cmd rewrite for building this job
-	      --build-env string     build env "dev" "test" "gray" "prod" etc. or version spec "node:18.12,jdk:17"
+	      --build-env string     build env "dev" "test" "gray" "prod" etc.
+	      --build-version string build tool version "node:18.12,jdk:17,maven:3.9.3"
 	      --namespace string     kubernetes namespace (default: "default")
+	      --app-port int         container application port (default: 80)
+	      --expose-port int      external expose port (NodePort, range: 30000-32767)
+	      --service-port string  service ports config (multi-port support)
+	      --export-port string   export ports config (multi-port NodePort support)
+	      --force-port           force override template fixed port
 	      --version              the version of devops
 	      --workspace            the workspace
               -i, --interactive      进入引导式交互配置模式
 
 	Commands:
-	  run                          now you can "run java" or "run vue"
+	  run <type> <name>            运行构建和部署（支持交互式 -i）
+	  install-tools                安装开发工具
 	  env use <workspace>          切换默认工作空间
 	  env harbor-login             登录当前工作空间的Harbor
 	  env harbor-secret            管理K8s Harbor Secret
@@ -31,6 +38,15 @@ function devops_help() {
 	  template                     模板管理（list/show/create/validate）
 
 	Examples:
+	  # 交互式部署（推荐新手使用）
+	  devops run java crm -i
+	  devops run vue frontend -i
+	  devops run -i  # 完全交互式，会提示选择类型和项目名
+
+	  # 传统命令行部署
+	  devops run java crm --git-url https://git.example.com/crm.git
+	  devops run vue frontend --git-url https://git.example.com/ui.git --build-env prod
+
 	  # 创建工作空间（K8s，交互模式）
 	  devops create workspace demo -i
 
@@ -42,6 +58,7 @@ function devops_help() {
 	    --git-branch main \
 	    --maven-settings /path/to/settings.xml \
 	    --gradle-init-script /path/to/init.gradle \
+	    --build-version "node:18.12,jdk:17,maven:3.9.3" \
 	    --set-default
 
                   # 使用引导式交互模式运行构建
@@ -51,27 +68,94 @@ function devops_help() {
 	  # 运行构建（若未传 --git-url/--git-branch，使用工作空间默认配置）
 	  devops run java my-app --template spring-boot
 
-	  # 版本管理示例
-	  devops run vue my-app --build-env "node:18.12,prod"           # 指定Node.js版本和构建环境
-	  devops run java my-app --build-env "jdk:17,maven:3.9.3"       # 指定JDK和Maven版本
-	  devops run vue my-app --build-env "volta:18.12"               # 使用Volta管理Node.js版本
+	  # 版本管理示例（使用--build-version参数）
+	  devops run vue my-app --build-version "node:18.12" --build-env "prod"     # 指定Node.js版本和构建环境
+	  devops run java my-app --build-version "jdk:17,maven:3.9.3"              # 指定JDK和Maven版本
+	  devops run vue my-app --build-version "volta:18.12"                      # 使用Volta管理Node.js版本
 
 	  # 模板管理
-	  devops template list                    # 列出所有可用模板
+	  devops template list                    # 列出所有可用模板（全局和workspace）
 	  devops template show spring-boot        # 显示模板详情
+	  devops template copy spring-boot --workspace demo  # 复制全局模板到workspace
 	  devops template create spring-boot demo # 基于模板创建作业
 	  devops template validate demo demo-app  # 验证模板配置
 
 	Version Management:
-	  支持通过 --build-env 参数指定环境版本，格式: "工具:版本"
+	  构建工具版本管理支持多级配置，优先级: 命令行 > workspace配置
+	  --build-version 参数专门负责构建工具版本，格式: "工具:版本"
+	  --build-env 参数专门负责构建环境配置，不再处理版本信息
 	  支持的版本管理器:
 	    - Node.js: nvm, fnm, n, volta
 	    - Java: sdkman
-	    - Maven: sdkman  
+	    - Maven: sdkman
 	    - Gradle: sdkman
+	  版本配置方式:
+	    1. 命令行参数: --build-version "node:18.12,jdk:17"
+	    2. Workspace配置: 在workspace/config中设置BUILD_VERSION
 	  版本格式示例:
-	    - node:18.12, volta:18.12, jdk:17, maven:3.9.3
-	    - 可与构建环境组合: "node:18.12,prod", "jdk:17,dev"'
+	    - --build-version "node:18.12"
+	    - --build-version "jdk:17,maven:3.9.3"
+	    - --build-version "volta:18.12"
+	  与构建环境分离使用:
+	    - devops run vue app --build-version "node:18.12" --build-env "prod"
+	  Workspace默认版本:
+	    - 在workspace配置文件中设置: BUILD_VERSION="node:18.12,jdk:17"
+	    - 命令行参数会覆盖workspace配置
+
+	Template Management:
+	  支持全局模板和workspace级别模板：
+	    - 全局模板: 存储在 templates/ 目录，所有workspace共享
+	    - Workspace模板: 存储在 workspace/{name}/templates/ 目录
+	    - 优先级: workspace模板 > 全局模板
+	  模板操作:
+	    - devops template copy <template-id> --workspace <name>  # 复制全局模板到workspace
+	    - 复制后可自定义workspace模板，不影响全局模板
+	    - 构建时自动优先使用workspace模板
+
+	Interactive Deployment:
+	  交互式部署提供引导式配置体验，智能显示workspace默认值：
+	    - devops run <type> <name> -i  # 交互式部署指定项目
+	    - devops run <type> -i         # 交互式部署，提示输入项目名
+	    - devops run -i                # 完全交互式，提示选择类型和项目名
+	  交互式特点:
+	    - 智能提示: 显示workspace配置的默认值
+	    - 可选填写: workspace有默认值的参数变为可选
+	    - 引导配置: 逐步提示输入必要参数
+	    - 命令预览: 显示等效的命令行形式
+	  交互式流程:
+	    1. 选择部署类型 (java/vue/go/nginx/tomcat)
+	    2. 输入项目名称
+	    3. 配置代码拉取 (Git/SVN)
+	    4. 配置构建工具版本 (显示workspace默认值)
+	    5. 配置部署参数 (模板、命名空间、端口等)
+	    6. 确认并执行部署
+
+	Multi-Port Configuration:
+	  支持多端口配置，提供更灵活的端口管理：
+	    - --service-port: 配置服务端口，支持多端口和命名端口
+	    - --export-port: 配置导出端口（NodePort），支持多端口
+	    - 与传统的--app-port和--expose-port参数兼容
+	  端口配置格式:
+	    --service-port "8080"                    # 单端口
+	    --service-port "8080,9090,3000"         # 多端口
+	    --service-port "http:8080,admin:9090"   # 命名端口
+	    --service-port "8080,admin:9090,3000"   # 混合格式
+	    --export-port "30080,30090"             # 多个NodePort
+	    --export-port "http:30080,admin:30090"  # 命名NodePort
+	  使用示例:
+	    devops run java app --service-port "http:8080,admin:9090" --export-port "30080,30090"
+	    devops run vue frontend --service-port "80,8080" --export-port "30080"
+
+	Workspace Configuration:
+	  每个workspace可以配置默认的构建工具版本：
+	    - 配置文件: workspace/{name}/config
+	    - 版本配置项: BUILD_VERSION="node:18.12,jdk:17,maven:3.9.3"
+	    - 可选配置，不设置则不应用默认版本
+	    - 命令行 --build-version 参数会覆盖workspace配置
+	  配置示例:
+	    BUILD_VERSION="node:18.12"           # 单个工具版本
+	    BUILD_VERSION="jdk:17,maven:3.9.3"  # 多个工具版本
+	    #BUILD_VERSION=""                    # 注释掉表示不使用默认版本'
 	exit 1;
 
 }

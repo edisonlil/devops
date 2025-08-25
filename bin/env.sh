@@ -66,10 +66,13 @@ function parse_params() {
 										--git-branch) env[opt_git_branch]=$2; shift 2;;
 										--build-cmds) env[opt_build_cmds]=$2; shift 2;;
                                         --build-env) env[opt_build_env]=$2; shift 2;;
+                                        --build-version) env[opt_build_version]=$2; shift 2;;
 										--workspace) env[opt_workspace]=$2; shift 2;;
                                         --namespace) env[opt_namespace]=$2; shift 2;;
                                         --app-port) env[opt_app_port]=$2; shift 2;;
                                         --expose-port) env[opt_expose_port]=$2; shift 2;;
+                                        --service-port) env[opt_service_port]=$2; shift 2;;
+                                        --export-port) env[opt_export_port]=$2; shift 2;;
                                         --force-port) env[opt_force_port]=true; shift 1;;
                                         -i|--interactive) env[opt_interactive]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
@@ -133,6 +136,7 @@ env[cfg_git_url]=$BUILD_GIT_URL
 env[cfg_main_project_name]=
 env[cfg_maven_settings]=$BUILD_MAVEN_SETTINGS
 env[cfg_gradle_init_script]=$BUILD_GRADLE_INIT_SCRIPT
+env[cfg_build_version]=$BUILD_VERSION
 env[cfg_java_extra_opts]=
 
 # namespace处理逻辑：命令行参数优先于配置文件
@@ -162,8 +166,10 @@ fi
 
 env[cfg_dockerfile_path]=${env[cfg_workspace_path]}/dockerfile
 
-# 模板路径改为全局 templates 目录
-env[cfg_template_path]=${env[cfg_devops_path]}/templates
+# 模板路径配置
+env[cfg_global_template_path]=${env[cfg_devops_path]}/templates
+env[cfg_workspace_template_path]=${env[cfg_workspace_path]}/templates
+env[cfg_template_path]=${env[cfg_global_template_path]}  # 保持向后兼容
 
 
 

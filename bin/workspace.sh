@@ -185,7 +185,7 @@ function harbor_secret_manage() {
 }
 
 function create_workspace() {
-	# Usage: devops create workspace <name> [--platform ...] [-i|--interactive] [--set-default]
+	# Usage: devops create workspace <name> [--platform ...] [--build-version ...] [-i|--interactive] [--set-default]
 	local interactive=false
 	local workspace_name=""
 	local platform=""
@@ -198,6 +198,7 @@ function create_workspace() {
 	local git_url=""
 	local maven_settings=""
 	local gradle_init_script=""
+	local build_version=""
 	local set_default=false
 
 	# Parse subcommand: expect first arg to be 'workspace'
@@ -221,6 +222,7 @@ function create_workspace() {
 			--git-url) git_url="$2"; shift 2;;
 			--maven-settings) maven_settings="$2"; shift 2;;
 			--gradle-init-script) gradle_init_script="$2"; shift 2;;
+			--build-version) build_version="$2"; shift 2;;
 			--set-default) set_default=true; shift 1;;
 			*) error "未知参数: $1"; exit 1;;
 		esac
@@ -286,6 +288,14 @@ function create_workspace() {
 		fi
 		if [ -z "$gradle_init_script" ]; then
 			read -p "Gradle init script 路径 (可留空): " gradle_init_script
+		fi
+		if [ -z "$build_version" ]; then
+			echo ""
+			echo "构建工具版本配置 (可选):"
+			echo "  格式: 工具:版本,工具:版本"
+			echo "  示例: node:18.12,jdk:17,maven:3.9.3"
+			echo "  支持: node, jdk/java, maven, gradle, volta"
+			read -p "构建工具版本 (可留空): " build_version
 		fi
 		read -p "设为默认工作空间? (y/N): " reply_default
 		if [[ "$reply_default" =~ ^[Yy]$ ]]; then set_default=true; fi
@@ -367,6 +377,14 @@ function create_workspace() {
 		if [ -n "$gradle_init_script" ]; then
 			echo "#Gradle init script"
 			echo "BUILD_GRADLE_INIT_SCRIPT=\"$gradle_init_script\""
+		fi
+		echo ""
+		echo "#构建工具版本配置 (可选)"
+		echo "#格式: \"工具:版本,工具:版本\" 例如: \"node:18.12,jdk:17,maven:3.9.3\""
+		if [ -n "$build_version" ]; then
+			echo "BUILD_VERSION=\"$build_version\""
+		else
+			echo "#BUILD_VERSION=\"\""
 		fi
 		echo ""
 		echo "#启用dockerfile,路由dockerfile"

@@ -7,28 +7,12 @@ source "$VERSION_MANAGER_SCRIPT_DIR/log.sh"
 
 # 版本管理器函数
 
-# 解析构建环境参数，提取版本信息
+# 注意：parse_build_env 函数已废弃
+# --build-env 参数不再处理版本信息，版本管理完全由 --build-version 负责
+# 此函数保留仅为向后兼容，但不建议使用
 function parse_build_env() {
-    local build_env="$1"
-    local versions=()
-    
-    if [[ -z "$build_env" ]]; then
-        return 0
-    fi
-    
-    # 分割多个版本配置（逗号分隔）
-    IFS=',' read -ra env_parts <<< "$build_env"
-    
-    for part in "${env_parts[@]}"; do
-        # 检查是否包含版本信息（格式：tool:version）
-        if [[ "$part" =~ ^([^:]+):(.+)$ ]]; then
-            local tool="${BASH_REMATCH[1]}"
-            local version="${BASH_REMATCH[2]}"
-            versions+=("$tool:$version")
-        fi
-    done
-    
-    echo "${versions[@]}"
+    warn "parse_build_env 函数已废弃，请使用 --build-version 参数管理版本"
+    return 0
 }
     
 # 设置Node.js版本
@@ -180,16 +164,62 @@ function set_volta_version() {
     return 0
 }
     
+# 解析版本配置字符串
+function parse_version_config() {
+    local version_config="$1"
+    local versions=()
+
+    if [[ -z "$version_config" ]]; then
+        return 0
+    fi
+
+    # 分割多个版本配置（逗号分隔）
+    IFS=',' read -ra version_parts <<< "$version_config"
+
+    for part in "${version_parts[@]}"; do
+        # 检查是否包含版本信息（格式：tool:version）
+        if [[ "$part" =~ ^([^:]+):(.+)$ ]]; then
+            local tool="${BASH_REMATCH[1]}"
+            local version="${BASH_REMATCH[2]}"
+            versions+=("$tool:$version")
+        fi
+    done
+
+    echo "${versions[@]}"
+}
+
 # 应用版本配置
 function apply_versions() {
-    local build_env="$1"
-    local versions=($(parse_build_env "$build_env"))
-    
+    local build_version="$1"
+    local workspace_version="$2"
+    local final_version=""
+
+    # 优先级：命令行 --build-version > workspace BUILD_VERSION
+    if [[ -n "$build_version" ]]; then
+        final_version="$build_version"
+        info "使用命令行 --build-version 参数管理构建工具版本"
+    elif [[ -n "$workspace_version" ]]; then
+        final_version="$workspace_version"
+        info "使用workspace配置的构建工具版本"
+    else
+        # 没有版本配置，直接返回
+        return 0
+    fi
+
+    local versions=($(parse_version_config "$final_version"))
+
+    if [ ${#versions[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    info "应用版本配置: $final_version"
+
+    # 应用版本配置
     for version_config in "${versions[@]}"; do
         if [[ "$version_config" =~ ^([^:]+):(.+)$ ]]; then
             local tool="${BASH_REMATCH[1]}"
             local version="${BASH_REMATCH[2]}"
-            
+
             case "$tool" in
                 "node")
                     set_node_version "$version"
@@ -207,7 +237,7 @@ function apply_versions() {
                     set_volta_version "$version"
                     ;;
                 *)
-                    # 如果不是版本配置，保持原有的构建环境逻辑
+                    warn "不支持的构建工具版本管理: $tool"
                     ;;
             esac
         fi

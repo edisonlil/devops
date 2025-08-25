@@ -14,13 +14,15 @@ function java_build() {
 	opt_build_cmds=${env[opt_build_cmds]}
 	opt_java_opts=${env[opt_java_opts]}
 	opt_build_env=${env[opt_build_env]}
+	opt_build_version=${env[opt_build_version]}
+	cfg_build_version=${env[cfg_build_version]}
 	tmp_dockerfile=${env[tmp_dockerfile]}
 	cfg_harbor_address=${env[cfg_harbor_address]}
 	cfg_harbor_project=${env[cfg_harbor_project]}
 	tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
 
-	# 应用版本配置
-	apply_versions "$opt_build_env"
+	# 应用版本配置（优先级：命令行 > workspace配置）
+	apply_versions "$opt_build_version" "$cfg_build_version"
 
 	module_path=`find $cfg_temp_dir -name ${cmd_job_name} -type d -exec test -f {}/pom.xml \; -print | tail -1`
         if test -z "$module_path"; then module_path=$cfg_temp_dir; fi

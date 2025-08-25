@@ -43,8 +43,10 @@ DevOps 模板管理工具
     devops template <command> [options]
 
 命令:
-    list                        列出所有可用模板
+    list                        列出所有可用模板（全局和workspace）
     show <template-id>          显示模板详情
+    copy <template-id> --workspace <workspace>
+                               从全局模板复制到workspace
     create <template-id> <job-name> --workspace <workspace>
                                基于模板创建作业配置
     validate <workspace> <job>  验证作业配置
@@ -62,7 +64,10 @@ DevOps 模板管理工具
     # 查看 Spring Boot 模板详情
     devops template show spring-boot
 
-    # 基于 Spring Boot 模板创建作业
+    # 复制全局模板到workspace
+    devops template copy spring-boot --workspace youshen
+
+    # 基于模板创建作业
     devops template create spring-boot demo-app --workspace youshen \\
         --param module_name=demo-app \\
         --param git_url=https://github.com/example/demo.git \\
@@ -73,57 +78,146 @@ DevOps 模板管理工具
 EOF
 }
 
+# 列出模板（指定目录）
+list_templates_in_dir() {
+    local template_dir="$1"
+    local label="$2"
+
+    if [ ! -d "$template_dir" ]; then
+        return 0
+    fi
+
+    local found_any=false
+    for platform_dir in "$template_dir"/*; do
+        if [ -d "$platform_dir" ]; then
+            local platform_name=$(basename "$platform_dir")
+            for template_subdir in "$platform_dir"/*; do
+                if [ -d "$template_subdir" ]; then
+                    found_any=true
+                    break 2
+                fi
+            done
+        fi
+    done
+
+    if [ "$found_any" = false ]; then
+        return 0
+    fi
+
+    log_info "$label:"
+    echo
+
+    for platform_dir in "$template_dir"/*; do
+        if [ -d "$platform_dir" ]; then
+            local platform_name=$(basename "$platform_dir")
+            echo -e "${BLUE}平台: $platform_name${NC}"
+
+            for template_subdir in "$platform_dir"/*; do
+                if [ -d "$template_subdir" ]; then
+                    local template_id=$(basename "$template_subdir")
+                    local meta_file="$template_subdir/meta.json"
+
+                    if [ -f "$meta_file" ]; then
+                        local name=$(jq -r '.name // "未知"' "$meta_file" 2>/dev/null || echo "未知")
+                        local description=$(jq -r '.description // "无描述"' "$meta_file" 2>/dev/null || echo "无描述")
+                        local category=$(jq -r '.category // "其他"' "$meta_file" 2>/dev/null || echo "其他")
+
+                        echo -e "  ${GREEN}$template_id${NC}"
+                        echo "    名称: $name"
+                        echo "    分类: $category"
+                        echo "    描述: $description"
+                    else
+                        echo -e "  ${YELLOW}$template_id${NC} (缺少元数据文件)"
+                    fi
+                    echo
+                fi
+            done
+        fi
+    done
+}
+
 # 列出所有模板
 list_templates() {
-    log_info "可用的全局模板:"
-    echo
-    
-    if [ ! -d "$TEMPLATES_DIR" ]; then
-        log_error "模板目录不存在: $TEMPLATES_DIR"
-        return 1
+    # 获取当前workspace
+    local current_workspace=""
+    if [ -f "$WORKSPACE_DIR/enable" ]; then
+        source "$WORKSPACE_DIR/enable"
+        current_workspace="$ENABEL_WORKSPACE_PATH"
     fi
-    
-    for template_dir in "$TEMPLATES_DIR"/*; do
-        if [ -d "$template_dir" ]; then
-            template_id=$(basename "$template_dir")
-            meta_file="$template_dir/meta.json"
-            
-            if [ -f "$meta_file" ]; then
-                name=$(jq -r '.name // "未知"' "$meta_file" 2>/dev/null || echo "未知")
-                description=$(jq -r '.description // "无描述"' "$meta_file" 2>/dev/null || echo "无描述")
-                category=$(jq -r '.category // "其他"' "$meta_file" 2>/dev/null || echo "其他")
-                
-                echo -e "${GREEN}$template_id${NC}"
-                echo "  名称: $name"
-                echo "  分类: $category"
-                echo "  描述: $description"
-                echo
-            else
-                echo -e "${YELLOW}$template_id${NC} (缺少元数据文件)"
-                echo
+
+    # 列出全局模板
+    list_templates_in_dir "$TEMPLATES_DIR" "全局模板"
+
+    # 列出当前workspace模板
+    if [ -n "$current_workspace" ]; then
+        local workspace_templates_dir="$WORKSPACE_DIR/$current_workspace/templates"
+        list_templates_in_dir "$workspace_templates_dir" "Workspace模板 ($current_workspace)"
+    fi
+}
+
+# 查找模板目录（优先workspace模板）
+find_template_location() {
+    local template_id="$1"
+    local current_workspace=""
+
+    # 获取当前workspace
+    if [ -f "$WORKSPACE_DIR/enable" ]; then
+        source "$WORKSPACE_DIR/enable"
+        current_workspace="$ENABEL_WORKSPACE_PATH"
+    fi
+
+    # 优先查找workspace模板
+    if [ -n "$current_workspace" ]; then
+        local workspace_templates_dir="$WORKSPACE_DIR/$current_workspace/templates"
+        for platform_dir in "$workspace_templates_dir"/*; do
+            if [ -d "$platform_dir" ]; then
+                local template_dir="$platform_dir/$template_id"
+                if [ -d "$template_dir" ]; then
+                    echo "$template_dir"
+                    return 0
+                fi
+            fi
+        done
+    fi
+
+    # fallback到全局模板
+    for platform_dir in "$TEMPLATES_DIR"/*; do
+        if [ -d "$platform_dir" ]; then
+            local template_dir="$platform_dir/$template_id"
+            if [ -d "$template_dir" ]; then
+                echo "$template_dir"
+                return 0
             fi
         fi
     done
+
+    return 1
 }
 
 # 显示模板详情
 show_template() {
     local template_id="$1"
-    
+
     if [ -z "$template_id" ]; then
         log_error "请指定模板 ID"
         return 1
     fi
-    
-    local template_dir="$TEMPLATES_DIR/$template_id"
-    local meta_file="$template_dir/meta.json"
-    
-    if [ ! -f "$meta_file" ]; then
+
+    local template_dir=$(find_template_location "$template_id")
+    if [ $? -ne 0 ] || [ -z "$template_dir" ]; then
         log_error "模板不存在: $template_id"
         return 1
     fi
+
+    local meta_file="$template_dir/meta.json"
     
-    log_info "模板详情: $template_id"
+    # 判断模板类型
+    local template_type="全局模板"
+    if [[ "$template_dir" == "$WORKSPACE_DIR"* ]]; then
+        template_type="Workspace模板"
+    fi
+
+    log_info "模板详情: $template_id ($template_type)"
     echo
     
     # 基本信息
@@ -155,6 +249,92 @@ show_template() {
         fi
     done
     echo
+}
+
+# 复制全局模板到workspace
+copy_template() {
+    local template_id=""
+    local workspace=""
+
+    # 解析参数
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --workspace)
+                workspace="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$template_id" ]; then
+                    template_id="$1"
+                else
+                    log_error "未知参数: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [ -z "$template_id" ]; then
+        log_error "请指定模板 ID"
+        return 1
+    fi
+
+    if [ -z "$workspace" ]; then
+        log_error "请指定workspace (--workspace <name>)"
+        return 1
+    fi
+
+    # 检查workspace是否存在
+    local workspace_dir="$WORKSPACE_DIR/$workspace"
+    if [ ! -d "$workspace_dir" ]; then
+        log_error "Workspace不存在: $workspace"
+        return 1
+    fi
+
+    # 查找全局模板
+    local global_template_dir=""
+    for platform_dir in "$TEMPLATES_DIR"/*; do
+        if [ -d "$platform_dir" ]; then
+            local template_dir="$platform_dir/$template_id"
+            if [ -d "$template_dir" ]; then
+                global_template_dir="$template_dir"
+                break
+            fi
+        fi
+    done
+
+    if [ -z "$global_template_dir" ]; then
+        log_error "全局模板不存在: $template_id"
+        return 1
+    fi
+
+    # 确定平台类型
+    local platform_name=$(basename "$(dirname "$global_template_dir")")
+
+    # 创建workspace模板目录
+    local workspace_template_dir="$workspace_dir/templates/$platform_name/$template_id"
+
+    # 检查是否已存在
+    if [ -d "$workspace_template_dir" ]; then
+        log_warning "Workspace模板已存在: $template_id"
+        read -p "是否覆盖? (y/N): " confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            log_info "取消复制"
+            return 0
+        fi
+        rm -rf "$workspace_template_dir"
+    fi
+
+    # 创建目录并复制
+    mkdir -p "$workspace_template_dir"
+    cp -r "$global_template_dir"/* "$workspace_template_dir/"
+
+    log_success "模板复制成功: $template_id"
+    log_info "源: $global_template_dir"
+    log_info "目标: $workspace_template_dir"
+    echo
+    log_info "现在可以编辑workspace模板文件，它将优先于全局模板使用"
 }
 
 # 替换模板中的占位符
@@ -394,6 +574,9 @@ main() {
             ;;
         show)
             show_template "$@"
+            ;;
+        copy)
+            copy_template "$@"
             ;;
         create)
             create_job "$@"
