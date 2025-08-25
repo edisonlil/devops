@@ -113,7 +113,7 @@ fi
 
 #设置deploy文件生成位置
 info "埋点: 当前的工作空间为:${opt_workspace}"
-env[cfg_deploy_gen_location]=${env[cfg_devops_path]}/deploy/${env[opt_workspace]}
+env[cfg_deploy_gen_location]=${env[cfg_workspace_path]}/deploy
 
 #加载配置
 source ${env[cfg_workspace_path]}/config
@@ -165,8 +165,6 @@ env[cfg_dockerfile_path]=${env[cfg_workspace_path]}/dockerfile
 # 模板路径改为全局 templates 目录
 env[cfg_template_path]=${env[cfg_devops_path]}/templates
 
-
-env[cfg_deploy_gen_location]=${env[cfg_devops_path]}/deploy/${env[opt_workspace]}
 
 
 
