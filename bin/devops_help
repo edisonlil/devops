@@ -36,6 +36,7 @@ function devops_help() {
 	  env harbor-secret            管理K8s Harbor Secret
 	  create workspace <name>      创建工作空间（支持交互式 -i）
 	  template                     模板管理（list/show/create/validate）
+	  shortcut <action>            快捷键管理（save/run/list/show/delete/edit）
 
 	Examples:
 	  # 交互式部署（推荐新手使用）
@@ -78,6 +79,14 @@ function devops_help() {
 	  devops template show spring-boot        # 显示模板详情
 	  devops template copy spring-boot --workspace demo  # 复制全局模板到workspace
 	  devops template create spring-boot demo # 基于模板创建作业
+
+	  # 快捷键管理
+	  devops shortcut save prod-deploy devops run java my-app --build-env prod --namespace production
+	  devops shortcut list                    # 列出所有快捷键
+	  devops prod-deploy                      # 执行快捷键
+	  devops prod-deploy --override --git-branch hotfix  # 覆盖参数执行
+	  devops shortcut show prod-deploy        # 查看快捷键详情
+	  devops shortcut delete prod-deploy      # 删除快捷键
 	  devops template validate demo demo-app  # 验证模板配置
 
 	Version Management:

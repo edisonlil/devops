@@ -3,6 +3,30 @@
 # devops命令自动补全脚本
 # 使用方法: source bin/devops-completion.bash
 
+# 辅助函数：获取快捷键列表
+_get_shortcuts() {
+    local shortcuts=()
+    local current_workspace=""
+
+    # 获取当前工作空间
+    if [[ -f "workspace/enable" ]]; then
+        current_workspace=$(grep "ENABEL_WORKSPACE_PATH" workspace/enable 2>/dev/null | cut -d'"' -f2)
+    fi
+
+    if [[ -z "$current_workspace" ]]; then
+        current_workspace="default"
+    fi
+
+    local workspace_path="workspace/$current_workspace"
+
+    # 使用Python脚本获取快捷键列表
+    if [[ -f "bin/shortcut_manager.py" && -d "$workspace_path" ]]; then
+        shortcuts=($(python3 bin/shortcut_manager.py list --workspace "$workspace_path" 2>/dev/null | cut -d: -f1))
+    fi
+
+    echo "${shortcuts[@]}"
+}
+
 # 辅助函数：补全模板ID
 _complete_template_ids() {
     local template_ids=()
@@ -65,7 +89,7 @@ _devops_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # 主命令选项
-    local main_commands="run install-tools template env create"
+    local main_commands="run install-tools template env create shortcut"
 
     # 项目类型选项
     local project_types="java vue golang tomcat"
@@ -84,8 +108,10 @@ _devops_completion() {
 
     case ${COMP_CWORD} in
         1)
-            # 第一个参数：主命令
-            COMPREPLY=($(compgen -W "${main_commands}" -- ${cur}))
+            # 第一个参数：主命令或快捷键名称
+            local shortcuts=($(_get_shortcuts))
+            local all_options="${main_commands} ${shortcuts[*]}"
+            COMPREPLY=($(compgen -W "${all_options}" -- ${cur}))
             return 0
             ;;
         2)
@@ -111,6 +137,10 @@ _devops_completion() {
                     COMPREPLY=($(compgen -W "workspace" -- ${cur}))
                     return 0
                     ;;
+                "shortcut")
+                    COMPREPLY=($(compgen -W "save run list show delete edit help" -- ${cur}))
+                    return 0
+                    ;;
             esac
             ;;
         3)
@@ -130,6 +160,19 @@ _devops_completion() {
                     "validate")
                         # template validate 需要workspace名称
                         _complete_workspaces
+                        return 0
+                        ;;
+                esac
+            elif [[ ${COMP_WORDS[1]} == "shortcut" ]]; then
+                case "${COMP_WORDS[2]}" in
+                    "run"|"show"|"delete"|"edit")
+                        # 补全快捷键名称
+                        local shortcuts=($(_get_shortcuts))
+                        COMPREPLY=($(compgen -W "${shortcuts[*]}" -- ${cur}))
+                        return 0
+                        ;;
+                    "save")
+                        # shortcut save 需要快捷键名称（用户输入）
                         return 0
                         ;;
                 esac

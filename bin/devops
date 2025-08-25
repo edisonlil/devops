@@ -27,6 +27,12 @@ case ${env[cmd_1]} in
             shift # 移除 'template' 参数
             exec "$SCRIPT_DIR/devops_template" "$@"
             ;;
+        shortcut)
+            # 快捷键功能
+            source "$SCRIPT_DIR/shortcut.sh"
+            shift # 移除 'shortcut' 参数
+            handle_shortcut_command "$@"
+            ;;
         env)
             shift
             subcmd="$1"; shift || true
@@ -49,6 +55,15 @@ case ${env[cmd_1]} in
             create_workspace "$@";
             ;;
         help|--help|-h) devops_help ;;
-        *) devops_help ; exit 1 ; ;;
+        *)
+            # 检查是否是快捷键名称
+            source "$SCRIPT_DIR/shortcut.sh"
+            if is_shortcut_exists "${env[cmd_1]}"; then
+                handle_shortcut_command "${env[cmd_1]}" "${@:2}"
+            else
+                devops_help
+                exit 1
+            fi
+            ;;
 esac
 
