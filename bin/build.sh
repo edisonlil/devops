@@ -10,6 +10,14 @@ source "$BUILD_SCRIPT_DIR/vue_build"
 source "$BUILD_SCRIPT_DIR/nginx_build"
 
 function run() {
+    # 调试信息
+    if [[ "${env[opt_debug]}" == "true" ]]; then
+        echo "DEBUG: cmd_1=${env[cmd_1]}"
+        echo "DEBUG: cmd_2=${env[cmd_2]}"
+        echo "DEBUG: cmd_3=${env[cmd_3]}"
+        echo "DEBUG: opt_interactive=${env[opt_interactive]}"
+    fi
+
     if [[ "${env[opt_interactive]}" == "true" ]]; then
         run_interactive
     else

@@ -51,8 +51,20 @@ function parse_params() {
                 case "$1" in
                 -h)  echo "thanks for use devops!" ; exit 1;;
                 *)
-                        env[cmd_2]=$1
-                        shift 1
+                        # 特殊处理交互式参数在第二位的情况
+                        if [[ "$1" == "-i" || "$1" == "--interactive" ]]; then
+                            env[opt_interactive]=true
+                            shift 1
+                            # 如果还有参数，设置为cmd_2
+                            if [[ $# -gt 0 && $1 != -* ]]; then
+                                env[cmd_2]=$1
+                                shift 1
+                            fi
+                        else
+                            env[cmd_2]=$1
+                            shift 1
+                        fi
+
                         while [ true ] ; do
                                 if [[ $1 == -* ]];then
                                         case "$1" in
