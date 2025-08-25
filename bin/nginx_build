@@ -1,7 +1,6 @@
 #!/bin/bash
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker_helper.sh"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build.sh"
 
 function nginx_build() {
 	# 这里假定 scm() 已经将静态内容打包为 ${env[cfg_temp_dir]}/dist.tar.gz
