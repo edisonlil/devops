@@ -347,6 +347,72 @@ EOF
     log_info "环境变量配置完成"
 }
 
+# 安装Python依赖
+install_python_deps() {
+    log_step "安装Python依赖..."
+
+    local devops_home="$HOME/devops"
+    local python_deps_script="$devops_home/bin/install_python_deps.sh"
+
+    # 检查Python3是否安装
+    if ! command_exists python3; then
+        log_warn "Python3 未安装，尝试安装..."
+        if command_exists apt-get; then
+            sudo apt-get update && sudo apt-get install -y python3 python3-pip
+        elif command_exists yum; then
+            sudo yum install -y python3 python3-pip
+        elif command_exists dnf; then
+            sudo dnf install -y python3 python3-pip
+        else
+            log_error "无法自动安装Python3，请手动安装后重新运行安装脚本"
+            return 1
+        fi
+    fi
+
+    # 检查pip3是否安装
+    if ! command_exists pip3; then
+        log_warn "pip3 未安装，尝试安装..."
+        if command_exists apt-get; then
+            sudo apt-get update && sudo apt-get install -y python3-pip
+        elif command_exists yum; then
+            sudo yum install -y python3-pip
+        elif command_exists dnf; then
+            sudo dnf install -y python3-pip
+        else
+            log_error "无法自动安装pip3，请手动安装后重新运行安装脚本"
+            return 1
+        fi
+    fi
+
+    # 运行Python依赖安装脚本
+    if [[ -f "$python_deps_script" ]]; then
+        log_info "运行Python依赖安装脚本..."
+        if bash "$python_deps_script"; then
+            log_info "Python依赖安装成功"
+        else
+            log_error "Python依赖安装失败"
+            return 1
+        fi
+    else
+        log_warn "Python依赖安装脚本不存在，手动安装核心依赖..."
+        if pip3 install PyYAML Jinja2; then
+            log_info "核心Python依赖安装成功"
+        else
+            log_error "核心Python依赖安装失败"
+            return 1
+        fi
+    fi
+
+    # 验证Python依赖
+    log_info "验证Python依赖..."
+    if python3 -c "import yaml; import jinja2; print('Python依赖验证通过')" 2>/dev/null; then
+        log_info "Python依赖验证成功"
+    else
+        log_error "Python依赖验证失败"
+        return 1
+    fi
+}
+
 # 创建必要的目录和文件
 setup_directories() {
     log_step "创建必要的目录结构..."
@@ -639,6 +705,7 @@ minimal_install() {
 
     setup_environment
     setup_directories
+    install_python_deps
 
     # 验证安装
     if verify_installation; then
@@ -676,6 +743,7 @@ main() {
 
             setup_environment
             setup_directories
+            install_python_deps
 
             if verify_installation; then
                 show_usage
@@ -703,6 +771,7 @@ main() {
 
             setup_environment
             setup_directories
+            install_python_deps
 
             if verify_installation; then
                 show_usage

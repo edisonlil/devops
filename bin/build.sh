@@ -243,42 +243,51 @@ function enhance_service_nodeport() {
 	local expose_port="${env[opt_expose_port]}"
 	local force_override="${env[opt_force_port]}"
 	
-	if [[ -n "$expose_port" ]]; then
-		info "处理NodePort配置: $expose_port"
-		
-		# 检测模板中是否存在nodePort变量
-		if grep -q "?node_port" "$tmp_file"; then
-			# 场景1: 模板有变量，直接替换
-			sed -i "s/?node_port/$expose_port/g" "$tmp_file"
-			sed -i "s/type: .*/type: NodePort/" "$tmp_file"
-			info "替换模板NodePort变量为: $expose_port"
-		elif grep -q "nodePort:" "$tmp_file"; then
-			# 场景2: 模板有固定值
-			if [[ "$force_override" == "true" ]]; then
-				# 强制覆盖固定值
-				sed -i "s/nodePort: [0-9]*/nodePort: $expose_port/" "$tmp_file"
-				sed -i "s/type: .*/type: NodePort/" "$tmp_file"
-				info "强制覆盖模板NodePort为: $expose_port"
-			else
-				# 有固定值但用户未强制覆盖，给出提示
-				local template_port=$(grep "nodePort:" "$tmp_file" | head -1 | awk '{print $2}')
-				warn "模板已有固定NodePort: $template_port，使用 --force-port 可强制覆盖为 $expose_port"
-			fi
+	# 使用Python端口配置处理器
+	info "使用Python端口配置处理器"
+	
+	# 检查Python环境
+	if ! command -v python3 &> /dev/null; then
+		error "Python3 未安装，无法使用端口配置处理器"; exit 1
+	fi
+	
+	# 检查PyYAML依赖
+	if ! python3 -c "import yaml" &> /dev/null; then
+		warn "PyYAML 未安装，尝试安装..."
+		if command -v pip3 &> /dev/null; then
+			pip3 install PyYAML
 		else
-			# 场景3: 模板没有NodePort，动态添加
-			sed -i "s/type: .*/type: NodePort/" "$tmp_file"
-			# 在targetPort行后添加nodePort
-			sed -i "/targetPort: /a\    nodePort: $expose_port" "$tmp_file"
-			info "动态添加NodePort: $expose_port"
+			error "pip3 未安装，无法安装PyYAML依赖"; exit 1
 		fi
+	fi
+	
+	# 调用Python端口配置处理器
+	local python_script="${BUILD_SCRIPT_DIR}/port_config_handler.py"
+	if [ ! -f "$python_script" ]; then
+		error "Python端口配置处理器不存在: $python_script"; exit 1
+	fi
+	
+	# 构建Python处理器参数
+	local python_args=(
+		"$python_script"
+		"--yaml-file" "$tmp_file"
+	)
+	
+	# 添加端口参数
+	if [ -n "$expose_port" ]; then
+		python_args+=("--expose-port" "$expose_port")
+	fi
+	
+	# 添加强制覆盖参数
+	if [ "$force_override" = "true" ]; then
+		python_args+=("--force-port")
+	fi
+	
+	# 执行Python端口配置处理
+	if python3 "${python_args[@]}"; then
+		success "端口配置处理成功"
 	else
-		# 用户未指定expose_port，保持模板原样
-		if grep -q "?node_port" "$tmp_file"; then
-			# 模板有变量但用户未提供值，移除变量行
-			sed -i '/nodePort: ?node_port/d' "$tmp_file"
-			info "移除未指定的NodePort变量"
-		fi
-		# 其他情况保持模板原样
+		error "端口配置处理失败"; exit 1
 	fi
 }
 
@@ -318,102 +327,77 @@ function render_template() {
 		error "模板 deploy.yaml 不存在: $deploy_tpl"; exit 1
 	fi
 
-	gen_long_time_str=`date +%s%N`
-	tmp_render_file="/tmp/${gen_long_time_str}.yml"
-	\cp "$deploy_tpl" "$tmp_render_file"
-
-	# 处理 ? 占位符
-	sed -i "s#?module_name#${cmd_job_name}#g" "$tmp_render_file"
-	sed -i "s#?image_path#${tmp_image_path}#g" "$tmp_render_file"
-	sed -i "s#?namespace#${cfg_k8s_namespace}#g" "$tmp_render_file"
-	sed -i "s#?network#${cfg_swarm_network}#g" "$tmp_render_file" 2>/dev/null || true
+	# 使用Python模板渲染器替代sed
+	info "使用Python模板渲染器处理模板"
 	
-	# 处理端口相关占位符
-	local app_port="${env[opt_app_port]:-80}"  # 默认80
-	sed -i "s#?app_port#${app_port}#g" "$tmp_render_file"
-	
-	# 处理Harbor secret占位符
-	if [[ -n "$cfg_harbor_secret_name" ]]; then
-		sed -i "s#?harbor_secret_name#${cfg_harbor_secret_name}#g" "$tmp_render_file"
-	else
-		# 如果没有secret，移除imagePullSecrets配置
-		sed -i '/imagePullSecrets:/,/^[[:space:]]*- name: \?harbor_secret_name/d' "$tmp_render_file"
-		sed -i '/^[[:space:]]*imagePullSecrets:/d' "$tmp_render_file"
+	# 检查Python环境
+	if ! command -v python3 &> /dev/null; then
+		error "Python3 未安装，无法使用模板渲染器"; exit 1
 	fi
-
-	# 如果是K8s平台且启用了Harbor，自动添加imagePullSecrets
-	if [[ "$cfg_build_platform" == "KUBERNETES" && "${env[cfg_enable_harbor]}" == "1" && -n "$cfg_harbor_secret_name" ]]; then
-		info "为 K8s 部署添加 Harbor imagePullSecrets: $cfg_harbor_secret_name"
-		
-		# 检查Deployment中是否已经有imagePullSecrets
-		if awk '/kind: Deployment/,/^---/ { if ($0 ~ /imagePullSecrets:/) { found=1; exit } } END { exit !found }' "$tmp_render_file"; then
-			# 如果已存在，检查是否包含我们的secret
-			if awk '/kind: Deployment/,/^---/ { if ($0 ~ /name: '"$cfg_harbor_secret_name"'/) { found=1; exit } } END { exit !found }' "$tmp_render_file"; then
-				info "模板中已包含 Harbor Secret，跳过添加"
-			else
-				# 在现有的imagePullSecrets中添加我们的secret
-				sed -i "/kind: Deployment/,/^---/{ /imagePullSecrets:/a\        - name: $cfg_harbor_secret_name }" "$tmp_render_file"
-			fi
+	
+	# 检查PyYAML依赖
+	if ! python3 -c "import yaml" &> /dev/null; then
+		warn "PyYAML 未安装，尝试安装..."
+		if command -v pip3 &> /dev/null; then
+			pip3 install PyYAML
 		else
-			# 如果不存在imagePullSecrets，使用awk精确定位Deployment的template.spec
-			# 创建一个临时文件来处理YAML结构
-			local temp_file=$(mktemp)
-			local in_deployment=false
-			local in_template=false
-			local in_spec=false
-			local added_imagepullsecrets=false
-			
-			while IFS= read -r line; do
-				echo "$line" >> "$temp_file"
-				
-				# 检测是否进入Deployment
-				if [[ "$line" =~ ^kind:[[:space:]]*Deployment ]]; then
-					in_deployment=true
-					in_template=false
-					in_spec=false
-					added_imagepullsecrets=false
-				fi
-				
-				# 检测是否离开Deployment（遇到---分隔符）
-				if [[ "$line" =~ ^--- ]] && [ "$in_deployment" = true ]; then
-					in_deployment=false
-					in_template=false
-					in_spec=false
-				fi
-				
-				# 在Deployment内检测template
-				if [ "$in_deployment" = true ] && [[ "$line" =~ ^[[:space:]]*template: ]]; then
-					in_template=true
-					in_spec=false
-				fi
-				
-				# 在template内检测spec
-				if [ "$in_deployment" = true ] && [ "$in_template" = true ] && [[ "$line" =~ ^[[:space:]]*spec: ]]; then
-					in_spec=true
-					# 在spec行后添加imagePullSecrets
-					if [ "$added_imagepullsecrets" = false ]; then
-						echo "      imagePullSecrets:" >> "$temp_file"
-						echo "        - name: $cfg_harbor_secret_name" >> "$temp_file"
-						added_imagepullsecrets=true
-					fi
-				fi
-			done < "$tmp_render_file"
-			
-			# 替换原文件
-			mv "$temp_file" "$tmp_render_file"
+			error "pip3 未安装，无法安装PyYAML依赖"; exit 1
 		fi
 	fi
-
+	
+	# 准备渲染参数
+	local app_port="${env[opt_app_port]:-80}"  # 默认80
+	local java_opts="${env[opt_java_opts]:-}"
+	local enable_harbor="${env[cfg_enable_harbor]:-0}"
+	
+	# 调用Python模板渲染器
+	local python_script="${BUILD_SCRIPT_DIR}/template_renderer.py"
+	if [ ! -f "$python_script" ]; then
+		error "Python模板渲染器不存在: $python_script"; exit 1
+	fi
+	
+	# 构建Python渲染器参数
+	local python_args=(
+		"$python_script"
+		"--template" "$deploy_tpl"
+		"--output" "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		"--module-name" "$cmd_job_name"
+		"--image-path" "$tmp_image_path"
+		"--namespace" "$cfg_k8s_namespace"
+		"--app-port" "$app_port"
+		"--build-platform" "$cfg_build_platform"
+		"--java-opts" "$java_opts"
+	)
+	
+	# 添加网络参数（仅Docker Swarm）
+	if [ "$cfg_build_platform" = "DOCKER_SWARM" ] && [ -n "$cfg_swarm_network" ]; then
+		python_args+=("--network" "$cfg_swarm_network")
+	fi
+	
+	# 添加Harbor相关参数
+	if [ "$enable_harbor" = "1" ] && [ -n "$cfg_harbor_secret_name" ]; then
+		python_args+=("--enable-harbor" "--harbor-secret-name" "$cfg_harbor_secret_name")
+	fi
+	
+	# 添加验证参数
+	python_args+=("--validate")
+	
+	# 确保输出目录存在
+	if [ ! -d "$cfg_deploy_gen_location" ]; then
+		mkdir -p "$cfg_deploy_gen_location"
+	fi
+	
+	# 执行Python模板渲染
+	if python3 "${python_args[@]}"; then
+		success "模板渲染成功: $cfg_deploy_gen_location/${cmd_job_name}.yml"
+	else
+		error "模板渲染失败"; exit 1
+	fi
+	
 	# 处理NodePort动态注入 (仅K8s平台)
 	if [[ "$cfg_build_platform" == "KUBERNETES" ]]; then
-		enhance_service_nodeport "$tmp_render_file"
+		enhance_service_nodeport "$cfg_deploy_gen_location/${cmd_job_name}.yml"
 	fi
-
-	# 生成文件
-	if [ ! -d "$cfg_deploy_gen_location" ];then
-		mkdir -p $cfg_deploy_gen_location
-	fi
-	\mv "$tmp_render_file" $cfg_deploy_gen_location/${cmd_job_name}.yml
 }
 
 function deploy() {

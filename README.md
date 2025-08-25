@@ -103,6 +103,33 @@ devops install-tools --check
 
 # 安装开发工具
 devops install-tools
+
+# 验证安装
+./test_installation.sh
+```
+
+### Python依赖
+
+DevOps工具链现在使用Python脚本进行模板渲染和端口配置，提供更精确的YAML处理能力。
+
+**自动安装**：安装脚本会自动安装Python3和必要的依赖。
+
+**手动验证**：
+```bash
+# 验证Python依赖
+./verify_python_deps.sh
+
+# 运行完整测试
+python3 test_all_python_components.py
+```
+
+**故障排除**：
+```bash
+# 重新安装Python依赖
+./bin/install_python_deps.sh
+
+# 查看详细说明
+cat bin/TEMPLATE_RENDERER_README.md
 ```
 
 详细安装说明请查看 [安装指南](docs/installation/README.md)
