@@ -62,9 +62,11 @@
 
             <div class="steps-flow">
                 <div class="step-item">
-                    <div class="step-marker">1</div>
-                    <div class="step-content">
+                    <div class="step-header">
+                        <div class="step-marker">1</div>
                         <h3>安装 DevOps</h3>
+                    </div>
+                    <div class="step-content">
                         <p>一行命令完成安装，自动配置所需环境</p>
                         <div class="inline-code">
                             <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
@@ -75,9 +77,11 @@
                 <div class="step-arrow">→</div>
 
                 <div class="step-item">
-                    <div class="step-marker">2</div>
-                    <div class="step-content">
+                    <div class="step-header">
+                        <div class="step-marker">2</div>
                         <h3>创建工作空间</h3>
+                    </div>
+                    <div class="step-content">
                         <p>配置项目工作空间，隔离不同项目环境</p>
                         <div class="inline-code">
                             <code>devops create workspace demo -i</code>
@@ -88,12 +92,14 @@
                 <div class="step-arrow">→</div>
 
                 <div class="step-item">
-                    <div class="step-marker">3</div>
-                    <div class="step-content">
+                    <div class="step-header">
+                        <div class="step-marker">3</div>
                         <h3>一键部署</h3>
+                    </div>
+                    <div class="step-content">
                         <p>从代码拉取到容器化部署，一条命令搞定</p>
                         <div class="inline-code">
-                            <code>devops run java my-app --git-url https://github.com/example/app.git</code>
+                            <code>devops run java --git-url https://github.com/example/app.git my-app</code>
                         </div>
                     </div>
                 </div>
@@ -189,130 +195,71 @@
 
             <div class="command-container">
                 <div class="command-box">
-                    <button class="copy-btn" onclick="copyCommand()">复制</button>
+                    <button type="button" class="copy-btn" onclick="copyCommand()">复制</button>
                     <code class="command" id="install-command">curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
                 </div>
             </div>
 
-            <!-- 安装对比表 -->
-            <div class="comparison-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>特性</th>
-                            <th>标准安装</th>
-                            <th>完整安装</th>
-                            <th>脚本专用</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Java 环境</td>
-                            <td class="check">✅</td>
-                            <td class="check">✅</td>
-                            <td class="cross">❌</td>
-                        </tr>
-                        <tr>
-                            <td>前端环境</td>
-                            <td class="cross">❌</td>
-                            <td class="check">✅</td>
-                            <td class="cross">❌</td>
-                        </tr>
-                        <tr>
-                            <td>安装时间</td>
-                            <td>~10分钟</td>
-                            <td>~20分钟</td>
-                            <td>~1分钟</td>
-                        </tr>
-                        <tr>
-                            <td>适用场景</td>
-                            <td>Java开发</td>
-                            <td>全栈开发</td>
-                            <td>已有环境</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- 安装信息显示 -->
+            <div class="install-info-display">
+                <div class="install-info-item active" data-mode="0">
+                    <p class="install-desc">适合 Java 开发和容器化部署，包含 Java 环境、Maven/Gradle、Docker 等工具。</p>
+                    <div class="install-details">
+                        <span class="install-time">⏱️ 安装时间：~10分钟</span>
+                        <span class="install-size">💾 磁盘占用：~3GB</span>
+                    </div>
+                </div>
+                <div class="install-info-item" data-mode="1">
+                    <p class="install-desc">适合全栈开发，包含所有开发工具：Java、Node.js、Go 等。</p>
+                    <div class="install-details">
+                        <span class="install-time">⏱️ 安装时间：~20分钟</span>
+                        <span class="install-size">💾 磁盘占用：~5GB</span>
+                    </div>
+                </div>
+                <div class="install-info-item" data-mode="2">
+                    <p class="install-desc">仅安装 DevOps 脚本，适合已有开发环境的用户。</p>
+                    <div class="install-details">
+                        <span class="install-time">⏱️ 安装时间：~1分钟</span>
+                        <span class="install-size">💾 磁盘占用：~50MB</span>
+                    </div>
+                </div>
             </div>
+
+
         </div>
     </section>
 
     <!-- 使用示例 -->
-    <section id="examples" class="section" style="background: var(--bg-secondary);">
+    <section id="examples" class="section section-alt">
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">使用示例</h2>
                 <p class="section-subtitle">看看如何使用 DevOps 快速部署不同类型的应用</p>
             </div>
-            
-            <div class="example-tabs">
-                <button class="tab-btn active" data-tab="java">Java 应用</button>
-                <button class="tab-btn" data-tab="vue">Vue.js 应用</button>
-                <button class="tab-btn" data-tab="go">Go 应用</button>
-            </div>
 
-            <div class="tab-content active" id="java-tab">
-                <div class="example-card">
-                    <h3>Java Spring Boot 应用部署</h3>
-                    <p>从Git仓库拉取代码，自动构建并部署到Kubernetes</p>
-                    <div class="code-block">
-                        <code>devops run java my-app \<br>
-  --git-url https://github.com/example/spring-app.git \<br>
-  --build-tool maven \<br>
-  --app-port 8080 \<br>
-  --expose-port 30080</code>
+            <div class="examples-simple">
+                <div class="example-item">
+                    <h3>Java Spring Boot 应用</h3>
+                    <div class="example-command">
+                        <code>devops run java --git-url https://github.com/example/spring-app.git --build-tool maven my-app</code>
                     </div>
-                    <div class="example-result">
-                        <strong>部署结果：</strong>
-                        <ul>
-                            <li>✅ 自动从Git拉取最新代码</li>
-                            <li>✅ Maven自动构建JAR包</li>
-                            <li>✅ Docker镜像构建和推送</li>
-                            <li>✅ 部署到Kubernetes集群</li>
-                        </ul>
-                    </div>
+                    <p class="example-desc">自动从Git拉取代码，Maven构建，Docker镜像打包，部署到Kubernetes</p>
                 </div>
-            </div>
 
-            <div class="tab-content" id="vue-tab">
-                <div class="example-card">
-                    <h3>Vue.js 前端应用部署</h3>
-                    <p>自动化构建Vue项目并部署到容器平台</p>
-                    <div class="code-block">
-                        <code>devops run vue my-frontend \<br>
-  --git-url https://github.com/example/vue-app.git \<br>
-  --build-env prod \<br>
-  --expose-port 30081</code>
+                <div class="example-item">
+                    <h3>Vue.js 前端应用</h3>
+                    <div class="example-command">
+                        <code>devops run vue --git-url https://github.com/example/vue-app.git --build-env prod my-frontend</code>
                     </div>
-                    <div class="example-result">
-                        <strong>部署结果：</strong>
-                        <ul>
-                            <li>✅ npm install安装依赖</li>
-                            <li>✅ 构建生产环境静态资源</li>
-                            <li>✅ Nginx容器化部署</li>
-                            <li>✅ 自动配置路由规则</li>
-                        </ul>
-                    </div>
+                    <p class="example-desc">npm安装依赖，构建生产环境静态资源，Nginx容器化部署</p>
                 </div>
-            </div>
 
-            <div class="tab-content" id="go-tab">
-                <div class="example-card">
-                    <h3>Go 应用部署</h3>
-                    <p>Go应用的快速构建和容器化部署</p>
-                    <div class="code-block">
-                        <code>devops run go my-api \<br>
-  --git-url https://github.com/example/go-api.git \<br>
-  --app-port 8080</code>
+                <div class="example-item">
+                    <h3>Go 微服务应用</h3>
+                    <div class="example-command">
+                        <code>devops run go --git-url https://github.com/example/go-api.git --app-port 8080 my-api</code>
                     </div>
-                    <div class="example-result">
-                        <strong>部署结果：</strong>
-                        <ul>
-                            <li>✅ Go模块依赖管理</li>
-                            <li>✅ 静态编译二进制文件</li>
-                            <li>✅ 轻量级容器镜像</li>
-                            <li>✅ 高性能服务部署</li>
-                        </ul>
-                    </div>
+                    <p class="example-desc">Go模块依赖管理，静态编译，轻量级容器镜像构建</p>
                 </div>
             </div>
         </div>

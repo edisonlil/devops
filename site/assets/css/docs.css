@@ -257,16 +257,17 @@
 .step-number {
   background: var(--primary);
   color: var(--text-inverse);
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   margin-right: var(--space-6);
   flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .step-content {
@@ -496,6 +497,63 @@
   .config-table td {
     padding: var(--space-2);
   }
+
+  /* 简洁布局的响应式调整 */
+  .reason-item {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-2);
+  }
+
+  .version-managers {
+    grid-template-columns: 1fr;
+  }
+
+  .vm-item {
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* 卡片布局响应式 */
+  .highlights-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .highlight-card,
+  .tool-card {
+    padding: var(--space-4);
+  }
+
+  /* 信息块响应式 */
+  .info-block {
+    padding: var(--space-4);
+    margin: var(--space-4) 0;
+  }
+
+  .info-block h3 {
+    font-size: 1rem;
+  }
+
+  /* 安装选项响应式 */
+  .install-option {
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+  }
+
+  .install-option h3 {
+    font-size: 1.125rem;
+  }
+
+  .install-info {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
 }
 
 /* 深色主题下的文档页面优化 */
@@ -538,4 +596,284 @@
 
 [data-theme="dark"] .example-result strong {
   color: #4f7cff;
+}
+
+/* 简洁的原因列表样式 */
+.why-devops {
+  margin: var(--space-8) 0;
+}
+
+.reason-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.reason-item:last-child {
+  border-bottom: none;
+}
+
+.reason-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.reason-text {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.reason-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 版本管理器列表样式 */
+.version-managers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.vm-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.vm-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.vm-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vm-info strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.vm-tools {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/* 功能亮点卡片 - 适合卡片式，因为是功能展示 */
+.highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-6);
+  margin: var(--space-8) 0;
+}
+
+.highlight-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.highlight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+
+.highlight-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-3);
+  display: block;
+}
+
+.highlight-card h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+.highlight-card p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 工具卡片 - 适合卡片式，因为是分类展示 */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.tool-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.tool-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tool-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--space-2);
+  display: block;
+}
+
+.tool-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+  color: var(--text-primary);
+}
+
+.tool-card p {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* 简洁的信息块样式 - 类似截图中的样式 */
+.info-block {
+  border-left: 4px solid var(--primary);
+  background: var(--bg-secondary);
+  padding: var(--space-6);
+  margin: var(--space-6) 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.info-block h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.info-block p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+  line-height: 1.6;
+}
+
+.info-block ul,
+.info-block ol {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-6);
+}
+
+.info-block li {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  line-height: 1.6;
+}
+
+.info-block li strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.info-block code {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--primary);
+}
+
+/* 概念示例样式 */
+.concept-example {
+  background: rgba(var(--primary-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-rgb), 0.2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.concept-example strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 深色主题下的信息块优化 */
+[data-theme="dark"] .info-block {
+  background: rgba(255, 255, 255, 0.02);
+  border-left-color: var(--primary);
+}
+
+[data-theme="dark"] .info-block code {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary-light);
+}
+
+[data-theme="dark"] .concept-example {
+  background: rgba(79, 124, 255, 0.1);
+  border-color: rgba(79, 124, 255, 0.2);
+}
+
+/* 文档页面的安装选项样式 */
+.install-option {
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border);
+}
+
+.install-option:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.install-option h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.install-option p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: var(--space-4);
+}
+
+.install-info {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+}
+
+.install-time,
+.install-size {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }

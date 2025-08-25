@@ -70,17 +70,25 @@ function initThemeToggle() {
 function initInstallModes() {
     const modeTabs = document.querySelectorAll('.mode-tab');
     const commandElement = document.getElementById('install-command');
-    
+    const infoItems = document.querySelectorAll('.install-info-item');
+
     modeTabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
             // 更新活动状态
             modeTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            
+
             // 更新命令
             currentInstallMode = index;
             if (commandElement) {
                 commandElement.textContent = installCommands[index];
+            }
+
+            // 更新信息显示
+            infoItems.forEach(item => item.classList.remove('active'));
+            const targetInfo = document.querySelector(`.install-info-item[data-mode="${index}"]`);
+            if (targetInfo) {
+                targetInfo.classList.add('active');
             }
         });
     });
