@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps 使用文档 - 快速上手指南</title>
+    <meta name="description" content="DevOps工具完整使用文档，包含概念介绍、安装指南、部署教程，帮助新手快速上手">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/docs.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="index.html" class="navbar-brand">DevOps</a>
+                <ul class="navbar-nav">
+                    <li><a href="index.html">首页</a></li>
+                    <li><a href="#" class="active">文档</a></li>
+                    <li><a href="index.html#features">功能</a></li>
+                    <li><a href="index.html#install">安装</a></li>
+                    <li><a href="index.html#examples">示例</a></li>
+                </ul>
+                <div class="navbar-actions">
+                    <button class="theme-toggle" id="theme-toggle" aria-label="切换主题">🌙</button>
+                    <a href="https://github.com/edisonlil/devops" class="btn btn-secondary" target="_blank">
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="docs-layout">
+        <!-- 侧边栏 -->
+        <aside class="docs-sidebar">
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>快速开始</h3>
+                    <ul>
+                        <li><a href="#what-is-devops" class="sidebar-link">什么是 DevOps</a></li>
+                        <li><a href="#core-concepts" class="sidebar-link">核心概念</a></li>
+                        <li><a href="#installation" class="sidebar-link">安装指南</a></li>
+                        <li><a href="#first-deployment" class="sidebar-link">第一次部署</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <h3>基础教程</h3>
+                    <ul>
+                        <li><a href="#workspace" class="sidebar-link">工作空间管理</a></li>
+                        <li><a href="#java-deployment" class="sidebar-link">Java 应用部署</a></li>
+                        <li><a href="#vue-deployment" class="sidebar-link">Vue.js 应用部署</a></li>
+                        <li><a href="#interactive-mode" class="sidebar-link">交互式部署</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <h3>进阶功能</h3>
+                    <ul>
+                        <li><a href="#multi-port" class="sidebar-link">多端口配置</a></li>
+                        <li><a href="#version-management" class="sidebar-link">版本管理</a></li>
+                        <li><a href="#template-system" class="sidebar-link">模板系统</a></li>
+                        <li><a href="#troubleshooting" class="sidebar-link">故障排除</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="docs-main">
+            <div class="docs-content">
+                <!-- 什么是 DevOps -->
+                <section id="what-is-devops" class="docs-section">
+                    <h1>什么是 DevOps 工具</h1>
+                    <p class="lead">DevOps 是一款企业级的 CI/CD 自动化部署工具，旨在简化应用的构建、打包和部署流程。</p>
+                    
+                    <h2>为什么选择 DevOps？</h2>
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <div class="feature-icon">🚀</div>
+                            <h3>一键部署</h3>
+                            <p>从代码拉取到容器化部署，一条命令搞定</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🎯</div>
+                            <h3>新手友好</h3>
+                            <p>交互式引导，即使是运维小白也能快速上手</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔧</div>
+                            <h3>多语言支持</h3>
+                            <p>支持 Java、Vue.js、Go 等主流技术栈</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">☸️</div>
+                            <h3>企业级</h3>
+                            <p>完整的 Kubernetes 和 Harbor 集成</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 核心概念 -->
+                <section id="core-concepts" class="docs-section">
+                    <h1>核心概念</h1>
+                    <p>在开始使用 DevOps 之前，让我们了解几个核心概念：</p>
+
+                    <div class="concept-card">
+                        <h3>🏗️ 工作空间 (Workspace)</h3>
+                        <p>工作空间是项目的隔离环境，每个工作空间都有独立的配置文件、模板和部署设置。这样可以确保不同项目之间不会相互影响。</p>
+                        <div class="example">
+                            <strong>示例：</strong>你可以为前端项目创建一个 "frontend" 工作空间，为后端 API 创建一个 "backend" 工作空间。
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>📦 模板系统</h3>
+                        <p>模板定义了应用的部署配置，包括 Dockerfile 和 Kubernetes 配置文件。DevOps 提供了常用的模板，你也可以创建自定义模板。</p>
+                        <div class="example">
+                            <strong>示例：</strong>spring-boot 模板包含了 Java 应用的标准部署配置。
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>🔄 构建流程</h3>
+                        <p>DevOps 的构建流程包括：代码拉取 → 依赖安装 → 编译构建 → Docker 镜像构建 → 推送到仓库 → 部署到集群。</p>
+                        <div class="example">
+                            <strong>示例：</strong>Java 项目会自动使用 Maven 或 Gradle 进行构建。
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 安装指南 -->
+                <section id="installation" class="docs-section">
+                    <h1>安装指南</h1>
+                    <p>DevOps 提供了三种安装模式，根据你的需求选择合适的方式：</p>
+
+                    <div class="install-option">
+                        <h3>🎯 标准安装（推荐）</h3>
+                        <p>适合 Java 开发和容器化部署，包含 Java 环境、Maven/Gradle、Docker 等工具。</p>
+                        <div class="code-block">
+                            <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                            <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="install-info">
+                            <span class="install-time">⏱️ 安装时间：~10分钟</span>
+                            <span class="install-size">💾 磁盘占用：~3GB</span>
+                        </div>
+                    </div>
+
+                    <div class="install-option">
+                        <h3>📦 完整安装</h3>
+                        <p>适合全栈开发，包含所有开发工具：Java、Node.js、Go 等。</p>
+                        <div class="code-block">
+                            <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash -s -- --full</code>
+                            <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="install-info">
+                            <span class="install-time">⏱️ 安装时间：~20分钟</span>
+                            <span class="install-size">💾 磁盘占用：~5GB</span>
+                        </div>
+                    </div>
+
+                    <div class="install-option">
+                        <h3>⚡ 脚本专用</h3>
+                        <p>适合已有开发环境的用户，只安装 DevOps 脚本。</p>
+                        <div class="code-block">
+                            <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash -s -- --script-only</code>
+                            <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                        <div class="install-info">
+                            <span class="install-time">⏱️ 安装时间：~1分钟</span>
+                            <span class="install-size">💾 磁盘占用：~20MB</span>
+                        </div>
+                    </div>
+
+                    <div class="install-verify">
+                        <h3>验证安装</h3>
+                        <p>安装完成后，运行以下命令验证：</p>
+                        <div class="code-block">
+                            <code># 重新加载环境变量
+source ~/.bashrc
+
+# 检查 DevOps 版本
+devops --help
+
+# 检查开发工具状态
+devops install-tools --check</code>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 第一次部署 -->
+                <section id="first-deployment" class="docs-section">
+                    <h1>第一次部署</h1>
+                    <p>让我们通过一个简单的例子来体验 DevOps 的强大功能。</p>
+
+                    <div class="step-by-step">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>创建工作空间</h3>
+                                <p>首先创建一个工作空间来隔离项目环境：</p>
+                                <div class="code-block">
+                                    <code>devops create workspace demo -i</code>
+                                </div>
+                                <div class="step-note">
+                                    <strong>提示：</strong>使用 <code>-i</code> 参数启用交互式创建，系统会引导你完成配置。
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>部署示例应用</h3>
+                                <p>使用交互式模式部署一个 Java 应用：</p>
+                                <div class="code-block">
+                                    <code>devops run java hello-world -i</code>
+                                </div>
+                                <div class="step-note">
+                                    <strong>说明：</strong>系统会提示你输入 Git 地址、构建工具等信息。对于新手，建议使用交互式模式。
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>查看部署结果</h3>
+                                <p>部署完成后，你可以看到类似的输出：</p>
+                                <div class="result-block">
+                                    <div class="result-item success">✅ 代码拉取成功</div>
+                                    <div class="result-item success">✅ Maven 构建完成</div>
+                                    <div class="result-item success">✅ Docker 镜像构建成功</div>
+                                    <div class="result-item success">✅ 部署到 Kubernetes 完成</div>
+                                    <div class="result-item info">🌐 应用访问地址：http://your-cluster:30080</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="success-tip">
+                        <h3>🎉 恭喜！</h3>
+                        <p>你已经成功完成了第一次部署。接下来可以探索更多高级功能，比如多端口配置、版本管理等。</p>
+                    </div>
+                </section>
+
+                <!-- 工作空间管理 -->
+                <section id="workspace" class="docs-section">
+                    <h1>工作空间管理</h1>
+                    <p>工作空间是 DevOps 的核心概念，它为不同的项目提供隔离的配置环境。</p>
+
+                    <h2>创建工作空间</h2>
+                    <div class="code-block">
+                        <code># 交互式创建（推荐新手）
+devops create workspace myproject -i
+
+# 非交互式创建
+devops create workspace myproject --git-url https://github.com/example/repo.git</code>
+                    </div>
+
+                    <h2>工作空间配置</h2>
+                    <p>每个工作空间都有一个配置文件 <code>workspace/{name}/config</code>，包含以下主要配置：</p>
+                    
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>配置项</th>
+                                    <th>说明</th>
+                                    <th>示例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>BUILD_PLATFORM</code></td>
+                                    <td>部署平台</td>
+                                    <td>KUBERNETES</td>
+                                </tr>
+                                <tr>
+                                    <td><code>BUILD_K8S_NAMESPACE</code></td>
+                                    <td>Kubernetes 命名空间</td>
+                                    <td>default</td>
+                                </tr>
+                                <tr>
+                                    <td><code>BUILD_HARBOR_ADDRESS</code></td>
+                                    <td>Harbor 仓库地址</td>
+                                    <td>harbor.example.com</td>
+                                </tr>
+                                <tr>
+                                    <td><code>BUILD_VERSION</code></td>
+                                    <td>默认构建工具版本</td>
+                                    <td>node:18.12,jdk:17</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="tip">
+                        <strong>💡 提示：</strong>工作空间配置支持团队共享，可以确保团队成员使用相同的部署环境。
+                    </div>
+                </section>
+
+                <!-- Java 应用部署 -->
+                <section id="java-deployment" class="docs-section">
+                    <h1>Java 应用部署</h1>
+                    <p>DevOps 对 Java 应用提供了完整的支持，包括 Maven 和 Gradle 构建工具。</p>
+
+                    <h2>基础部署</h2>
+                    <div class="code-block">
+                        <code># 使用 Maven 构建
+devops run java my-app \
+  --git-url https://github.com/example/spring-app.git \
+  --build-tool maven
+
+# 使用 Gradle 构建
+devops run java my-app \
+  --git-url https://github.com/example/spring-app.git \
+  --build-tool gradle</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>高级配置</h2>
+                    <div class="code-block">
+                        <code># 指定 JVM 参数和端口
+devops run java my-app \
+  --git-url https://github.com/example/spring-app.git \
+  --java-opts "-Xmx512m -Dspring.profiles.active=prod" \
+  --app-port 8080 \
+  --expose-port 30080</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>🔧 构建工具自动检测</h3>
+                        <p>DevOps 会自动检测项目中的构建文件：</p>
+                        <ul>
+                            <li><strong>Maven</strong>：检测 <code>pom.xml</code> 文件</li>
+                            <li><strong>Gradle</strong>：检测 <code>build.gradle</code> 或 <code>build.gradle.kts</code> 文件</li>
+                        </ul>
+                        <div class="example">
+                            <strong>提示：</strong>如果项目同时包含两种构建文件，可以使用 <code>--build-tool</code> 参数明确指定。
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Vue.js 应用部署 -->
+                <section id="vue-deployment" class="docs-section">
+                    <h1>Vue.js 应用部署</h1>
+                    <p>DevOps 支持 Vue.js 前端应用的自动化构建和部署，包括依赖安装、构建优化和 Nginx 配置。</p>
+
+                    <h2>基础部署</h2>
+                    <div class="code-block">
+                        <code># 基础 Vue 项目部署
+devops run vue my-frontend \
+  --git-url https://github.com/example/vue-app.git \
+  --template vue-nginx</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>多环境构建</h2>
+                    <div class="code-block">
+                        <code># 生产环境构建
+devops run vue my-frontend \
+  --git-url https://github.com/example/vue-app.git \
+  --build-env "prod" \
+  --expose-port 30081
+
+# 自定义构建命令
+devops run vue my-frontend \
+  --git-url https://github.com/example/vue-app.git \
+  --build-cmds "npm run build:production"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>📦 构建流程</h3>
+                        <p>Vue.js 应用的完整构建流程：</p>
+                        <ol>
+                            <li><strong>代码拉取</strong>：从 Git/SVN 仓库拉取源码</li>
+                            <li><strong>依赖安装</strong>：执行 <code>npm install</code> 或 <code>yarn install</code></li>
+                            <li><strong>项目构建</strong>：执行 <code>npm run build</code> 或自定义命令</li>
+                            <li><strong>Nginx 配置</strong>：自动生成 Nginx 配置文件</li>
+                            <li><strong>容器化</strong>：构建 Docker 镜像并部署</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <!-- 交互式部署 -->
+                <section id="interactive-mode" class="docs-section">
+                    <h1>交互式部署</h1>
+                    <p>交互式部署是 DevOps 的特色功能，特别适合新手用户和需要逐步配置的场景。</p>
+
+                    <h2>启动交互式模式</h2>
+                    <div class="code-block">
+                        <code># 完全交互式（会提示选择类型和项目名）
+devops run -i
+
+# 指定类型的交互式部署
+devops run java -i
+devops run vue my-app -i</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>交互式流程</h2>
+                    <div class="step-by-step">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>选择部署类型</h3>
+                                <p>系统会提示选择应用类型：Java、Vue.js、Go、Nginx 或 Tomcat</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>输入项目信息</h3>
+                                <p>输入项目名称、Git 地址等基本信息，系统会显示 workspace 的默认值</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>配置构建参数</h3>
+                                <p>配置构建工具、版本、环境变量等参数，支持智能提示和验证</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h3>确认并执行</h3>
+                                <p>预览生成的命令，确认无误后开始执行部署</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>🎯 智能默认值</h3>
+                        <p>交互式模式的智能特性：</p>
+                        <ul>
+                            <li><strong>显示默认值</strong>：自动显示 workspace 配置的默认值</li>
+                            <li><strong>参数验证</strong>：实时验证输入参数的有效性</li>
+                            <li><strong>智能提示</strong>：根据项目类型提供相关建议</li>
+                            <li><strong>命令预览</strong>：显示等效的命令行形式</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- 多端口配置 -->
+                <section id="multi-port" class="docs-section">
+                    <h1>多端口配置</h1>
+                    <p>DevOps 支持灵活的多端口配置，可以同时配置多个服务端口和导出端口。</p>
+
+                    <h2>端口配置参数</h2>
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>说明</th>
+                                    <th>示例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>--service-port</code></td>
+                                    <td>服务端口，支持多端口和命名端口</td>
+                                    <td>8080,9090 或 http:8080,admin:9090</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--export-port</code></td>
+                                    <td>导出端口（NodePort）</td>
+                                    <td>30080,30090</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--app-port</code></td>
+                                    <td>传统单应用端口（向后兼容）</td>
+                                    <td>8080</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--expose-port</code></td>
+                                    <td>传统单导出端口（向后兼容）</td>
+                                    <td>30080</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2>使用示例</h2>
+                    <div class="code-block">
+                        <code># 多端口配置
+devops run java webapp \
+  --service-port "http:8080,admin:9090,health:9091" \
+  --export-port "30080,30090,30091"
+
+# 混合格式
+devops run java api \
+  --service-port "8080,admin:9090" \
+  --export-port "30080,30090"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>🌐 端口映射规则</h3>
+                        <p>DevOps 的智能端口映射：</p>
+                        <ul>
+                            <li><strong>一一对应</strong>：服务端口和导出端口按顺序对应</li>
+                            <li><strong>智能映射</strong>：自动建立 NodePort 到 ServicePort 的映射</li>
+                            <li><strong>灵活配置</strong>：支持端口数量不匹配的情况</li>
+                            <li><strong>自动类型</strong>：有导出端口时自动设置 Service 类型为 NodePort</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- 版本管理 -->
+                <section id="version-management" class="docs-section">
+                    <h1>版本管理</h1>
+                    <p>DevOps 提供独立的构建工具版本管理，支持多种版本管理器。</p>
+
+                    <h2>支持的版本管理器</h2>
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <div class="feature-icon">📦</div>
+                            <h3>Node.js</h3>
+                            <p>nvm, fnm, n, volta</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">☕</div>
+                            <h3>Java</h3>
+                            <p>sdkman</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🔧</div>
+                            <h3>Maven</h3>
+                            <p>sdkman</p>
+                        </div>
+                        <div class="feature-item">
+                            <div class="feature-icon">🐘</div>
+                            <h3>Gradle</h3>
+                            <p>sdkman</p>
+                        </div>
+                    </div>
+
+                    <h2>版本配置方式</h2>
+                    <div class="code-block">
+                        <code># 命令行指定版本
+devops run vue my-app --build-version "node:18.12"
+
+# 多个工具版本
+devops run java my-app --build-version "jdk:17,maven:3.9.3"
+
+# Workspace 默认版本配置
+# 编辑 workspace/{name}/config 文件
+BUILD_VERSION="node:18.12,jdk:17,maven:3.9.3"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>⚡ 版本优先级</h3>
+                        <p>版本配置的优先级顺序：</p>
+                        <ol>
+                            <li><strong>命令行参数</strong> (<code>--build-version</code>) - 最高优先级</li>
+                            <li><strong>Workspace 配置</strong> (<code>BUILD_VERSION</code>) - 默认版本</li>
+                            <li><strong>系统默认</strong> - 使用系统已安装的版本</li>
+                        </ol>
+                    </div>
+                </section>
+
+                <!-- 模板系统 -->
+                <section id="template-system" class="docs-section">
+                    <h1>模板系统</h1>
+                    <p>DevOps 提供两级模板系统：全局模板和 workspace 级别模板，支持团队定制。</p>
+
+                    <h2>模板管理命令</h2>
+                    <div class="code-block">
+                        <code># 列出所有模板
+devops template list
+
+# 显示模板详情
+devops template show spring-boot
+
+# 复制全局模板到 workspace
+devops template copy spring-boot --workspace myproject
+
+# 创建基于模板的作业
+devops template create spring-boot my-app --workspace myproject</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>自定义模板</h2>
+                    <div class="step-by-step">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>复制基础模板</h3>
+                                <div class="code-block">
+                                    <code>devops template copy vue-nginx --workspace myproject</code>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>添加配置文件</h3>
+                                <div class="code-block">
+                                    <code># 在模板目录中添加 nginx.conf
+echo "worker_processes auto;" > workspace/myproject/templates/k8s/vue-nginx/nginx.conf</code>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>修改 Dockerfile</h3>
+                                <p>在 Dockerfile 中引用配置文件：</p>
+                                <div class="code-block">
+                                    <code>COPY nginx.conf /etc/nginx/nginx.conf</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>📁 模板存储位置</h3>
+                        <ul>
+                            <li><strong>全局模板</strong>：<code>templates/</code> 目录</li>
+                            <li><strong>Workspace 模板</strong>：<code>workspace/{name}/templates/</code> 目录</li>
+                        </ul>
+                        <div class="example">
+                            <strong>优先级：</strong>Workspace 模板 > 全局模板
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 故障排除 -->
+                <section id="troubleshooting" class="docs-section">
+                    <h1>故障排除</h1>
+                    <p>遇到问题时，这里提供了常见问题的解决方案。</p>
+
+                    <h2>常见问题</h2>
+
+                    <div class="concept-card">
+                        <h3>❌ 命令找不到</h3>
+                        <p><strong>问题</strong>：执行 <code>devops</code> 命令时提示 "command not found"</p>
+                        <p><strong>解决方案</strong>：</p>
+                        <div class="code-block">
+                            <code># 重新加载环境变量
+source ~/.bashrc
+
+# 检查 PATH 环境变量
+echo $PATH | grep devops
+
+# 手动添加到 PATH（如果需要）
+export PATH=$PATH:/path/to/devops/bin</code>
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>🐳 Docker 相关问题</h3>
+                        <p><strong>问题</strong>：Docker 构建失败或权限不足</p>
+                        <p><strong>解决方案</strong>：</p>
+                        <div class="code-block">
+                            <code># 检查 Docker 状态
+sudo systemctl status docker
+
+# 将用户添加到 docker 组
+sudo usermod -aG docker $USER
+
+# 重新登录或执行
+newgrp docker</code>
+                        </div>
+                    </div>
+
+                    <div class="concept-card">
+                        <h3>☸️ Kubernetes 连接问题</h3>
+                        <p><strong>问题</strong>：无法连接到 Kubernetes 集群</p>
+                        <p><strong>解决方案</strong>：</p>
+                        <div class="code-block">
+                            <code># 检查 kubectl 配置
+kubectl config current-context
+
+# 测试集群连接
+kubectl get nodes
+
+# 检查 kubeconfig 文件
+ls -la ~/.kube/config</code>
+                        </div>
+                    </div>
+
+                    <h2>调试模式</h2>
+                    <p>启用调试模式可以获得更详细的错误信息：</p>
+                    <div class="code-block">
+                        <code># 启用调试模式
+export DEBUG=true
+devops run java my-app --debug
+
+# 或者使用环境变量
+DEBUG=true devops run java my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>获取帮助</h2>
+                    <div class="code-block">
+                        <code># 查看帮助信息
+devops --help
+
+# 查看特定命令帮助
+devops run --help
+devops template --help
+
+# 检查工具状态
+devops install-tools --check</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="success-tip">
+                        <h3>💬 需要更多帮助？</h3>
+                        <p>如果以上方案无法解决您的问题，请在 <a href="https://github.com/edisonlil/devops/issues" class="help-link">GitHub Issues</a> 中提交问题，我们会尽快回复。</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/docs.js"></script>
+</body>
+</html>

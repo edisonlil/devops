@@ -1,0 +1,541 @@
+/* DevOps 文档页面专用样式 */
+
+/* 文档布局 */
+.docs-layout {
+  display: flex;
+  min-height: calc(100vh - 64px);
+  margin-top: 64px;
+}
+
+/* 侧边栏 */
+.docs-sidebar {
+  width: 280px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 64px;
+  left: 0;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.sidebar-content {
+  padding: var(--space-6);
+}
+
+.sidebar-section {
+  margin-bottom: var(--space-8);
+}
+
+.sidebar-section h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-section li {
+  margin-bottom: var(--space-1);
+}
+
+.sidebar-link {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.sidebar-link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-link.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+
+/* 主内容区 */
+.docs-main {
+  flex: 1;
+  margin-left: 280px;
+  min-width: 0;
+}
+
+.docs-content {
+  max-width: 800px;
+  padding: var(--space-8) var(--space-6);
+  margin: 0 auto;
+}
+
+/* 文档区域 */
+.docs-section {
+  margin-bottom: var(--space-16);
+}
+
+.docs-section h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-6);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.docs-section h2 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: var(--space-12) 0 var(--space-6) 0;
+  letter-spacing: -0.01em;
+}
+
+.docs-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: var(--space-8) 0 var(--space-4) 0;
+}
+
+.docs-section p {
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: var(--space-4);
+  font-size: 1rem;
+}
+
+.lead {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin-bottom: var(--space-8);
+  line-height: 1.6;
+}
+
+/* 功能网格 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-6);
+  margin: var(--space-8) 0;
+}
+
+.feature-item {
+  text-align: center;
+  padding: var(--space-6);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.feature-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.feature-item .feature-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-3);
+  display: block;
+}
+
+.feature-item h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+.feature-item p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* 概念卡片 */
+.concept-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin: var(--space-6) 0;
+}
+
+.concept-card h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+  color: var(--text-primary);
+}
+
+.concept-card p {
+  margin-bottom: var(--space-4);
+}
+
+.example {
+  background: var(--bg-secondary);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  margin-top: var(--space-4);
+}
+
+.example strong {
+  color: var(--primary);
+}
+
+/* 安装选项 */
+.install-option {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin: var(--space-6) 0;
+  position: relative;
+}
+
+.install-option h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+  color: var(--text-primary);
+}
+
+.install-option .code-block {
+  position: relative;
+  margin: var(--space-4) 0;
+}
+
+.install-info {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.install-verify {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-top: var(--space-8);
+}
+
+.install-verify h3 {
+  margin-top: 0;
+  color: var(--text-primary);
+}
+
+/* 步骤指南 */
+.step-by-step {
+  margin: var(--space-8) 0;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: var(--space-8);
+  padding: var(--space-6);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.step-number {
+  background: var(--primary);
+  color: var(--text-inverse);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  margin-right: var(--space-6);
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+  color: var(--text-primary);
+}
+
+.step-content p {
+  margin-bottom: var(--space-4);
+}
+
+.step-note {
+  background: var(--bg-secondary);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  margin-top: var(--space-4);
+  border-left: 3px solid var(--accent);
+}
+
+.step-note strong {
+  color: var(--accent);
+}
+
+/* 结果展示 */
+.result-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin: var(--space-4) 0;
+}
+
+.result-item {
+  padding: var(--space-2) 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.result-item.success {
+  color: var(--success);
+}
+
+.result-item.info {
+  color: var(--primary);
+}
+
+/* 成功提示 */
+.success-tip {
+  background: linear-gradient(135deg, var(--success) 0%, var(--accent) 100%);
+  color: var(--text-inverse);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  margin: var(--space-8) 0;
+}
+
+.success-tip h3 {
+  margin-top: 0;
+  margin-bottom: var(--space-3);
+  color: var(--text-inverse);
+}
+
+.success-tip p {
+  margin: 0;
+  color: var(--text-inverse);
+  opacity: 0.9;
+}
+
+.success-tip .help-link {
+  color: var(--text-inverse);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.success-tip .help-link:hover {
+  opacity: 0.8;
+}
+
+/* 配置表格 */
+.config-table {
+  margin: var(--space-6) 0;
+  overflow-x: auto;
+}
+
+.config-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.config-table th,
+.config-table td {
+  padding: var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.config-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-table code {
+  background: var(--bg-secondary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--primary);
+}
+
+/* 提示框 */
+.tip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: var(--space-6) 0;
+  font-size: 0.875rem;
+}
+
+.tip strong {
+  color: var(--accent);
+}
+
+/* 代码块增强 */
+.docs-content .code-block {
+  position: relative;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin: var(--space-4) 0;
+  overflow-x: auto;
+}
+
+.docs-content .code-block code {
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.docs-content .code-block .copy-btn {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.docs-content .code-block .copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .docs-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .docs-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .docs-main {
+    margin-left: 0;
+  }
+  
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .step {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .step-number {
+    margin-right: 0;
+    margin-bottom: var(--space-4);
+  }
+  
+  .install-info {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 768px) {
+  .docs-content {
+    padding: var(--space-6) var(--space-4);
+  }
+  
+  .docs-section h1 {
+    font-size: 2rem;
+  }
+  
+  .docs-section h2 {
+    font-size: 1.5rem;
+  }
+  
+  .config-table {
+    font-size: 0.875rem;
+  }
+  
+  .config-table th,
+  .config-table td {
+    padding: var(--space-2);
+  }
+}
+
+/* 深色主题下的文档页面优化 */
+[data-theme="dark"] .sidebar-link.active {
+  background: #4f7cff;
+  box-shadow: 0 2px 8px rgba(79, 124, 255, 0.25);
+}
+
+[data-theme="dark"] .concept-card {
+  border-left-color: #4f7cff;
+}
+
+[data-theme="dark"] .step-note {
+  border-left-color: #34d399;
+}
+
+[data-theme="dark"] .step-note strong {
+  color: #34d399;
+}
+
+[data-theme="dark"] .example strong {
+  color: #4f7cff;
+}
+
+[data-theme="dark"] .config-table code {
+  color: #4f7cff;
+}
+
+[data-theme="dark"] .tip {
+  border-left-color: #34d399;
+}
+
+[data-theme="dark"] .tip strong {
+  color: #34d399;
+}
+
+[data-theme="dark"] .result-item.info {
+  color: #4f7cff;
+}
+
+[data-theme="dark"] .example-result strong {
+  color: #4f7cff;
+}

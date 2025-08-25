@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevOps - 企业级 CI/CD 自动化部署工具</title>
+    <meta name="description" content="DevOps是一款企业级CI/CD自动化部署工具，支持Java、Vue.js、Go等多种语言，一键部署到Kubernetes和Docker Swarm">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="#" class="navbar-brand">DevOps</a>
+                <ul class="navbar-nav">
+                    <li><a href="#home" class="active">首页</a></li>
+                    <li><a href="docs.html">文档</a></li>
+                    <li><a href="#features">功能</a></li>
+                    <li><a href="#install">安装</a></li>
+                    <li><a href="#examples">示例</a></li>
+                </ul>
+                <div class="navbar-actions">
+                    <button class="theme-toggle" id="theme-toggle" aria-label="切换主题">🌙</button>
+                    <a href="https://github.com/edisonlil/devops" class="btn btn-secondary" target="_blank">
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">企业级 CI/CD 自动化部署工具</h1>
+                <p class="hero-subtitle">
+                    一键部署，多语言支持，让复杂的容器化部署变得简单高效。
+                    支持Java、Vue.js、Go等主流技术栈，完美集成Kubernetes和Docker Swarm。
+                </p>
+                <div class="hero-actions">
+                    <a href="#quick-start" class="btn btn-primary btn-lg">
+                        🚀 快速开始
+                    </a>
+                    <a href="docs.html" class="btn btn-secondary btn-lg">
+                        📚 查看文档
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 快速开始 -->
+    <section id="quick-start" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">三步快速开始</h2>
+                <p class="section-subtitle">从安装到部署，只需要三个简单步骤</p>
+            </div>
+
+            <div class="steps-flow">
+                <div class="step-item">
+                    <div class="step-marker">1</div>
+                    <div class="step-content">
+                        <h3>安装 DevOps</h3>
+                        <p>一行命令完成安装，自动配置所需环境</p>
+                        <div class="inline-code">
+                            <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-arrow">→</div>
+
+                <div class="step-item">
+                    <div class="step-marker">2</div>
+                    <div class="step-content">
+                        <h3>创建工作空间</h3>
+                        <p>配置项目工作空间，隔离不同项目环境</p>
+                        <div class="inline-code">
+                            <code>devops create workspace demo -i</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-arrow">→</div>
+
+                <div class="step-item">
+                    <div class="step-marker">3</div>
+                    <div class="step-content">
+                        <h3>一键部署</h3>
+                        <p>从代码拉取到容器化部署，一条命令搞定</p>
+                        <div class="inline-code">
+                            <code>devops run java my-app --git-url https://github.com/example/app.git</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 核心功能 -->
+    <section id="features" class="section section-alt">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">核心功能</h2>
+                <p class="section-subtitle">为现代化应用部署而生的强大功能</p>
+            </div>
+
+            <div class="features-list">
+                <div class="feature-row">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-text">
+                        <h3>交互式部署</h3>
+                        <p>引导式配置流程，新手也能快速上手。智能显示默认值，逐步提示输入参数，实时验证配置有效性。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">🔧</div>
+                    <div class="feature-text">
+                        <h3>多语言支持</h3>
+                        <p>支持Java、Vue.js、Go、Nginx、Tomcat等主流技术栈。自动识别项目类型，选择最佳构建策略。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">🌐</div>
+                    <div class="feature-text">
+                        <h3>多端口配置</h3>
+                        <p>灵活的多端口配置系统，支持命名端口、智能映射。完美适配微服务架构的复杂端口需求。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">📦</div>
+                    <div class="feature-text">
+                        <h3>模板系统</h3>
+                        <p>两级模板系统，支持全局和workspace级别模板。团队可以定制专属模板，提高部署标准化程度。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">⚙️</div>
+                    <div class="feature-text">
+                        <h3>版本管理</h3>
+                        <p>独立的构建工具版本管理，支持nvm、sdkman等多种版本管理器。确保团队环境一致性。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">☸️</div>
+                    <div class="feature-text">
+                        <h3>企业级集成</h3>
+                        <p>完整的Harbor镜像仓库集成，Kubernetes原生支持。支持远程部署，完美适配企业级CI/CD流程。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 安装选项 -->
+    <section id="install" class="section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">选择安装模式</h2>
+                <p class="section-subtitle">根据您的需求选择合适的安装方式</p>
+            </div>
+            
+            <div class="install-modes">
+                <div class="mode-tab active" data-mode="0">
+                    <span class="mode-icon">🎯</span>
+                    <span>标准安装</span>
+                    <small>推荐</small>
+                </div>
+                <div class="mode-tab" data-mode="1">
+                    <span class="mode-icon">📦</span>
+                    <span>完整安装</span>
+                    <small>全功能</small>
+                </div>
+                <div class="mode-tab" data-mode="2">
+                    <span class="mode-icon">⚡</span>
+                    <span>脚本专用</span>
+                    <small>轻量</small>
+                </div>
+            </div>
+
+            <div class="command-container">
+                <div class="command-box">
+                    <button class="copy-btn" onclick="copyCommand()">复制</button>
+                    <code class="command" id="install-command">curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                </div>
+            </div>
+
+            <!-- 安装对比表 -->
+            <div class="comparison-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>标准安装</th>
+                            <th>完整安装</th>
+                            <th>脚本专用</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Java 环境</td>
+                            <td class="check">✅</td>
+                            <td class="check">✅</td>
+                            <td class="cross">❌</td>
+                        </tr>
+                        <tr>
+                            <td>前端环境</td>
+                            <td class="cross">❌</td>
+                            <td class="check">✅</td>
+                            <td class="cross">❌</td>
+                        </tr>
+                        <tr>
+                            <td>安装时间</td>
+                            <td>~10分钟</td>
+                            <td>~20分钟</td>
+                            <td>~1分钟</td>
+                        </tr>
+                        <tr>
+                            <td>适用场景</td>
+                            <td>Java开发</td>
+                            <td>全栈开发</td>
+                            <td>已有环境</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 使用示例 -->
+    <section id="examples" class="section" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">使用示例</h2>
+                <p class="section-subtitle">看看如何使用 DevOps 快速部署不同类型的应用</p>
+            </div>
+            
+            <div class="example-tabs">
+                <button class="tab-btn active" data-tab="java">Java 应用</button>
+                <button class="tab-btn" data-tab="vue">Vue.js 应用</button>
+                <button class="tab-btn" data-tab="go">Go 应用</button>
+            </div>
+
+            <div class="tab-content active" id="java-tab">
+                <div class="example-card">
+                    <h3>Java Spring Boot 应用部署</h3>
+                    <p>从Git仓库拉取代码，自动构建并部署到Kubernetes</p>
+                    <div class="code-block">
+                        <code>devops run java my-app \<br>
+  --git-url https://github.com/example/spring-app.git \<br>
+  --build-tool maven \<br>
+  --app-port 8080 \<br>
+  --expose-port 30080</code>
+                    </div>
+                    <div class="example-result">
+                        <strong>部署结果：</strong>
+                        <ul>
+                            <li>✅ 自动从Git拉取最新代码</li>
+                            <li>✅ Maven自动构建JAR包</li>
+                            <li>✅ Docker镜像构建和推送</li>
+                            <li>✅ 部署到Kubernetes集群</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="vue-tab">
+                <div class="example-card">
+                    <h3>Vue.js 前端应用部署</h3>
+                    <p>自动化构建Vue项目并部署到容器平台</p>
+                    <div class="code-block">
+                        <code>devops run vue my-frontend \<br>
+  --git-url https://github.com/example/vue-app.git \<br>
+  --build-env prod \<br>
+  --expose-port 30081</code>
+                    </div>
+                    <div class="example-result">
+                        <strong>部署结果：</strong>
+                        <ul>
+                            <li>✅ npm install安装依赖</li>
+                            <li>✅ 构建生产环境静态资源</li>
+                            <li>✅ Nginx容器化部署</li>
+                            <li>✅ 自动配置路由规则</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="go-tab">
+                <div class="example-card">
+                    <h3>Go 应用部署</h3>
+                    <p>Go应用的快速构建和容器化部署</p>
+                    <div class="code-block">
+                        <code>devops run go my-api \<br>
+  --git-url https://github.com/example/go-api.git \<br>
+  --app-port 8080</code>
+                    </div>
+                    <div class="example-result">
+                        <strong>部署结果：</strong>
+                        <ul>
+                            <li>✅ Go模块依赖管理</li>
+                            <li>✅ 静态编译二进制文件</li>
+                            <li>✅ 轻量级容器镜像</li>
+                            <li>✅ 高性能服务部署</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>DevOps</h4>
+                    <p>企业级CI/CD自动化部署工具</p>
+                </div>
+                <div class="footer-section">
+                    <h4>文档</h4>
+                    <ul>
+                        <li><a href="docs.html">快速开始</a></li>
+                        <li><a href="docs.html#installation">安装指南</a></li>
+                        <li><a href="docs.html#deployment">部署教程</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>社区</h4>
+                    <ul>
+                        <li><a href="https://github.com/edisonlil/devops">GitHub</a></li>
+                        <li><a href="https://github.com/edisonlil/devops/issues">问题反馈</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 DevOps. 作者: edison & srillia</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+</body>
+</html>
