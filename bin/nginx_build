@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker_helper.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build.sh"
 
 function nginx_build() {
 	# 这里假定 scm() 已经将静态内容打包为 ${env[cfg_temp_dir]}/dist.tar.gz
@@ -22,6 +23,9 @@ function nginx_build() {
 	fi
 
 	env[tmp_build_dist_path]=$cfg_temp_dir
+
+	# 复制模板文件到最终构建上下文
+	copy_template_files_to_final_build_context
 
 	# 构建镜像
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest

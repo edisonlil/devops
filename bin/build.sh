@@ -154,6 +154,14 @@ function copy_template_files_to_build_context() {
 	fi
 }
 
+# 通用函数：在Docker构建前复制模板文件到最终构建上下文
+function copy_template_files_to_final_build_context() {
+	if [[ -n "${env[cfg_template_dir]}" && -n "${env[tmp_build_dist_path]}" ]]; then
+		info "复制模板文件到最终构建上下文: ${env[tmp_build_dist_path]}"
+		copy_template_files_to_build_context "${env[cfg_template_dir]}" "${env[tmp_build_dist_path]}"
+	fi
+}
+
 function check_post_parmas() {
  	if [[ -z ${env[cmd_3]} ]];then
                 warn "job name can not be null ## $1 ##."; exit 1;

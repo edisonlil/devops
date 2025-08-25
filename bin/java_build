@@ -5,6 +5,7 @@ JAVA_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$JAVA_BUILD_SCRIPT_DIR/docker_helper.sh"
 source "$JAVA_BUILD_SCRIPT_DIR/version_manager.sh"
+source "$JAVA_BUILD_SCRIPT_DIR/build.sh"
 
 function java_build() {
 
@@ -72,6 +73,8 @@ function java_build() {
 	cd ${env[tmp_build_dist_path]}
 	jar_name=`ls | grep -v 'source' | grep -v '\.original$' | grep ${cmd_job_name} | head -1`
 
+	# 复制模板文件到最终构建上下文
+	copy_template_files_to_final_build_context
 
 	# 构建镜像
 	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest

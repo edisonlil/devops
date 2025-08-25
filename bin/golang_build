@@ -4,6 +4,7 @@
 GOLANG_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$GOLANG_BUILD_SCRIPT_DIR/docker_helper.sh"
+source "$GOLANG_BUILD_SCRIPT_DIR/build.sh"
 
 
 function go_build() {
@@ -59,6 +60,10 @@ function go_build() {
 	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
   fi
 	tar -cf dist.tar *
+
+	# 复制模板文件到最终构建上下文
+	copy_template_files_to_final_build_context
+
 	docker build  --build-arg DEVOPS_RUN_ENV=${env[opt_build_env]} \
 		 -t $image_path -f  $tmp_dockerfile  ${env[tmp_build_dist_path]}
 

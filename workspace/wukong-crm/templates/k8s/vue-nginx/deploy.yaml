@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ?module_name
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+    type: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ?module_name
+  template:
+    metadata:
+      labels:
+        app: ?module_name
+        type: frontend
+    spec:
+      containers:
+      - name: ?module_name
+        image: ?image_path
+        ports:
+        - containerPort: 80
+          name: http
+      imagePullSecrets:
+      - name: ?harbor_secret_name
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ?module_name-service
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+spec:
+  selector:
+    app: ?module_name
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+
+
