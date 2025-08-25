@@ -93,15 +93,20 @@ class TemplateRenderer:
         
         # 如果没有Harbor Secret或未启用Harbor，移除相关配置
         if not harbor_secret_name or not enable_harbor:
-            # 移除imagePullSecrets配置
+            # 更精确地移除imagePullSecrets配置
+            # 匹配完整的imagePullSecrets块
             content = re.sub(
                 r'^\s*imagePullSecrets:\s*\n\s*-\s*name:\s*\?harbor_secret_name\s*\n',
                 '',
                 content,
                 flags=re.MULTILINE
             )
-            # 移除空的imagePullSecrets行
+            
+            # 移除可能残留的空imagePullSecrets行
             content = re.sub(r'^\s*imagePullSecrets:\s*\n', '', content, flags=re.MULTILINE)
+            
+            # 清理可能产生的多余空行
+            content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)
         
         return content
     

@@ -23,13 +23,13 @@ spec:
         ports:
         - containerPort: ?app_port
           name: http
-      imagePullSecrets:
-      - name: ?harbor_secret_name
         env:
         - name: JAVA_OPTS
           value: "?java_opts"
         - name: SERVER_PORT
           value: "?app_port"
+      imagePullSecrets:
+      - name: ?harbor_secret_name
       restartPolicy: Always
 ---
 apiVersion: v1
