@@ -1,0 +1,31 @@
+
+#构建平台，是 DOCKER_SWARM,KUBERNETES,DOCKER_COMPOSE
+BUILD_PLATFORM="KUBERNETES"
+
+#配置Kubernetes namespace
+BUILD_K8S_NAMESPACE="cb-demo"
+
+#是否启用harbor仓库
+BUILD_ENABEL_HARBOR=1
+#配置harbor仓库地址
+BUILD_HARBOR_ADDRESS="crpi-wz21dewpu9y4p4sb.cn-guangzhou.personal.cr.aliyuncs.com"
+#配置harbor仓库
+BUILD_HARBOR_PROJECT="edisonlil"
+#配置harbor用户名
+BUILD_HARBOR_USERNAME="t_1501599660638_0101"
+#配置harbor密码
+BUILD_HARBOR_PASSWORD="edc3000."
+
+#Git 默认分支
+BUILD_GIT_BRANCH="dev"
+#Git 默认地址
+BUILD_GIT_URL="https://codeup.aliyun.com/66d9c7f3c06a2fdac7bc06d2/cb/cb-gencode.git"
+#Maven settings.xml
+BUILD_MAVEN_SETTINGS="/root/settings.xml"
+
+#构建工具版本配置 (可选)
+#格式: "工具:版本,工具:版本" 例如: "node:18.12,jdk:17,maven:3.9.3"
+BUILD_VERSION="jdk:17.0.12-zulu"
+
+#启用dockerfile,路由dockerfile
+#BUILD_ENABEL_DOCKERFILES=""
