@@ -297,12 +297,8 @@ function scm() {
 	opt_svn_url=${env[opt_svn_url]}
 	opt_static_dir=${env[opt_static_dir]}
 
-	# 支持本地静态资源目录，跳过SCM
+	# 支持本地静态资源目录或tar包，跳过SCM
 	if [ -n "$opt_static_dir" ]; then
-		if [ ! -d "$opt_static_dir" ]; then
-			error "--static-dir 不存在: $opt_static_dir"; exit 1
-		fi
-
 		# 确保目标目录干净
 		if [ -d "$cfg_temp_dir" ]; then
 			if [[ "${DEBUG}" == "true" ]]; then
@@ -311,8 +307,22 @@ function scm() {
 			rm -rf "$cfg_temp_dir"
 		fi
 		mkdir -p "$cfg_temp_dir"
-		# 打包静态资源为 dist.tar.gz
-		( cd "$opt_static_dir" && tar -cf "$cfg_temp_dir/dist.tar" . )
+
+		# 检查是否为tar包文件
+		if [[ -f "$opt_static_dir" && "$opt_static_dir" =~ \.(tar|tar\.gz|tar\.bz2)$ ]]; then
+			info "检测到tar包文件: $opt_static_dir"
+			# 直接复制tar包到构建目录
+			cp "$opt_static_dir" "$cfg_temp_dir/dist.tar"
+			info "已复制tar包到构建目录: $cfg_temp_dir/dist.tar"
+		elif [ -d "$opt_static_dir" ]; then
+			info "检测到静态资源目录: $opt_static_dir"
+			# 打包静态资源为 dist.tar
+			( cd "$opt_static_dir" && tar -cf "$cfg_temp_dir/dist.tar" . )
+			info "已打包静态资源为: $cfg_temp_dir/dist.tar"
+		else
+			error "--static-dir 不存在或格式不支持: $opt_static_dir"; exit 1
+		fi
+
 		# 供后续 docker build 使用
 		env[tmp_build_dist_path]="$cfg_temp_dir"
 		# 生成镜像后缀（仅日期）
@@ -412,6 +422,7 @@ function choose_dockerfile() {
 	if [ -z "$template_id" ]; then
 		case "$cmd_type" in
 			vue) template_id="vue-nginx" ;;
+			nginx) template_id="nginx" ;;
 			*) template_id="spring-boot" ;;
 		esac
 	fi
