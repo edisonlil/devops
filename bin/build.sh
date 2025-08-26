@@ -677,6 +677,9 @@ function render_template() {
 	fi
 	
 	# 执行Python模板渲染
+	# 调试输出：展示将要传递的 JAVA_OPTS 与渲染器参数
+	info "Renderer java_opts: ${java_opts}"
+	info "Renderer argv: ${python_args[@]}"
 	if python3 "${python_args[@]}"; then
 		success "模板渲染成功: $cfg_deploy_gen_location/${cmd_job_name}.yml"
 	else

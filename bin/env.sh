@@ -111,6 +111,7 @@ if [[ "${DEBUG}" == "true" ]]; then
     echo "DEBUG: cmd_2='${env[cmd_2]}'"
     echo "DEBUG: cmd_3='${env[cmd_3]}'"
     echo "DEBUG: opt_interactive='${env[opt_interactive]}'"
+    echo "DEBUG: opt_java_opts='${env[opt_java_opts]}'"
 fi
 
 

@@ -144,6 +144,11 @@ def main():
     # 调试：打印接收到的 --java-opts 原始参数
     logger.info(f"template_renderer received --java-opts: {repr(args.java_opts)}")
 
+    # 若未显式传入 --java-opts，尝试从环境变量读取（增强可观测性与兼容性）
+    if not args.java_opts:
+        args.java_opts = os.environ.get('JAVA_OPTS', '')
+        logger.info(f"template_renderer fallback JAVA_OPTS from env: {repr(args.java_opts)}")
+
     # 创建渲染器
     renderer = TemplateRenderer(args.template, args.output)
     
