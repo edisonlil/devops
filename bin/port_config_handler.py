@@ -100,20 +100,33 @@ class UnifiedPortConfigHandler:
         if port_type == 'service':
             return 1 <= port <= 65535
         elif port_type == 'export':
-            return 30000 <= port <= 32767
+            return True  # 移除NodePort范围限制
         return False
 
     def create_port_mapping(self, service_ports: List[Dict], export_ports: List[Dict]) -> List[Dict]:
         """创建服务端口和导出端口的正确映射关系
 
         规则：
-        1. 如果服务端口和导出端口数量相同，按顺序一一对应
-        2. 如果只有一个导出端口，映射到第一个服务端口
-        3. 如果导出端口多于服务端口，多余的导出端口被忽略
-        4. 如果服务端口多于导出端口，多余的服务端口不暴露NodePort
+        1. 优先使用显式映射 (serviceport:nodeport)
+        2. 未显式映射的端口按顺序一一对应
+        3. 如果只有一个导出端口，映射到第一个服务端口
+        4. 如果导出端口多于服务端口，多余的导出端口被忽略
+        5. 如果服务端口多于导出端口，多余的服务端口不暴露NodePort
         """
         if not service_ports and not export_ports:
             return []
+
+        # 分离显式映射和顺序映射的导出端口
+        explicit_export_map = {}
+        sequential_exports = []
+        for export_port in export_ports:
+            if 'service_port' in export_port:
+                # 显式映射项 (service_port: node_port)
+                explicit_export_map[export_port['service_port']] = export_port['port']
+                logger.info(f"显式映射配置: ServicePort {export_port['service_port']} -> NodePort {export_port['port']}")
+            else:
+                # 顺序映射项
+                sequential_exports.append(export_port)
 
         # 如果只有服务端口，没有导出端口
         if service_ports and not export_ports:
@@ -123,8 +136,9 @@ class UnifiedPortConfigHandler:
         if export_ports and not service_ports:
             mapped_ports = []
             for export_port in export_ports:
-                # 导出端口直接作为服务端口，但移除nodePort
                 service_port = export_port.copy()
+                if 'service_port' in service_port:
+                    service_port['port'] = service_port.pop('service_port')
                 if 'nodePort' in service_port:
                     del service_port['nodePort']
                 mapped_ports.append(service_port)
@@ -132,16 +146,22 @@ class UnifiedPortConfigHandler:
 
         # 服务端口和导出端口都存在，创建映射
         mapped_ports = []
+        sequential_index = 0
 
-        # 先处理服务端口
-        for i, service_port in enumerate(service_ports):
+        for service_port in service_ports:
             port_config = service_port.copy()
+            service_port_num = service_port['port']
 
-            # 如果有对应的导出端口，添加nodePort
-            if i < len(export_ports):
-                export_port = export_ports[i]
+            # 1. 优先检查显式映射
+            if service_port_num in explicit_export_map:
+                port_config['nodePort'] = explicit_export_map[service_port_num]
+                logger.info(f"显式映射端口: {service_port['name']}:{service_port_num} -> NodePort:{explicit_export_map[service_port_num]}")
+            # 2. 再检查顺序映射
+            elif sequential_index < len(sequential_exports):
+                export_port = sequential_exports[sequential_index]
                 port_config['nodePort'] = export_port['port']
-                logger.info(f"映射端口: {service_port['name']}:{service_port['port']} -> NodePort:{export_port['port']}")
+                logger.info(f"顺序映射端口: {service_port['name']}:{service_port_num} -> NodePort:{export_port['port']}")
+                sequential_index += 1
 
             mapped_ports.append(port_config)
 
@@ -180,18 +200,7 @@ class UnifiedPortConfigHandler:
         parsed_service_ports = self.parse_port_config(service_ports) if service_ports else []
         parsed_export_ports = self.parse_port_config(export_ports) if export_ports else []
 
-        # 验证端口范围
-        for port_info in parsed_service_ports:
-            if not self.validate_port_range(port_info['port'], 'service'):
-                logger.error(f"无效的服务端口: {port_info['port']}")
-                return False
-
-        for port_info in parsed_export_ports:
-            if not self.validate_port_range(port_info['port'], 'export'):
-                logger.error(f"无效的导出端口: {port_info['port']} (NodePort范围: 30000-32767)")
-                return False
-
-        # 创建端口映射
+        # 创建端口映射 (已移除端口验证)
         if parsed_service_ports or parsed_export_ports:
             mapped_ports = self.create_port_mapping(parsed_service_ports, parsed_export_ports)
 
@@ -199,8 +208,22 @@ class UnifiedPortConfigHandler:
                 spec['ports'] = mapped_ports
                 modified = True
 
-                # 如果有导出端口，设置Service类型为NodePort
-                if parsed_export_ports:
+                # 添加端口映射到spec
+                for mapping in port_mappings:
+                    port_entry = {
+                        'name': mapping['name'],
+                        'port': mapping['service_port'],
+                        'targetPort': mapping['target_port'],
+                        'protocol': 'TCP'
+                    }
+                    # 仅为有导出端口的服务端口添加nodePort配置
+                    if 'export_port' in mapping and mapping['export_port']:
+                        port_entry['nodePort'] = mapping['export_port']
+                    spec['ports'].append(port_entry)
+                
+                # 检查是否有任何端口配置了nodePort，如有则设置Service类型为NodePort
+                has_node_ports = any('nodePort' in port for port in spec['ports'])
+                if has_node_ports:
                     spec['type'] = 'NodePort'
                     logger.info(f"设置Service类型为NodePort")
 

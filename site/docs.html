@@ -262,39 +262,147 @@ devops create workspace myproject --git-url https://github.com/example/repo.git<
 
                     <h2>工作空间配置</h2>
                     <p>每个工作空间都有一个配置文件 <code>workspace/{name}/config</code>，包含以下主要配置：</p>
-                    
+
                     <div class="config-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>配置项</th>
-                                    <th>说明</th>
-                                    <th>示例</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><code>BUILD_PLATFORM</code></td>
-                                    <td>部署平台</td>
-                                    <td>KUBERNETES</td>
-                                </tr>
-                                <tr>
-                                    <td><code>BUILD_K8S_NAMESPACE</code></td>
-                                    <td>Kubernetes 命名空间</td>
-                                    <td>default</td>
-                                </tr>
-                                <tr>
-                                    <td><code>BUILD_HARBOR_ADDRESS</code></td>
-                                    <td>Harbor 仓库地址</td>
-                                    <td>harbor.example.com</td>
-                                </tr>
-                                <tr>
-                                    <td><code>BUILD_VERSION</code></td>
-                                    <td>默认构建工具版本</td>
-                                    <td>node:18.12,jdk:17</td>
-                                </tr>
-                            </tbody>
-                        </table>
+      <h3>部署平台配置</h3>
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>配置项</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BUILD_PLATFORM</code></td>
+            <td>部署平台类型</td>
+            <td>KUBERNETES</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_K8S_NAMESPACE</code></td>
+            <td>Kubernetes命名空间</td>
+            <td>default</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_DOCKER_STACK_NAME</code></td>
+            <td>Docker Swarm 栈名称</td>
+            <td>default</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_DOCKER_SWARM_NETWORK</code></td>
+            <td>Docker Swarm 网络名称</td>
+            <td>swarm-network</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Harbor仓库配置</h3>
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>配置项</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BUILD_ENABEL_HARBOR</code></td>
+            <td>启用Harbor仓库</td>
+            <td>1(启用)/0(禁用)</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_HARBOR_ADDRESS</code></td>
+            <td>Harbor仓库地址</td>
+            <td>harbor.example.com</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_HARBOR_PROJECT</code></td>
+            <td>Harbor项目名称</td>
+            <td>myproject</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_HARBOR_USERNAME</code></td>
+            <td>Harbor访问用户名</td>
+            <td>admin</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_HARBOR_PASSWORD</code></td>
+            <td>Harbor访问密码</td>
+            <td>Harbor12345</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>代码管理配置</h3>
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>配置项</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BUILD_GIT_URL</code></td>
+            <td>Git默认地址</td>
+            <td>http://github.com/xxx/xxx</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_GIT_BRANCH</code></td>
+            <td>Git默认分支</td>
+            <td>main</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>构建工具配置</h3>
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>配置项</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BUILD_MAVEN_SETTINGS</code></td>
+            <td>Maven settings文件路径</td>
+            <td>settings.xml 路径</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_GRADLE_INIT_SCRIPT</code></td>
+            <td>Gradle 初始化脚本路径</td>
+            <td>init.gradle 路径</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_VERSION</code></td>
+            <td>构建工具版本配置</td>
+            <td>node:18.12,jdk:17,maven:3.9.3</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>前端项目配置</h3>
+<table class="config-table">
+    <thead>
+        <tr>
+            <th>配置项</th>
+            <th>说明</th>
+            <th>示例</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>BUILD_VUE_REGISTRY</code></td>
+            <td>Vue项目npm镜像库</td>
+            <td>https://registry.npmmirror.com</td>
+        </tr>
+    </tbody>
+</table>
                     </div>
 
                     <div class="tip">
@@ -361,6 +469,28 @@ devops run vue \
   --template vue-nginx \
   my-frontend</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>镜像库配置</h2>
+                    <p>通过工作空间配置指定 npm 镜像库，加速依赖下载：</p>
+                    <div class="code-block">
+                        <code># 在 workspace/config 中添加
+BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
+
+# 部署时自动应用配置
+devops run vue \
+  --git-url https://github.com/example/vue-app.git \
+  my-frontend</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>常用镜像库地址</h3>
+                        <ul>
+                            <li><strong>阿里云</strong>：https://registry.npmmirror.com</li>
+                            <li><strong>淘宝</strong>：https://registry.npm.taobao.org</li>
+                            <li><strong>官方</strong>：https://registry.npmjs.org</li>
+                        </ul>
                     </div>
 
                     <h2>多环境构建</h2>
@@ -456,7 +586,7 @@ devops run vue my-app -i</code>
                 <!-- 多端口配置 -->
                 <section id="multi-port" class="docs-section">
                     <h1>多端口配置</h1>
-                    <p>DevOps 支持灵活的多端口配置，可以同时配置多个服务端口和导出端口。</p>
+                    <p>DevOps 支持灵活的多端口配置，可以同时配置多个服务端口和导出端口，包括显式端口映射功能。</p>
 
                     <h2>端口配置参数</h2>
                     <div class="config-table">
@@ -476,8 +606,8 @@ devops run vue my-app -i</code>
                                 </tr>
                                 <tr>
                                     <td><code>--export-port</code></td>
-                                    <td>导出端口（NodePort）</td>
-                                    <td>30080,30090</td>
+                                    <td>导出端口（NodePort），支持显式映射</td>
+                                    <td>30080,30090 或 8080:30080,admin:30090</td>
                                 </tr>
                                 <tr>
                                     <td><code>--app-port</code></td>
@@ -495,17 +625,23 @@ devops run vue my-app -i</code>
 
                     <h2>使用示例</h2>
                     <div class="code-block">
-                        <code># 多端口配置
+                        <code># 多端口配置（顺序映射）
 devops run java \
   --service-port "http:8080,admin:9090,health:9091" \
   --export-port "30080,30090,30091" \
   webapp
 
-# 混合格式
+# 显式端口映射
 devops run java \
-  --service-port "8080,admin:9090" \
-  --export-port "30080,30090" \
-  api</code>
+  --service-port "http:8080,admin:9090" \
+  --export-port "8080:30080,9090:30090" \
+  api
+
+# 混合映射
+devops run java \
+  --service-port "8080,admin:9090,debug:5005" \
+  --export-port "30080,debug:30005" \
+  my-app</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
                     </div>
 
@@ -513,10 +649,11 @@ devops run java \
                         <h3>🌐 端口映射规则</h3>
                         <p>DevOps 的智能端口映射：</p>
                         <ul>
-                            <li><strong>一一对应</strong>：服务端口和导出端口按顺序对应</li>
-                            <li><strong>智能映射</strong>：自动建立 NodePort 到 ServicePort 的映射</li>
-                            <li><strong>灵活配置</strong>：支持端口数量不匹配的情况</li>
+                            <li><strong>显式优先</strong>："service-port:node-port"格式的显式映射优先于顺序映射</li>
+                            <li><strong>一一对应</strong>：未指定显式映射时，服务端口和导出端口按顺序对应</li>
+                            <li><strong>部分映射</strong>：支持只导出部分服务端口，未映射端口仅集群内部可访问</li>
                             <li><strong>自动类型</strong>：有导出端口时自动设置 Service 类型为 NodePort</li>
+                            <li><strong>名称支持</strong>：可使用命名端口进行映射（如 admin:30090）</li>
                         </ul>
                     </div>
                 </section>

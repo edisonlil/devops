@@ -150,7 +150,6 @@ env[cfg_harbor_username]=$BUILD_HARBOR_USERNAME
 env[cfg_harbor_password]=$BUILD_HARBOR_PASSWORD
 env[cfg_build_platform]=$BUILD_PLATFORM
 env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
-env[cfg_enable_dockerfiles]=$BUILD_ENABEL_DOCKERFILES
 env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
 env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
 env[cfg_git_branch]=$BUILD_GIT_BRANCH

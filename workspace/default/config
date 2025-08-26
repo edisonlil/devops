@@ -25,9 +25,6 @@ BUILD_MAVEN_SETTINGS=""
 #格式: "工具:版本,工具:版本" 例如: "node:18.12,jdk:17,maven:3.9.3"
 #BUILD_VERSION=""
 
-#启用dockerfile,路由dockerfile
-#BUILD_ENABEL_DOCKERFILES=""
-
 #Vue 项目 npm 镜像库配置
 #BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
 #BUILD_VUE_REGISTRY_AUTH="username:password"
