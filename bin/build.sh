@@ -312,7 +312,7 @@ function scm() {
 		fi
 		mkdir -p "$cfg_temp_dir"
 		# 打包静态资源为 dist.tar.gz
-		( cd "$opt_static_dir" && tar -czf "$cfg_temp_dir/dist.tar.gz" . )
+		( cd "$opt_static_dir" && tar -cf "$cfg_temp_dir/dist.tar" . )
 		# 供后续 docker build 使用
 		env[tmp_build_dist_path]="$cfg_temp_dir"
 		# 生成镜像后缀（仅日期）
