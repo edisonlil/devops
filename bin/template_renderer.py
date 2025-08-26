@@ -141,6 +141,9 @@ def main():
     
     args = parser.parse_args()
     
+    # 调试：打印接收到的 --java-opts 原始参数
+    logger.info(f"template_renderer received --java-opts: {repr(args.java_opts)}")
+
     # 创建渲染器
     renderer = TemplateRenderer(args.template, args.output)
     
@@ -157,6 +160,9 @@ def main():
         'java_opts': args.java_opts or '',
         'expose_port': args.expose_port or args.app_port,
     }
+
+    # 调试：打印将写入模板的 JAVA_OPTS 值
+    logger.info(f"template_renderer using JAVA_OPTS for rendering: {repr(variables.get('java_opts'))}")
     
     renderer.set_variables(variables)
     

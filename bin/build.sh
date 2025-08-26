@@ -651,8 +651,12 @@ function render_template() {
 		"--namespace" "$cfg_k8s_namespace"
 		"--app-port" "$app_port"
 		"--build-platform" "$cfg_build_platform"
-		"--java-opts" "$java_opts"
 	)
+
+	# 仅在非空时追加 --java-opts，避免空值触发解析错误
+	if [ -n "$java_opts" ]; then
+		python_args+=("--java-opts" "$java_opts")
+	fi
 	
 	# 添加网络参数（仅Docker Swarm）
 	if [ "$cfg_build_platform" = "DOCKER_SWARM" ] && [ -n "$cfg_swarm_network" ]; then
