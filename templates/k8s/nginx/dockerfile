@@ -4,8 +4,8 @@ LABEL maintainer='corp'
 
 # 复制打包的静态资源
 COPY dist.tar /tmp/
-RUN cd /usr/share/nginx/html && \
-    tar -xf /tmp/dist.tar --strip-components=1 && \
+RUN rm -rf /usr/share/nginx/html/* && \
+    tar -xf /tmp/dist.tar -C /usr/share/nginx/html && \
     rm /tmp/dist.tar
 
 EXPOSE 80

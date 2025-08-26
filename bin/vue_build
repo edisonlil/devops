@@ -64,7 +64,7 @@ function vue_build() {
 
     info "开始vue项目镜像的构建"
 	cd ${env[tmp_build_dist_path]}
-	tar -cf dist.tar *
+	tar -cf dist.tar .
 
 	# 复制模板文件到最终构建上下文
 	copy_template_files_to_final_build_context
