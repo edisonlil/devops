@@ -1,0 +1,21 @@
+FROM openjdk:17
+MAINTAINER devops@company.com
+LABEL maintainer='corp'
+
+# 设置环境变量（沿用工作区风格）
+ARG jar_name
+ARG java_opts
+ENV JAR_NAME=$jar_name
+ENV JAVA_OPTS=$java_opts
+ENV TZ=Asia/Shanghai
+
+# 工作目录
+WORKDIR /opt
+
+# 复制 JAR 文件
+COPY ./$JAR_NAME /opt/$JAR_NAME
+
+# 启动应用
+CMD java $JAVA_OPTS -jar $JAR_NAME
+
+

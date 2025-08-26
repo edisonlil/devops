@@ -1,0 +1,19 @@
+FROM nginx:alpine
+MAINTAINER devops@company.com
+LABEL maintainer='corp'
+
+# 复制构建产物（与现有构建保持一致）
+COPY dist.tar /tmp/
+COPY ./nginx.conf /etc/nginx/nginx.conf  
+
+RUN rm -rf /usr/share/nginx/html/* && \
+    tar -xf /tmp/dist.tar -C /usr/share/nginx/html && \
+    rm /tmp/dist.tar
+
+# 暴露端口
+EXPOSE 80
+
+# 启动 Nginx
+CMD ["nginx", "-g", "daemon off;"]
+
+
