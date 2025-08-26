@@ -7,6 +7,46 @@ source "$VERSION_MANAGER_SCRIPT_DIR/log.sh"
 
 # 版本管理器函数
 
+# 尝试在非交互/非登录 shell 中启用 sdkman
+function ensure_sdkman_available() {
+    if command -v sdk &> /dev/null; then
+        return 0
+    fi
+
+    # 优先使用 SDKMAN_DIR，其次使用默认路径
+    local sdkman_dir="${SDKMAN_DIR:-$HOME/.sdkman}"
+    local init_script="$sdkman_dir/bin/sdkman-init.sh"
+
+    if [[ -s "$init_script" ]]; then
+        # shellcheck disable=SC1090
+        source "$init_script"
+        if command -v sdk &> /dev/null; then
+            info "已在当前 shell 初始化 sdkman"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# 使用非交互方式安装指定候选与版本
+function sdk_non_interactive_install() {
+    local candidate="$1"
+    local version="$2"
+
+    if ! ensure_sdkman_available; then
+        return 1
+    fi
+
+    info "通过 sdkman 安装 ${candidate}:${version} (非交互)"
+    if command -v yes >/dev/null 2>&1; then
+        yes | sdk install "$candidate" "$version" >/dev/null 2>&1
+    else
+        # 回退：简单回车确认
+        printf "\ny\n" | sdk install "$candidate" "$version" >/dev/null 2>&1
+    fi
+}
+
 # 注意：parse_build_env 函数已废弃
 # --build-env 参数不再处理版本信息，版本管理完全由 --build-version 负责
 # 此函数保留仅为向后兼容，但不建议使用
@@ -57,10 +97,19 @@ function set_java_version() {
     
     info "设置Java版本: $version"
     
-    # 检查sdkman是否可用
-    if command -v sdk &> /dev/null; then
-        sdk use java "$version" 2>/dev/null || sdk install java "$version"
-        return $?
+    # 检查/初始化 sdkman
+    if ensure_sdkman_available; then
+        if ! sdk use java "$version" >/dev/null 2>&1; then
+            info "未检测到已安装的 Java 版本: $version，开始安装"
+            if sdk_non_interactive_install java "$version"; then
+                sdk use java "$version" >/dev/null 2>&1 && return 0
+                warn "Java 版本已安装但切换失败: $version"
+            else
+                warn "Java 版本安装失败: $version"
+            fi
+        else
+            return 0
+        fi
     fi
     
     # 检查JAVA_HOME环境变量
@@ -86,10 +135,19 @@ function set_maven_version() {
     
     info "设置Maven版本: $version"
     
-    # 检查sdkman是否可用
-    if command -v sdk &> /dev/null; then
-        sdk use maven "$version" 2>/dev/null || sdk install maven "$version"
-        return $?
+    # 检查/初始化 sdkman
+    if ensure_sdkman_available; then
+        if ! sdk use maven "$version" >/dev/null 2>&1; then
+            info "未检测到已安装的 Maven 版本: $version，开始安装"
+            if sdk_non_interactive_install maven "$version"; then
+                sdk use maven "$version" >/dev/null 2>&1 && return 0
+                warn "Maven 版本已安装但切换失败: $version"
+            else
+                warn "Maven 版本安装失败: $version"
+            fi
+        else
+            return 0
+        fi
     fi
     
     # 检查当前Maven版本
@@ -115,10 +173,19 @@ function set_gradle_version() {
     
     info "设置Gradle版本: $version"
     
-    # 检查sdkman是否可用
-    if command -v sdk &> /dev/null; then
-        sdk use gradle "$version" 2>/dev/null || sdk install gradle "$version"
-        return $?
+    # 检查/初始化 sdkman
+    if ensure_sdkman_available; then
+        if ! sdk use gradle "$version" >/dev/null 2>&1; then
+            info "未检测到已安装的 Gradle 版本: $version，开始安装"
+            if sdk_non_interactive_install gradle "$version"; then
+                sdk use gradle "$version" >/dev/null 2>&1 && return 0
+                warn "Gradle 版本已安装但切换失败: $version"
+            else
+                warn "Gradle 版本安装失败: $version"
+            fi
+        else
+            return 0
+        fi
     fi
     
     # 检查当前Gradle版本

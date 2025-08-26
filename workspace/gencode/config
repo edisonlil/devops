@@ -21,7 +21,7 @@ BUILD_GIT_BRANCH="dev"
 #Git 默认地址
 BUILD_GIT_URL="https://codeup.aliyun.com/66d9c7f3c06a2fdac7bc06d2/cb/cb-gencode.git"
 #Maven settings.xml
-BUILD_MAVEN_SETTINGS="/root/settings.xml"
+BUILD_MAVEN_SETTINGS="/root/devops/workspace/gencode/local-settings.xml"
 
 #构建工具版本配置 (可选)
 #格式: "工具:版本,工具:版本" 例如: "node:18.12,jdk:17,maven:3.9.3"
