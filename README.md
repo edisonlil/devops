@@ -479,6 +479,36 @@ BUILD_VERSION="jdk:17,maven:3.9.3"
 - **环境一致性**: 确保开发、测试、生产环境版本一致
 - **简化命令**: 无需每次都指定版本参数
 
+### Vue 项目镜像库配置
+
+DevOps 为 Vue 项目提供了专门的 npm 镜像库配置功能，支持私有镜像库和认证管理。
+
+#### 配置项
+- **BUILD_VUE_REGISTRY**: npm 镜像库地址
+- **BUILD_VUE_REGISTRY_AUTH**: 认证信息（用户名密码或 token）
+
+#### 配置示例
+```bash
+# workspace/my-project/config
+BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
+BUILD_VUE_REGISTRY_AUTH="username:password"
+```
+
+#### 使用方法
+```bash
+# 使用工作空间配置的镜像库
+devops run vue my-app --git-url https://github.com/user/vue-app.git
+
+# 临时使用其他镜像库
+devops run vue my-app --build-cmds "npm config set registry https://registry.npm.taobao.org && npm install && npm run build"
+```
+
+#### 常用镜像源
+- **阿里云**: https://registry.npmmirror.com
+- **淘宝**: https://registry.npm.taobao.org
+- **华为云**: https://mirrors.huaweicloud.com/repository/npm/
+- **腾讯云**: https://mirrors.cloud.tencent.com/npm/
+
 #### 版本格式
 ```bash
 # Node.js版本

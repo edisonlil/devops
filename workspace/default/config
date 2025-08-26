@@ -27,3 +27,7 @@ BUILD_MAVEN_SETTINGS=""
 
 #启用dockerfile,路由dockerfile
 #BUILD_ENABEL_DOCKERFILES=""
+
+#Vue 项目 npm 镜像库配置
+#BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
+#BUILD_VUE_REGISTRY_AUTH="username:password"

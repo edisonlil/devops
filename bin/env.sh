@@ -159,6 +159,8 @@ env[cfg_maven_settings]=$BUILD_MAVEN_SETTINGS
 env[cfg_gradle_init_script]=$BUILD_GRADLE_INIT_SCRIPT
 env[cfg_build_version]=$BUILD_VERSION
 env[cfg_java_extra_opts]=
+env[cfg_vue_registry]=$BUILD_VUE_REGISTRY
+env[cfg_vue_registry_auth]=$BUILD_VUE_REGISTRY_AUTH
 
 # namespace处理逻辑：命令行参数优先于配置文件
 if [[ -n "${env[opt_namespace]}" ]]; then
