@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ?module_name
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+    version: "1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ?module_name
+  template:
+    metadata:
+      labels:
+        app: ?module_name
+        version: "1.0"
+    spec:
+      containers:
+      - name: ?module_name
+        image: ?image_path
+        ports:
+        - containerPort: ?app_port
+          name: http
+        env:
+        - name: JAVA_OPTS
+          value: "?java_opts"
+        - name: SERVER_PORT
+          value: "?app_port"
+      imagePullSecrets:
+      - name: ?harbor_secret_name
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ?module_name-service
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+spec:
+  selector:
+    app: ?module_name
+  ports:
+  - port: 80
+    targetPort: ?app_port
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+
