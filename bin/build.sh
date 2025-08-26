@@ -654,8 +654,9 @@ function render_template() {
 	)
 
 	# 仅在非空时追加 --java-opts，避免空值触发解析错误
+	# 注意：当值以 "--" 开头时，必须使用等号内联形式，避免被 argparse 误当作新选项
 	if [ -n "$java_opts" ]; then
-		python_args+=("--java-opts" "$java_opts")
+		python_args+=("--java-opts=$java_opts")
 	fi
 	
 	# 添加网络参数（仅Docker Swarm）
