@@ -41,6 +41,7 @@ function parse_params() {
                             --check) env[opt_install_check]=true; shift 1;;
                             --tools) env[opt_install_tools]=$2; shift 2;;
                             --java-version) env[opt_java_version]=$2; shift 2;;
+                            --python-version) env[opt_python_version]=$2; shift 2;;
                             --help) env[opt_install_help]=true; shift 1;;
                             *) break;;
                         esac
@@ -86,6 +87,8 @@ function parse_params() {
                                         --service-port) env[opt_service_port]=$2; shift 2;;
                                         --export-port) env[opt_export_port]=$2; shift 2;;
                                         --force-port) env[opt_force_port]=true; shift 1;;
+                                        --python-requirements) env[opt_python_requirements]=$2; shift 2;;
+                                        --python-main) env[opt_python_main]=$2; shift 2;;
                                         -i|--interactive) env[opt_interactive]=true; shift 1;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac

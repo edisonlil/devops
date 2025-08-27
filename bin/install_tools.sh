@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 # 支持的工具列表
 SUPPORTED_TOOLS=(
     "git"
-    "curl" 
+    "curl"
     "wget"
     "unzip"
     "docker"
@@ -27,6 +27,9 @@ SUPPORTED_TOOLS=(
     "npm"
     "yarn"
     "go"
+    "python"
+    "conda"
+    "pip"
     "expect"
 )
 
@@ -36,7 +39,12 @@ CONTAINER_TOOLS=("docker" "docker-compose")
 KUBERNETES_TOOLS=("kubectl" "helm")
 JAVA_TOOLS=("java" "maven" "gradle")
 NODEJS_TOOLS=("node" "npm" "yarn")
+PYTHON_TOOLS=("python" "conda" "pip")
 OTHER_TOOLS=("go" "expect")
+
+# 默认配置
+DEFAULT_JAVA_VERSION="8"
+DEFAULT_PYTHON_VERSION="3.11"
 
 # 主入口函数
 function install_tools() {
@@ -80,6 +88,7 @@ ${YELLOW}选项:${NC}
   --all                       安装所有支持的工具
   --tools <tool1,tool2,...>   安装指定的工具（逗号分隔）
   --java-version <version>    指定Java版本 (8, 11, 17, 21)，默认为8
+  --python-version <version>  指定Python版本 (3.8, 3.9, 3.10, 3.11)，默认为3.11
   --help                      显示此帮助信息
 
 ${YELLOW}支持的工具:${NC}
@@ -88,6 +97,7 @@ ${YELLOW}支持的工具:${NC}
   K8s工具:  kubectl, helm
   Java工具: java, maven, gradle
   Node工具: node, npm, yarn
+  Python工具: python, conda, pip
   其他工具: go, expect
 
 ${YELLOW}示例:${NC}
@@ -110,7 +120,44 @@ function check_environment() {
     
     for tool in "${SUPPORTED_TOOLS[@]}"; do
         if check_tool_installed "$tool"; then
-            echo -e "  ${GREEN}✓${NC} $tool"
+            local version_info=""
+            case "$tool" in
+                "python")
+                    if command -v python3 >/dev/null 2>&1; then
+                        version_info=" ($(python3 --version 2>&1 | cut -d' ' -f2))"
+                    elif command -v python >/dev/null 2>&1; then
+                        version_info=" ($(python --version 2>&1 | cut -d' ' -f2))"
+                    fi
+                    ;;
+                "conda")
+                    if command -v conda >/dev/null 2>&1; then
+                        version_info=" ($(conda --version 2>&1 | cut -d' ' -f2))"
+                    fi
+                    ;;
+                "pip")
+                    if command -v pip3 >/dev/null 2>&1; then
+                        version_info=" ($(pip3 --version 2>&1 | cut -d' ' -f2))"
+                    elif command -v pip >/dev/null 2>&1; then
+                        version_info=" ($(pip --version 2>&1 | cut -d' ' -f2))"
+                    fi
+                    ;;
+                "java")
+                    if command -v java >/dev/null 2>&1; then
+                        version_info=" ($(java -version 2>&1 | head -n1 | cut -d'"' -f2))"
+                    fi
+                    ;;
+                "node")
+                    if command -v node >/dev/null 2>&1; then
+                        version_info=" ($(node --version 2>&1))"
+                    fi
+                    ;;
+                "go")
+                    if command -v go >/dev/null 2>&1; then
+                        version_info=" ($(go version 2>&1 | cut -d' ' -f3))"
+                    fi
+                    ;;
+            esac
+            echo -e "  ${GREEN}✓${NC} $tool${version_info}"
             installed_tools+=("$tool")
         else
             echo -e "  ${RED}✗${NC} $tool"
@@ -139,6 +186,15 @@ function check_tool_installed() {
     case "$tool" in
         "docker-compose")
             command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1
+            ;;
+        "python")
+            command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1
+            ;;
+        "conda")
+            command -v conda >/dev/null 2>&1
+            ;;
+        "pip")
+            command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1
             ;;
         *)
             command -v "$tool" >/dev/null 2>&1
@@ -306,6 +362,15 @@ function install_single_tool() {
             ;;
         "go")
             install_go_tool
+            ;;
+        "python")
+            install_python_tool
+            ;;
+        "conda")
+            install_conda_tool
+            ;;
+        "pip")
+            install_pip_tool
             ;;
         "expect")
             install_package expect
@@ -628,4 +693,147 @@ function install_go_tool() {
     fi
 
     rm -f "go${go_version}.linux-amd64.tar.gz"
+}
+
+# 安装 Python
+function install_python_tool() {
+    if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+        return 0
+    fi
+
+    detect_os
+
+    # 优先尝试安装 conda，因为它提供更好的环境管理
+    if install_conda_tool; then
+        info "通过 Conda 安装 Python 成功"
+        return 0
+    fi
+
+    # 如果 conda 安装失败，使用系统包管理器安装 Python
+    info "Conda 安装失败，使用系统包管理器安装 Python"
+
+    if command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip python3-venv python3-dev
+        # 创建 python 软链接
+        if ! command -v python >/dev/null 2>&1; then
+            sudo ln -sf /usr/bin/python3 /usr/bin/python
+        fi
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y python3 python3-pip python3-devel
+        # 创建 python 软链接
+        if ! command -v python >/dev/null 2>&1; then
+            sudo ln -sf /usr/bin/python3 /usr/bin/python
+        fi
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y python3 python3-pip python3-devel
+        # 创建 python 软链接
+        if ! command -v python >/dev/null 2>&1; then
+            sudo ln -sf /usr/bin/python3 /usr/bin/python
+        fi
+    elif command -v brew >/dev/null 2>&1; then
+        brew install python
+    else
+        error "无法安装 Python，请手动安装"
+        return 1
+    fi
+}
+
+# 安装 Conda
+function install_conda_tool() {
+    if command -v conda >/dev/null 2>&1; then
+        return 0
+    fi
+
+    info "安装 Miniconda (推荐的 Python 环境管理器)..."
+
+    detect_os
+
+    # 确定架构
+    local arch
+    if [[ $(uname -m) == "x86_64" ]]; then
+        arch="x86_64"
+    elif [[ $(uname -m) == "aarch64" ]] || [[ $(uname -m) == "arm64" ]]; then
+        arch="aarch64"
+    else
+        error "不支持的架构: $(uname -m)"
+        return 1
+    fi
+
+    # 下载并安装 Miniconda
+    local conda_url="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${arch}.sh"
+    local conda_installer="/tmp/miniconda.sh"
+
+    info "下载 Miniconda 安装包..."
+    if ! wget -O "$conda_installer" "$conda_url"; then
+        error "下载 Miniconda 失败"
+        return 1
+    fi
+
+    info "安装 Miniconda..."
+    bash "$conda_installer" -b -p "$HOME/miniconda3"
+
+    # 初始化 conda
+    "$HOME/miniconda3/bin/conda" init bash
+
+    # 添加到当前会话的 PATH
+    export PATH="$HOME/miniconda3/bin:$PATH"
+
+    # 清理安装包
+    rm -f "$conda_installer"
+
+    # 验证安装
+    if command -v conda >/dev/null 2>&1; then
+        info "Conda 安装成功"
+
+        # 创建默认 Python 环境
+        local python_version="${env[opt_python_version]:-$DEFAULT_PYTHON_VERSION}"
+        info "创建 Python $python_version 环境..."
+        conda create -n "python-${python_version}" python="$python_version" -y
+
+        return 0
+    else
+        error "Conda 安装失败"
+        return 1
+    fi
+}
+
+# 安装 pip
+function install_pip_tool() {
+    if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # 如果 Python 已安装但 pip 未安装
+    if command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1; then
+        info "安装 pip..."
+
+        # 下载 get-pip.py
+        local get_pip_url="https://bootstrap.pypa.io/get-pip.py"
+        local get_pip_script="/tmp/get-pip.py"
+
+        if wget -O "$get_pip_script" "$get_pip_url"; then
+            if command -v python3 >/dev/null 2>&1; then
+                python3 "$get_pip_script" --user
+            else
+                python "$get_pip_script" --user
+            fi
+            rm -f "$get_pip_script"
+        else
+            # 备用方案：使用包管理器
+            if command -v apt-get >/dev/null 2>&1; then
+                sudo apt-get install -y python3-pip
+            elif command -v yum >/dev/null 2>&1; then
+                sudo yum install -y python3-pip
+            elif command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y python3-pip
+            else
+                error "无法安装 pip"
+                return 1
+            fi
+        fi
+    else
+        # 如果 Python 未安装，先安装 Python
+        install_python_tool
+    fi
 }

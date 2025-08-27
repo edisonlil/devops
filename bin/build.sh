@@ -8,6 +8,7 @@ source "$BUILD_SCRIPT_DIR/java_build"
 source "$BUILD_SCRIPT_DIR/tomcat_build"
 source "$BUILD_SCRIPT_DIR/vue_build"
 source "$BUILD_SCRIPT_DIR/nginx_build"
+source "$BUILD_SCRIPT_DIR/python_build"
 
 function run() {
     # 调试信息
@@ -259,6 +260,10 @@ function run_vue() {
 
 function run_nginx() {
 	run_devops nginx_build
+}
+
+function run_python() {
+	run_devops python_build
 }
 
 function run_devops() {
@@ -860,6 +865,7 @@ function run_interactive() {
         echo "  3) go     - Go语言项目"
         echo "  4) nginx  - Nginx静态项目"
         echo "  5) tomcat - Tomcat Web项目"
+        echo "  6) python - Python项目（Flask/Django/FastAPI等）"
         echo
         while true; do
             read -p "🔹 请选择部署类型（输入序号或名称）: " deploy_type
@@ -869,6 +875,7 @@ function run_interactive() {
                 3|go) env[cmd_2]="go"; break ;;
                 4|nginx) env[cmd_2]="nginx"; break ;;
                 5|tomcat) env[cmd_2]="tomcat"; break ;;
+                6|python) env[cmd_2]="python"; break ;;
                 *) warn "无效选择，请重试" ;;
             esac
         done
@@ -943,6 +950,17 @@ function run_interactive() {
                 prompt_optional "自定义构建命令 (如: npm run build:prod)" env[opt_build_cmds]
             fi
             ;;
+        python)
+            if [[ -z "${env[opt_python_main]}" ]]; then
+                prompt_optional "Python 主程序文件 (默认: app.py)" env[opt_python_main]
+            fi
+            if [[ -z "${env[opt_python_requirements]}" ]]; then
+                prompt_optional "Requirements 文件路径 (默认: requirements.txt)" env[opt_python_requirements]
+            fi
+            if [[ -z "${env[opt_build_cmds]}" ]]; then
+                prompt_optional "自定义构建命令" env[opt_build_cmds]
+            fi
+            ;;
         # 其他类型的参数可在此处扩展
     esac
 
@@ -954,6 +972,7 @@ function run_interactive() {
             go) default_template="go" ;;
             nginx) default_template="nginx" ;;
             tomcat) default_template="tomcat" ;;
+            python) default_template="python" ;;
         esac
 
         echo

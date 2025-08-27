@@ -230,7 +230,49 @@ function set_volta_version() {
     warn "未找到Volta版本管理器，使用系统默认版本"
     return 0
 }
-    
+
+# 设置Python版本
+function set_python_version() {
+    local version="$1"
+
+    if [[ -z "$version" ]]; then
+        return 0
+    fi
+
+    info "设置Python版本: $version"
+
+    # 检查conda是否可用
+    if command -v conda &> /dev/null; then
+        # 检查是否已存在该版本的环境
+        local env_name="python-${version}"
+        if conda env list | grep -q "^${env_name} "; then
+            info "激活已存在的Python环境: $env_name"
+            conda activate "$env_name"
+        else
+            info "创建新的Python环境: $env_name (Python $version)"
+            conda create -n "$env_name" python="$version" -y
+            conda activate "$env_name"
+        fi
+        return $?
+    fi
+
+    # 检查pyenv是否可用
+    if command -v pyenv &> /dev/null; then
+        # 检查版本是否已安装
+        if pyenv versions | grep -q "$version"; then
+            info "切换到已安装的Python版本: $version"
+        else
+            info "安装Python版本: $version"
+            pyenv install "$version"
+        fi
+        pyenv global "$version"
+        return $?
+    fi
+
+    warn "未找到Python版本管理器（conda/pyenv），使用系统默认版本"
+    return 0
+}
+
 # 解析版本配置字符串
 function parse_version_config() {
     local version_config="$1"
@@ -302,6 +344,9 @@ function apply_versions() {
                     ;;
                 "volta")
                     set_volta_version "$version"
+                    ;;
+                "python"|"py")
+                    set_python_version "$version"
                     ;;
                 *)
                     warn "不支持的构建工具版本管理: $tool"

@@ -1,0 +1,162 @@
+#!/bin/bash
+
+# 获取脚本所在目录
+PYTHON_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$PYTHON_BUILD_SCRIPT_DIR/docker_helper.sh"
+source "$PYTHON_BUILD_SCRIPT_DIR/version_manager.sh"
+
+function python_build() {
+    cfg_temp_dir=${env[cfg_temp_dir]}
+    cmd_job_name=${env[cmd_job_name]}
+    opt_build_cmds=${env[opt_build_cmds]}
+    opt_build_env=${env[opt_build_env]}
+    opt_build_version=${env[opt_build_version]}
+    cfg_build_version=${env[cfg_build_version]}
+    tmp_dockerfile=${env[tmp_dockerfile]}
+    cfg_harbor_address=${env[cfg_harbor_address]}
+    cfg_harbor_project=${env[cfg_harbor_project]}
+    tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
+    opt_python_requirements=${env[opt_python_requirements]}
+    opt_python_main=${env[opt_python_main]}
+    opt_service_port=${env[opt_service_port]}
+    opt_app_port=${env[opt_app_port]}
+
+    # 应用版本配置（优先级：命令行 > workspace配置）
+    apply_versions "$opt_build_version" "$cfg_build_version"
+
+    # 查找Python项目目录
+    module_path=$(find $cfg_temp_dir -name ${cmd_job_name} -type d -exec test -f {}/requirements.txt \; -print | tail -1)
+    if test -z "$module_path"; then 
+        # 如果没有找到包含requirements.txt的子目录，使用根目录
+        module_path=$cfg_temp_dir
+    fi
+
+    info "Python项目路径: $module_path"
+
+    # 检查Python环境
+    check_env_by_cmd_v python3
+    info "开始构建Python项目"
+
+    # 检查requirements.txt文件
+    requirements_file="$module_path/requirements.txt"
+    if [[ -n "$opt_python_requirements" ]]; then
+        requirements_file="$module_path/$opt_python_requirements"
+    fi
+
+    if [[ ! -f "$requirements_file" ]]; then
+        warn "未找到requirements.txt文件，将创建空的requirements.txt"
+        touch "$requirements_file"
+    else
+        info "使用requirements文件: $requirements_file"
+    fi
+
+    # 查找主程序文件
+    main_file="app.py"
+    if [[ -n "$opt_python_main" ]]; then
+        main_file="$opt_python_main"
+    elif [[ -f "$module_path/main.py" ]]; then
+        main_file="main.py"
+    elif [[ -f "$module_path/server.py" ]]; then
+        main_file="server.py"
+    elif [[ -f "$module_path/run.py" ]]; then
+        main_file="run.py"
+    fi
+
+    info "使用主程序文件: $main_file"
+
+    # 从端口配置中解析应用端口
+    python_port="8000"  # 默认端口
+
+    # 优先从 service-port 中解析
+    if [[ -n "$opt_service_port" ]]; then
+        # 解析第一个端口作为主端口
+        first_port=$(echo "$opt_service_port" | cut -d',' -f1)
+        if [[ "$first_port" == *":"* ]]; then
+            # 命名端口格式 name:port
+            python_port=$(echo "$first_port" | cut -d':' -f2)
+        else
+            # 纯数字端口
+            python_port="$first_port"
+        fi
+        info "从 service-port 解析应用端口: $python_port"
+    elif [[ -n "$opt_app_port" ]]; then
+        # 使用传统的 app-port 配置
+        python_port="$opt_app_port"
+        info "使用 app-port 配置: $python_port"
+    else
+        # 根据主程序文件推断默认端口
+        case "$main_file" in
+            "app.py"|"run.py")
+                if grep -q "Flask" "$module_path/$main_file" 2>/dev/null; then
+                    python_port="5000"  # Flask 默认端口
+                fi
+                ;;
+            "manage.py")
+                python_port="8000"  # Django 默认端口
+                ;;
+            "main.py")
+                python_port="8000"  # FastAPI 默认端口
+                ;;
+            "server.py")
+                python_port="8888"  # Tornado 默认端口
+                ;;
+        esac
+        info "使用框架默认端口: $python_port"
+    fi
+
+    # 执行自定义构建命令或默认构建流程
+    if test -n "$opt_build_cmds"; then
+        info "执行自定义构建命令: $opt_build_cmds"
+        cd $module_path && $opt_build_cmds
+    else
+        info "执行默认Python构建流程"
+        cd $module_path
+        
+        # 检查是否有setup.py或pyproject.toml，如果有则安装包
+        if [[ -f "setup.py" ]]; then
+            info "发现setup.py，安装Python包"
+            python3 -m pip install -e .
+        elif [[ -f "pyproject.toml" ]]; then
+            info "发现pyproject.toml，安装Python包"
+            python3 -m pip install -e .
+        fi
+        
+        # 验证主程序文件存在
+        if [[ ! -f "$main_file" ]]; then
+            error "主程序文件不存在: $main_file"
+            exit 1
+        fi
+    fi
+
+    # 设置构建分发路径
+    env[tmp_build_dist_path]=$module_path
+
+    info "开始Python项目镜像的构建"
+
+    # 复制模板文件到最终构建上下文
+    copy_template_files_to_final_build_context
+
+    # 构建镜像（仓库名要求小写）
+    local sanitized_job_name=$(echo "$cmd_job_name" | tr '[:upper:]' '[:lower:]')
+    if [[ "$sanitized_job_name" != "$cmd_job_name" ]]; then
+        warn "模块名包含大写字母，已自动转换为小写: $cmd_job_name -> $sanitized_job_name"
+    fi
+    
+    image_path=${sanitized_job_name}_${tmp_docker_image_suffix}:latest
+    if test ${env[cfg_enable_harbor]} -eq 1; then
+        image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+    fi
+
+    # 构建Docker镜像，传递必要的构建参数
+    docker build \
+        --build-arg main_file="$main_file" \
+        --build-arg python_port="$python_port" \
+        --build-arg requirements_file="$(basename "$requirements_file")" \
+        -t $image_path \
+        -f $tmp_dockerfile \
+        ${env[tmp_build_dist_path]}
+
+    # 推送镜像
+    docker_push $image_path
+}

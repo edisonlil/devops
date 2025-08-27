@@ -92,7 +92,7 @@ _devops_completion() {
     local main_commands="run install-tools template env create shortcut"
 
     # 项目类型选项
-    local project_types="java vue golang tomcat"
+    local project_types="java vue golang tomcat python"
 
     # 构建工具选项
     local build_tools="maven gradle"
@@ -101,10 +101,10 @@ _devops_completion() {
     local build_envs="dev test gray prod"
     
     # 版本管理选项
-    local version_specs="node: volta: jdk: java: maven: gradle:"
+    local version_specs="node: volta: jdk: java: maven: gradle: python: py:"
     
     # 全局选项
-    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --build-version --workspace --namespace --app-port --expose-port --service-port --export-port --force-port -i --interactive --version --help"
+    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --build-version --workspace --namespace --app-port --expose-port --service-port --export-port --force-port --python-requirements --python-main -i --interactive --version --help"
 
     case ${COMP_CWORD} in
         1)
@@ -122,7 +122,7 @@ _devops_completion() {
                     return 0
                     ;;
                 "install-tools")
-                    COMPREPLY=($(compgen -W "--all --check --tools --java-version --help" -- ${cur}))
+                    COMPREPLY=($(compgen -W "--all --check --tools --java-version --python-version --help" -- ${cur}))
                     return 0
                     ;;
                 "template")
@@ -223,6 +223,9 @@ _devops_completion() {
                             "volta")
                                 COMPREPLY=($(compgen -W "volta:18.12 volta:18 volta:16 volta:lts" -- ${cur}))
                                 ;;
+                            "python"|"py")
+                                COMPREPLY=($(compgen -W "python:3.11 python:3.10 python:3.9 python:3.8 py:3.11 py:3.10" -- ${cur}))
+                                ;;
                         esac
                     else
                         # 提供工具名建议
@@ -302,6 +305,16 @@ _devops_completion() {
                 "--namespace")
                     # 常用的k8s namespace
                     COMPREPLY=($(compgen -W "default kube-system kube-public dev test prod" -- ${cur}))
+                    return 0
+                    ;;
+                "--java-version")
+                    # Java版本补全
+                    COMPREPLY=($(compgen -W "8 11 17 21" -- ${cur}))
+                    return 0
+                    ;;
+                "--python-version")
+                    # Python版本补全
+                    COMPREPLY=($(compgen -W "3.8 3.9 3.10 3.11 3.12" -- ${cur}))
                     return 0
                     ;;
                 "--template")
