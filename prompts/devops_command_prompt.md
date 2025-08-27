@@ -5,7 +5,7 @@ devops run <java|vue|golang|tomcat> <jobName> [--git-url URL] [--git-branch BRAN
 
 严格输出要求：
 - 只输出一行命令，且以 devops 开头；不要输出解释、注释、换行、代码块或多条命令。
-- 仅在用户提供时包含对应参数；不要臆造参数（例外：Java 构建工具默认 gradle 可省略）。
+- 仅在用户提供时包含对应参数；不要臆造参数（例外：Java 构建工具默认 maven 可省略）。
 - 若参数值包含空格或特殊字符，使用双引号包裹。
 - 选项推荐顺序（如被提供）：--git-url → --git-branch/--svn-url → --build-tool → --java-opts → --dockerfile → --template → --build-cmds → --build-env → --workspace → --namespace → --app-port → --expose-port → --force-port。
 - 分支若为“origin/xxx”，只传“xxx”。
