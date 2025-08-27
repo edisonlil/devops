@@ -54,6 +54,10 @@ case ${env[cmd_1]} in
             shift
             create_workspace "$@";
             ;;
+        copy)
+            shift
+            copy_workspace "$@";
+            ;;
         help|--help|-h) devops_help ;;
         *)
             # 检查是否是快捷键名称

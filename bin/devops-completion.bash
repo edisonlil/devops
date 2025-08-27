@@ -89,7 +89,7 @@ _devops_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # 主命令选项
-    local main_commands="run install-tools template env create shortcut"
+    local main_commands="run install-tools template env create copy shortcut"
 
     # 项目类型选项
     local project_types="java vue golang tomcat python"
@@ -137,6 +137,10 @@ _devops_completion() {
                     COMPREPLY=($(compgen -W "workspace" -- ${cur}))
                     return 0
                     ;;
+                "copy")
+                    COMPREPLY=($(compgen -W "workspace" -- ${cur}))
+                    return 0
+                    ;;
                 "shortcut")
                     COMPREPLY=($(compgen -W "save run list show delete edit help" -- ${cur}))
                     return 0
@@ -159,6 +163,14 @@ _devops_completion() {
                         ;;
                     "validate")
                         # template validate 需要workspace名称
+                        _complete_workspaces
+                        return 0
+                        ;;
+                esac
+            elif [[ ${COMP_WORDS[1]} == "copy" ]]; then
+                case "${COMP_WORDS[2]}" in
+                    "workspace")
+                        # copy workspace 需要源workspace名称
                         _complete_workspaces
                         return 0
                         ;;
@@ -187,6 +199,11 @@ _devops_completion() {
             # 处理template validate的job名称
             if [[ ${COMP_WORDS[1]} == "template" && ${COMP_WORDS[2]} == "validate" ]]; then
                 # 这里是job名称，不提供补全
+                return 0
+            fi
+            # 处理copy workspace的目标workspace名称
+            if [[ ${COMP_WORDS[1]} == "copy" && ${COMP_WORDS[2]} == "workspace" ]]; then
+                # 这里是目标workspace名称，不提供补全（用户自定义）
                 return 0
             fi
             ;;
@@ -326,6 +343,11 @@ _devops_completion() {
                     # 补全 create workspace 参数
                     if [[ ${COMP_WORDS[1]} == "create" ]]; then
                         COMPREPLY=($(compgen -W "--platform --namespace --stack --network --git-url --git-branch --maven-settings --gradle-init-script --build-version --set-default -i --interactive" -- ${cur}))
+                        return 0
+                    fi
+                    # 补全 copy workspace 参数
+                    if [[ ${COMP_WORDS[1]} == "copy" ]]; then
+                        COMPREPLY=($(compgen -W "--platform --namespace --stack --network --harbor-project --set-default -i --interactive" -- ${cur}))
                         return 0
                     fi
                     # 补全 template copy --workspace 参数

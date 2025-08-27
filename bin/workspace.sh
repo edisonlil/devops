@@ -184,6 +184,209 @@ function harbor_secret_manage() {
 	fi
 }
 
+function copy_workspace() {
+	# Usage: devops copy workspace <source> <target> [--platform ...] [--namespace ...] [-i|--interactive] [--set-default]
+	local interactive=false
+	local source_workspace=""
+	local target_workspace=""
+	local platform=""
+	local namespace=""
+	local stack_name=""
+	local network_name=""
+	local harbor_project=""
+	local set_default=false
+
+	# Parse subcommand: expect first arg to be 'workspace'
+	if [ "$1" != "workspace" ]; then
+		error "用法: devops copy workspace <source> <target> [选项]"; exit 1
+	fi
+	shift
+
+	source_workspace="$1"; shift || true
+	target_workspace="$1"; shift || true
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			-i|--interactive) interactive=true; shift 1;;
+			--platform) platform="$2"; shift 2;;
+			--namespace) namespace="$2"; shift 2;;
+			--stack) stack_name="$2"; shift 2;;
+			--network) network_name="$2"; shift 2;;
+			--harbor-project) harbor_project="$2"; shift 2;;
+			--set-default) set_default=true; shift 1;;
+			*) error "未知参数: $1"; exit 1;;
+		esac
+	done
+
+	# Validate required parameters
+	if [ -z "$source_workspace" ]; then
+		error "缺少源工作空间名称"; exit 1
+	fi
+	if [ -z "$target_workspace" ]; then
+		error "缺少目标工作空间名称"; exit 1
+	fi
+
+	local devops_home="${env[cfg_devops_path]}"
+	local source_dir="$devops_home/workspace/$source_workspace"
+	local target_dir="$devops_home/workspace/$target_workspace"
+
+	# Check if source workspace exists
+	if [ ! -d "$source_dir" ]; then
+		error "源工作空间不存在: $source_workspace"; exit 1
+	fi
+
+	# Check if target workspace already exists
+	if [ -d "$target_dir" ]; then
+		if [ "$interactive" = true ]; then
+			read -p "目标工作空间已存在，是否覆盖? [y/N]: " confirm
+			if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+				info "操作已取消"; exit 0
+			fi
+		else
+			warn "目标工作空间已存在，将被覆盖: $target_workspace"
+		fi
+		rm -rf "$target_dir"
+	fi
+
+	# Copy the entire workspace directory
+	info "正在复制工作空间: $source_workspace -> $target_workspace"
+	cp -r "$source_dir" "$target_dir"
+
+	# Load source config to get current settings
+	local source_config="$source_dir/config"
+	if [ -f "$source_config" ]; then
+		source "$source_config"
+	fi
+
+	# Interactive mode: prompt for configuration changes
+	if [ "$interactive" = true ]; then
+		echo ""
+		echo "配置工作空间: $target_workspace"
+		echo "================================"
+
+		if [ -z "$platform" ]; then
+			echo "当前平台: $BUILD_PLATFORM"
+			read -p "是否修改平台? [y/N]: " change_platform
+			if [[ "$change_platform" =~ ^[Yy]$ ]]; then
+				while [[ -z "$platform" ]]; do
+					echo "选择平台:"
+					echo "  1) KUBERNETES"
+					echo "  2) DOCKER_SWARM"
+					echo "  3) DOCKER_COMPOSE"
+					read -p "输入序号 [1]: " choice
+					choice=${choice:-1}
+					case "$choice" in
+						1) platform="KUBERNETES" ;;
+						2) platform="DOCKER_SWARM" ;;
+						3) platform="DOCKER_COMPOSE" ;;
+						*) echo "无效选择，请重试"; platform="" ;;
+					esac
+				done
+			else
+				platform="$BUILD_PLATFORM"
+			fi
+		fi
+
+		if [ "$platform" = "KUBERNETES" ] || [ "$BUILD_PLATFORM" = "KUBERNETES" ]; then
+			if [ -z "$namespace" ]; then
+				echo "当前命名空间: $BUILD_K8S_NAMESPACE"
+				read -p "新的命名空间 [保持不变]: " new_namespace
+				if [ -n "$new_namespace" ]; then
+					namespace="$new_namespace"
+				fi
+			fi
+		else
+			if [ -z "$stack_name" ]; then
+				echo "当前Stack名称: $BUILD_DOCKER_STACK_NAME"
+				read -p "新的Stack名称 [${target_workspace}]: " new_stack
+				stack_name=${new_stack:-$target_workspace}
+			fi
+			if [ -z "$network_name" ]; then
+				echo "当前网络名称: $BUILD_DOCKER_SWARM_NETWORK"
+				read -p "新的网络名称 [${target_workspace}_overlay_network]: " new_network
+				network_name=${new_network:-${target_workspace}_overlay_network}
+			fi
+		fi
+
+		if [ "$BUILD_ENABEL_HARBOR" = "1" ] && [ -z "$harbor_project" ]; then
+			echo "当前Harbor项目: $BUILD_HARBOR_PROJECT"
+			read -p "新的Harbor项目 [保持不变]: " new_harbor_project
+			if [ -n "$new_harbor_project" ]; then
+				harbor_project="$new_harbor_project"
+			fi
+		fi
+
+		read -p "设为默认工作空间? [y/N]: " reply_default
+		if [[ "$reply_default" =~ ^[Yy]$ ]]; then set_default=true; fi
+	fi
+
+	# Update configuration file
+	local target_config="$target_dir/config"
+	if [ -f "$target_config" ]; then
+		# Update platform if specified
+		if [ -n "$platform" ] && [ "$platform" != "$BUILD_PLATFORM" ]; then
+			if command -v sed >/dev/null 2>&1; then
+				# 使用临时文件确保兼容性
+				sed "s/BUILD_PLATFORM=\".*\"/BUILD_PLATFORM=\"$platform\"/" "$target_config" > "$target_config.tmp" && mv "$target_config.tmp" "$target_config"
+			fi
+		fi
+
+		# Update namespace if specified
+		if [ -n "$namespace" ]; then
+			if grep -q "BUILD_K8S_NAMESPACE" "$target_config"; then
+				if command -v sed >/dev/null 2>&1; then
+					sed "s/BUILD_K8S_NAMESPACE=\".*\"/BUILD_K8S_NAMESPACE=\"$namespace\"/" "$target_config" > "$target_config.tmp" && mv "$target_config.tmp" "$target_config"
+				fi
+			else
+				# Add namespace config if not exists
+				echo "" >> "$target_config"
+				echo "#配置Kubernetes namespace" >> "$target_config"
+				echo "BUILD_K8S_NAMESPACE=\"$namespace\"" >> "$target_config"
+			fi
+		fi
+
+		# Update stack name if specified
+		if [ -n "$stack_name" ]; then
+			if grep -q "BUILD_DOCKER_STACK_NAME" "$target_config"; then
+				if command -v sed >/dev/null 2>&1; then
+					sed "s/BUILD_DOCKER_STACK_NAME=\".*\"/BUILD_DOCKER_STACK_NAME=\"$stack_name\"/" "$target_config" > "$target_config.tmp" && mv "$target_config.tmp" "$target_config"
+				fi
+			else
+				echo "" >> "$target_config"
+				echo "BUILD_DOCKER_STACK_NAME=\"$stack_name\"" >> "$target_config"
+			fi
+		fi
+
+		# Update network name if specified
+		if [ -n "$network_name" ]; then
+			if grep -q "BUILD_DOCKER_SWARM_NETWORK" "$target_config"; then
+				if command -v sed >/dev/null 2>&1; then
+					sed "s/BUILD_DOCKER_SWARM_NETWORK=\".*\"/BUILD_DOCKER_SWARM_NETWORK=\"$network_name\"/" "$target_config" > "$target_config.tmp" && mv "$target_config.tmp" "$target_config"
+				fi
+			else
+				echo "" >> "$target_config"
+				echo "BUILD_DOCKER_SWARM_NETWORK=\"$network_name\"" >> "$target_config"
+			fi
+		fi
+
+		# Update harbor project if specified
+		if [ -n "$harbor_project" ]; then
+			if grep -q "BUILD_HARBOR_PROJECT" "$target_config"; then
+				if command -v sed >/dev/null 2>&1; then
+					sed "s/BUILD_HARBOR_PROJECT=\".*\"/BUILD_HARBOR_PROJECT=\"$harbor_project\"/" "$target_config" > "$target_config.tmp" && mv "$target_config.tmp" "$target_config"
+				fi
+			fi
+		fi
+	fi
+
+	success "工作空间复制完成: $source_workspace -> $target_workspace"
+	info "配置文件: $target_config"
+
+	if [ "$set_default" = true ]; then
+		env_use "$target_workspace"
+	fi
+}
+
 function create_workspace() {
 	# Usage: devops create workspace <name> [--platform ...] [--build-version ...] [-i|--interactive] [--set-default]
 	local interactive=false
