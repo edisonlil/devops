@@ -25,7 +25,7 @@ devops run <java|vue|golang|tomcat> <jobName> [--git-url URL] [--git-branch BRAN
 
 可选项与规则：
 - --git-branch：用户给了就带；若是"origin/feature/x" → 只传"feature/x"
-- --build-tool：仅 java/tomcat 相关。未提供则默认 gradle（可不输出该参数）
+- --build-tool：仅 java/tomcat 相关。未提供则默认 maven（可不输出该参数）
 - --java-opts：仅 java/tomcat 时可带
 - --dockerfile：用户给了就带
 - --build-cmds：用户给了就带（覆盖默认构建）
