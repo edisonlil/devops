@@ -703,18 +703,73 @@ fix_line_endings() {
     local target_dir="$1"
     log_step "修复文件换行符格式..."
 
+    # 定义需要修复的文件类型（更全面的匹配）
+    local file_patterns=(
+        "*.sh"
+        "*.conf"
+        "*.config"
+        "config"
+        "*.py"
+        "*.yml"
+        "*.yaml"
+        "*.md"
+        "*.txt"
+        "*.json"
+        "devops*"
+        "*.template"
+        "*.env"
+        "*.properties"
+        "*.xml"
+        "*.sql"
+        "Dockerfile*"
+        "*.dockerfile"
+    )
+
     # 检查是否有 dos2unix 命令
     if command_exists dos2unix; then
         log_info "使用 dos2unix 修复换行符..."
-        find "$target_dir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "config" -o -name "devops*" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" -o -name "*.md" -o -name "*.txt" \) -exec dos2unix {} \; 2>/dev/null || true
+        # 修复有后缀的文件
+        for pattern in "${file_patterns[@]}"; do
+            find "$target_dir" -type f -name "$pattern" -not -path "*/.*" -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/build/*" -exec dos2unix {} \; 2>/dev/null || true
+        done
+        # 修复bin目录下的所有文件（通常没有后缀）
+        if [[ -d "$target_dir/bin" ]]; then
+            find "$target_dir/bin" -type f -exec dos2unix {} \; 2>/dev/null || true
+        fi
+        # 修复workspace目录下的所有文件
+        if [[ -d "$target_dir/workspace" ]]; then
+            find "$target_dir/workspace" -type f -exec dos2unix {} \; 2>/dev/null || true
+        fi
+        # 修复其他可能的脚本文件（通过shebang识别）
+        find "$target_dir" -type f -exec grep -l "^#!/" {} \; 2>/dev/null | xargs -r dos2unix 2>/dev/null || true
     else
         log_info "使用 sed 修复换行符..."
-        find "$target_dir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "config" -o -name "devops*" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" -o -name "*.md" -o -name "*.txt" \) -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+        # 修复有后缀的文件
+        for pattern in "${file_patterns[@]}"; do
+            find "$target_dir" -type f -name "$pattern" -not -path "*/.*" -not -path "*/node_modules/*" -not -path "*/target/*" -not -path "*/build/*" -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+        done
+        # 修复bin目录下的所有文件（通常没有后缀）
+        if [[ -d "$target_dir/bin" ]]; then
+            find "$target_dir/bin" -type f -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+        fi
+        # 修复workspace目录下的所有文件
+        if [[ -d "$target_dir/workspace" ]]; then
+            find "$target_dir/workspace" -type f -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+        fi
+        # 修复其他可能的脚本文件（通过shebang识别）
+        find "$target_dir" -type f -exec grep -l "^#!/" {} \; 2>/dev/null | xargs -r sed -i 's/\r$//' 2>/dev/null || true
     fi
 
     # 确保脚本有执行权限
-    chmod +x "$target_dir/bin/"* 2>/dev/null || true
+    find "$target_dir" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+    find "$target_dir" -type f -name "devops*" -exec chmod +x {} \; 2>/dev/null || true
     chmod +x "$target_dir/install.sh" 2>/dev/null || true
+    # 给bin目录下的所有文件添加执行权限
+    if [[ -d "$target_dir/bin" ]]; then
+        chmod +x "$target_dir/bin/"* 2>/dev/null || true
+    fi
+    # 给所有有shebang的文件添加执行权限
+    find "$target_dir" -type f -exec grep -l "^#!/" {} \; 2>/dev/null | xargs -r chmod +x 2>/dev/null || true
 
     log_info "换行符格式修复完成"
 }
