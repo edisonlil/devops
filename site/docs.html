@@ -51,12 +51,14 @@
                         <li><a href="#workspace" class="sidebar-link">工作空间管理</a></li>
                         <li><a href="#java-deployment" class="sidebar-link">Java 应用部署</a></li>
                         <li><a href="#vue-deployment" class="sidebar-link">Vue.js 应用部署</a></li>
+                        <li><a href="#python-deploy" class="sidebar-link">Python 应用部署</a></li>
                         <li><a href="#interactive-mode" class="sidebar-link">交互式部署</a></li>
                     </ul>
                 </div>
                 <div class="sidebar-section">
                     <h3>进阶功能</h3>
                     <ul>
+                        <li><a href="#install-tools" class="sidebar-link">环境工具安装</a></li>
                         <li><a href="#multi-port" class="sidebar-link">多端口配置 & 多容器支持</a></li>
                         <li><a href="#version-management" class="sidebar-link">版本管理</a></li>
                         <li><a href="#template-system" class="sidebar-link">模板系统</a></li>
@@ -90,7 +92,7 @@
                         <div class="highlight-card">
                             <div class="highlight-icon">🔧</div>
                             <h3>多语言支持</h3>
-                            <p>支持 Java、Vue.js、Go 等主流技术栈</p>
+                            <p>支持 Java、Vue.js、Go、Python 等主流技术栈</p>
                         </div>
                         <div class="highlight-card">
                             <div class="highlight-icon">☸️</div>
@@ -523,6 +525,107 @@ devops run vue \
                     </div>
                 </section>
 
+                <!-- Python 部署 -->
+                <section id="python-deploy" class="docs-section">
+                    <h1>Python 应用部署</h1>
+                    <p>DevOps 支持 Python 应用的自动化部署，包括 Flask、Django、FastAPI 等主流框架。</p>
+
+                    <h2>基础部署</h2>
+                    <div class="code-block">
+                        <code># Flask 应用部署
+devops run python \
+  --git-url https://github.com/example/flask-api.git \
+  --python-main app.py \
+  --service-port "5000" \
+  my-api
+
+# Django 应用部署
+devops run python \
+  --git-url https://github.com/example/django-web.git \
+  --python-main manage.py \
+  --service-port "8000" \
+  my-web
+
+# FastAPI 应用部署
+devops run python \
+  --git-url https://github.com/example/fastapi-service.git \
+  --python-main main.py \
+  --service-port "8000" \
+  my-service</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>Python 版本管理</h2>
+                    <div class="code-block">
+                        <code># 使用 conda 管理 Python 版本
+devops run python \
+  --git-url https://github.com/example/python-app.git \
+  --build-version "python:3.11" \
+  my-app
+
+# 使用 pyenv 管理版本
+devops run python \
+  --git-url https://github.com/example/python-app.git \
+  --build-version "py:3.10" \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>高级配置</h2>
+                    <div class="code-block">
+                        <code># 完整的 Python 应用配置
+devops run python \
+  --git-url https://github.com/example/python-app.git \
+  --python-main server.py \
+  --python-requirements requirements/prod.txt \
+  --build-version "python:3.11" \
+  --build-env prod \
+  --service-port "http:5000,admin:9090" \
+  --export-port "5000:30050,9090:30090" \
+  --namespace production \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>🐍 Python 特定参数</h3>
+
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>说明</th>
+                                    <th>默认值</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>--python-main</code></td>
+                                    <td>主程序文件路径</td>
+                                    <td>app.py</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--python-requirements</code></td>
+                                    <td>requirements 文件路径</td>
+                                    <td>requirements.txt</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🎯 最佳实践</h3>
+                        <p>Python 应用部署建议：</p>
+                        <ul>
+                            <li>使用虚拟环境管理依赖（conda/pyenv）</li>
+                            <li>固定依赖版本号在 requirements.txt 中</li>
+                            <li>添加健康检查端点 <code>/health</code></li>
+                            <li>使用环境变量管理配置</li>
+                            <li>生产环境使用 WSGI/ASGI 服务器</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <!-- 交互式部署 -->
                 <section id="interactive-mode" class="docs-section">
                     <h1>交互式部署</h1>
@@ -535,7 +638,8 @@ devops run -i
 
 # 指定类型的交互式部署
 devops run java -i
-devops run vue my-app -i</code>
+devops run vue my-app -i
+devops run python my-api -i</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
                     </div>
 
@@ -545,7 +649,7 @@ devops run vue my-app -i</code>
                             <div class="step-number">1</div>
                             <div class="step-content">
                                 <h3>选择部署类型</h3>
-                                <p>系统会提示选择应用类型：Java、Vue.js、Go、Nginx 或 Tomcat</p>
+                                <p>系统会提示选择应用类型：Java、Vue.js、Go、Python、Nginx 或 Tomcat</p>
                             </div>
                         </div>
                         <div class="step">
@@ -579,6 +683,180 @@ devops run vue my-app -i</code>
                             <li><strong>参数验证</strong>：实时验证输入参数的有效性</li>
                             <li><strong>智能提示</strong>：根据项目类型提供相关建议</li>
                             <li><strong>命令预览</strong>：显示等效的命令行形式</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- 环境工具安装 -->
+                <section id="install-tools" class="docs-section">
+                    <h1>环境工具安装</h1>
+                    <p>DevOps 提供了强大的环境工具安装和检查功能，帮助您快速搭建完整的开发环境。</p>
+
+                    <div class="feature-highlight">
+                        <h3>🛠️ 核心特性</h3>
+                        <ul>
+                            <li><strong>一键安装</strong>：自动安装开发所需的所有工具</li>
+                            <li><strong>环境检查</strong>：智能检测当前环境状态和版本信息</li>
+                            <li><strong>Python 优先</strong>：优先使用 Conda 进行 Python 环境管理</li>
+                            <li><strong>版本管理</strong>：支持指定特定版本的工具安装</li>
+                            <li><strong>跨平台</strong>：支持多种 Linux 发行版和 macOS</li>
+                        </ul>
+                    </div>
+
+                    <h2>环境检查</h2>
+                    <p>在开始开发之前，建议先检查当前环境状态：</p>
+                    <div class="code-block">
+                        <code># 检查当前环境状态
+devops install-tools --check
+
+# 输出示例：
+#   ✓ git
+#   ✓ docker (24.0.6)
+#   ✓ kubectl (v1.28.2)
+#   ✓ java (17.0.8)
+#   ✓ python (3.11.5)
+#   ✓ conda (23.7.4)
+#   ✓ pip (23.2.1)
+#   ✗ maven
+#   ✗ gradle</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>支持的工具</h2>
+                    <div class="tool-categories">
+                        <div class="tool-category">
+                            <h3>🔧 基础工具</h3>
+                            <p><code>git</code>, <code>curl</code>, <code>wget</code>, <code>unzip</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>🐳 容器工具</h3>
+                            <p><code>docker</code>, <code>docker-compose</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>☸️ Kubernetes 工具</h3>
+                            <p><code>kubectl</code>, <code>helm</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>☕ Java 工具</h3>
+                            <p><code>java</code>, <code>maven</code>, <code>gradle</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>🟢 Node.js 工具</h3>
+                            <p><code>node</code>, <code>npm</code>, <code>yarn</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>🐍 Python 工具</h3>
+                            <p><code>python</code>, <code>conda</code>, <code>pip</code></p>
+                        </div>
+                        <div class="tool-category">
+                            <h3>🔷 其他工具</h3>
+                            <p><code>go</code>, <code>expect</code></p>
+                        </div>
+                    </div>
+
+                    <h2>安装工具</h2>
+
+                    <h3>安装所有工具</h3>
+                    <div class="code-block">
+                        <code># 安装所有支持的工具
+devops install-tools --all</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>安装指定工具</h3>
+                    <div class="code-block">
+                        <code># 安装指定的工具（逗号分隔）
+devops install-tools --tools git,docker,kubectl
+
+# 安装 Python 开发环境
+devops install-tools --tools python,conda,pip
+
+# 安装 Java 开发环境
+devops install-tools --tools java,maven,gradle
+
+# 安装 Node.js 开发环境
+devops install-tools --tools node,npm,yarn</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>版本指定安装</h3>
+                    <div class="code-block">
+                        <code># 安装指定版本的 Java
+devops install-tools --tools java --java-version 17
+
+# 安装指定版本的 Python
+devops install-tools --tools python --python-version 3.11
+
+# 组合使用
+devops install-tools --tools java,python --java-version 11 --python-version 3.10</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>Python 环境管理</h2>
+                    <p>DevOps 优先使用 Conda 进行 Python 环境管理，提供更好的包管理和环境隔离：</p>
+
+                    <div class="info-block">
+                        <h3>🐍 Python 安装策略</h3>
+                        <ol>
+                            <li><strong>首选 Conda</strong>：安装 Miniconda，提供完整的环境管理</li>
+                            <li><strong>自动环境创建</strong>：根据指定版本创建 Python 环境</li>
+                            <li><strong>备选方案</strong>：如果 Conda 安装失败，使用系统包管理器</li>
+                            <li><strong>版本支持</strong>：支持 Python 3.8, 3.9, 3.10, 3.11, 3.12</li>
+                        </ol>
+                    </div>
+
+                    <div class="code-block">
+                        <code># 安装 Python 环境（推荐）
+devops install-tools --tools python,conda,pip --python-version 3.11
+
+# 检查 Python 环境
+devops install-tools --check
+
+# 输出示例：
+#   ✓ python (3.11.5)
+#   ✓ conda (23.7.4)
+#   ✓ pip (23.2.1)</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>常用场景</h2>
+
+                    <h3>Java 开发环境</h3>
+                    <div class="code-block">
+                        <code># 完整的 Java 开发环境
+devops install-tools --tools git,java,maven,gradle,docker --java-version 17</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>Python 开发环境</h3>
+                    <div class="code-block">
+                        <code># 完整的 Python 开发环境
+devops install-tools --tools git,python,conda,pip,docker --python-version 3.11</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>前端开发环境</h3>
+                    <div class="code-block">
+                        <code># 完整的前端开发环境
+devops install-tools --tools git,node,npm,yarn,docker</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>Kubernetes 开发环境</h3>
+                    <div class="code-block">
+                        <code># Kubernetes 相关工具
+devops install-tools --tools git,docker,kubectl,helm</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="best-practice">
+                        <h3>💡 最佳实践</h3>
+                        <p>环境准备建议：</p>
+                        <ul>
+                            <li>在开始项目开发前，先运行 <code>devops install-tools --check</code> 检查环境</li>
+                            <li>使用 <code>--python-version</code> 指定项目所需的 Python 版本</li>
+                            <li>对于团队项目，建议统一开发环境的工具版本</li>
+                            <li>定期运行环境检查，确保工具版本是最新的</li>
                         </ul>
                     </div>
                 </section>
@@ -907,7 +1185,7 @@ ls -la ~/.kube/config</code>
                     <div class="code-block">
                         <code># 启用调试模式
 export DEBUG=true
-devops run java --debug my-app
+devops run java my-app
 
 # 或者使用环境变量
 DEBUG=true devops run java my-app</code>
