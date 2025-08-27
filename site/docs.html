@@ -57,7 +57,7 @@
                 <div class="sidebar-section">
                     <h3>进阶功能</h3>
                     <ul>
-                        <li><a href="#multi-port" class="sidebar-link">多端口配置</a></li>
+                        <li><a href="#multi-port" class="sidebar-link">多端口配置 & 多容器支持</a></li>
                         <li><a href="#version-management" class="sidebar-link">版本管理</a></li>
                         <li><a href="#template-system" class="sidebar-link">模板系统</a></li>
                         <li><a href="#troubleshooting" class="sidebar-link">故障排除</a></li>
@@ -586,7 +586,17 @@ devops run vue my-app -i</code>
                 <!-- 多端口配置 -->
                 <section id="multi-port" class="docs-section">
                     <h1>多端口配置</h1>
-                    <p>DevOps 支持灵活的多端口配置，可以同时配置多个服务端口和导出端口，包括显式端口映射功能。</p>
+                    <p>DevOps 支持灵活的多端口配置，包括多容器支持、智能端口映射、自动 containerPort 同步等高级功能。</p>
+
+                    <div class="feature-highlight">
+                        <h3>🚀 新增功能</h3>
+                        <ul>
+                            <li><strong>多容器支持</strong>：智能识别主容器，支持指定容器的端口配置</li>
+                            <li><strong>自动同步</strong>：自动同步 Deployment containerPort 和 Service 端口</li>
+                            <li><strong>Sidecar识别</strong>：自动排除 Istio、日志收集等 sidecar 容器</li>
+                            <li><strong>显式映射</strong>：精确控制 servicePort:nodePort 映射关系</li>
+                        </ul>
+                    </div>
 
                     <h2>端口配置参数</h2>
                     <div class="config-table">
@@ -601,13 +611,13 @@ devops run vue my-app -i</code>
                             <tbody>
                                 <tr>
                                     <td><code>--service-port</code></td>
-                                    <td>服务端口，支持多端口和命名端口</td>
-                                    <td>8080,9090 或 http:8080,admin:9090</td>
+                                    <td>服务端口，支持多端口、命名端口、容器指定</td>
+                                    <td>8080,9090 或 http:8080,admin:9090 或 web-app:http:8080,api:api:3000</td>
                                 </tr>
                                 <tr>
                                     <td><code>--export-port</code></td>
                                     <td>导出端口（NodePort），支持显式映射</td>
-                                    <td>30080,30090 或 8080:30080,admin:30090</td>
+                                    <td>30080,30090 或 8080:30080,9090:30090 或 30080,9090:30090,30300</td>
                                 </tr>
                                 <tr>
                                     <td><code>--app-port</code></td>
@@ -624,6 +634,8 @@ devops run vue my-app -i</code>
                     </div>
 
                     <h2>使用示例</h2>
+
+                    <h3>基础多端口配置</h3>
                     <div class="code-block">
                         <code># 多端口配置（顺序映射）
 devops run java \
@@ -635,13 +647,39 @@ devops run java \
 devops run java \
   --service-port "http:8080,admin:9090" \
   --export-port "8080:30080,9090:30090" \
-  api
+  api</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
 
-# 混合映射
+                    <h3>多容器端口配置</h3>
+                    <div class="code-block">
+                        <code># 指定容器的端口配置
 devops run java \
-  --service-port "8080,admin:9090,debug:5005" \
-  --export-port "30080,debug:30005" \
+  --service-port "web-app:http:8080,api-service:api:3000,monitoring:metrics:9090" \
+  --export-port "8080:30080,3000:30300" \
+  microservice
+
+# 混合容器指定和默认配置
+devops run java \
+  --service-port "http:8080,api-service:api:3000" \
+  --export-port "30080,30300" \
   my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>高级映射示例</h3>
+                    <div class="code-block">
+                        <code># 混合显式映射和顺序映射
+devops run java \
+  --service-port "web:8080,admin:9090,api:3000,metrics:4000" \
+  --export-port "9090:31090,30080,4000:31400,30300" \
+  complex-app
+
+# 结果：
+# web:8080 → NodePort 30080 (顺序映射)
+# admin:9090 → NodePort 31090 (显式映射)
+# api:3000 → NodePort 30300 (顺序映射)
+# metrics:4000 → NodePort 31400 (显式映射)</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
                     </div>
 
@@ -655,6 +693,36 @@ devops run java \
                             <li><strong>自动类型</strong>：有导出端口时自动设置 Service 类型为 NodePort</li>
                             <li><strong>名称支持</strong>：可使用命名端口进行映射（如 admin:30090）</li>
                         </ul>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🐳 多容器支持</h3>
+                        <p>智能处理多容器场景：</p>
+                        <ul>
+                            <li><strong>主容器识别</strong>：自动识别并排除 Istio、Fluentd、Prometheus 等 sidecar 容器</li>
+                            <li><strong>容器指定</strong>：使用 "容器名:端口名:端口号" 格式指定特定容器的端口</li>
+                            <li><strong>自动同步</strong>：自动添加缺失的 containerPort，更新端口名称</li>
+                            <li><strong>避免冲突</strong>：智能检测端口冲突，不重复添加已存在的端口</li>
+                            <li><strong>混合配置</strong>：支持部分端口指定容器，部分使用默认主容器</li>
+                        </ul>
+                    </div>
+
+                    <div class="success-tip">
+                        <h3>💡 最佳实践</h3>
+                        <p><strong>多容器场景推荐配置：</strong></p>
+                        <div class="code-block">
+                            <code># Istio 服务网格环境
+devops run java \
+  --service-port "http:8080,admin:9090" \
+  --export-port "8080:30080" \
+  my-service
+
+# 系统会自动：
+# 1. 识别 istio-proxy 为 sidecar，跳过
+# 2. 将端口配置到主应用容器
+# 3. 自动添加缺失的 containerPort
+# 4. 同步 Service 端口配置</code>
+                        </div>
                     </div>
                 </section>
 

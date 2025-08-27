@@ -49,7 +49,7 @@ class UnifiedPortConfigHandler:
             logger.error(f"加载YAML文件失败: {e}")
             return False
 
-    def parse_port_config(self, port_config: str) -> List[Dict[str, Any]]:
+    def parse_port_config(self, port_config: str, is_export_port: bool = False) -> List[Dict[str, Any]]:
         """解析端口配置字符串
 
         支持的格式：
@@ -57,6 +57,9 @@ class UnifiedPortConfigHandler:
         2. 多端口：8080,9090,3000
         3. 命名端口：http:8080,admin:9090
         4. 混合格式：8080,admin:9090,3000
+        5. 容器指定格式：container1:http:8080,container2:admin:9090
+        6. 混合容器格式：http:8080,sidecar:metrics:9090
+        7. 显式映射格式（仅export-port）：8080:30080,9090:30090
         """
         if not port_config:
             return []
@@ -65,22 +68,53 @@ class UnifiedPortConfigHandler:
         port_items = [item.strip() for item in port_config.split(',')]
 
         for port_item in port_items:
-            if ':' in port_item:
-                # 命名端口格式：name:port
-                parts = port_item.split(':', 1)
-                if len(parts) == 2:
-                    port_name = parts[0].strip()
-                    port_number = parts[1].strip()
+            port_parts = port_item.split(':')
 
-                    if port_number.isdigit():
-                        ports.append({
-                            'name': port_name,
-                            'port': int(port_number),
-                            'targetPort': int(port_number),
-                            'protocol': 'TCP'
-                        })
-                    else:
-                        logger.warning(f"无效的端口号: {port_number}")
+            if len(port_parts) == 3:
+                # 容器指定格式：container:name:port
+                container_name = port_parts[0].strip()
+                port_name = port_parts[1].strip()
+                port_number = port_parts[2].strip()
+
+                if port_number.isdigit():
+                    ports.append({
+                        'container': container_name,
+                        'name': port_name,
+                        'port': int(port_number),
+                        'targetPort': int(port_number),
+                        'protocol': 'TCP'
+                    })
+                else:
+                    logger.warning(f"无效的端口号: {port_number}")
+            elif len(port_parts) == 2:
+                part1 = port_parts[0].strip()
+                part2 = port_parts[1].strip()
+
+                # 检查是否是显式映射格式 (servicePort:nodePort)
+                if is_export_port and part1.isdigit() and part2.isdigit():
+                    # 显式映射格式：servicePort:nodePort
+                    service_port_num = int(part1)
+                    node_port_num = int(part2)
+                    ports.append({
+                        'name': f'port-{node_port_num}',
+                        'port': node_port_num,
+                        'targetPort': node_port_num,
+                        'protocol': 'TCP',
+                        'service_port': service_port_num  # 标记这是显式映射
+                    })
+                    logger.info(f"解析显式映射: ServicePort {service_port_num} -> NodePort {node_port_num}")
+                elif part2.isdigit():
+                    # 命名端口格式：name:port
+                    port_name = part1
+                    port_number = int(part2)
+                    ports.append({
+                        'name': port_name,
+                        'port': port_number,
+                        'targetPort': port_number,
+                        'protocol': 'TCP'
+                    })
+                else:
+                    logger.warning(f"无效的端口号: {part2}")
             elif port_item.isdigit():
                 # 纯数字端口
                 port_number = int(port_item)
@@ -175,9 +209,13 @@ class UnifiedPortConfigHandler:
                 return False
 
             modified = False
+            parsed_service_ports = self.parse_port_config(service_ports) if service_ports else []
 
+            # 处理所有文档
             for doc in self.documents:
-                if doc and doc.get('kind') == 'Service':
+                if doc and doc.get('kind') == 'Deployment':
+                    modified |= self._process_deployment_ports(doc, parsed_service_ports)
+                elif doc and doc.get('kind') == 'Service':
                     modified |= self._process_multi_ports(doc, service_ports, export_ports)
 
             if modified:
@@ -190,6 +228,125 @@ class UnifiedPortConfigHandler:
             logger.error(f"处理多端口配置失败: {e}")
             return False
 
+    def _identify_main_container(self, containers: List[Dict]) -> int:
+        """识别主容器的索引"""
+        if not containers:
+            return -1
+
+        # 常见的sidecar容器名称模式
+        sidecar_patterns = [
+            'istio-proxy', 'envoy', 'proxy', 'sidecar',
+            'fluentd', 'filebeat', 'logstash', 'logging',
+            'prometheus', 'metrics', 'monitoring',
+            'jaeger', 'zipkin', 'tracing'
+        ]
+
+        # 查找非sidecar容器
+        for i, container in enumerate(containers):
+            container_name = container.get('name', '').lower()
+            image = container.get('image', '').lower()
+
+            # 检查是否是sidecar容器
+            is_sidecar = any(pattern in container_name or pattern in image
+                           for pattern in sidecar_patterns)
+
+            if not is_sidecar:
+                logger.info(f"识别主容器: {container.get('name', f'container-{i}')} (索引: {i})")
+                return i
+
+        # 如果没有找到明确的主容器，返回第一个
+        logger.info(f"使用第一个容器作为主容器: {containers[0].get('name', 'container-0')}")
+        return 0
+
+    def _process_deployment_ports(self, deployment_doc: Dict, parsed_service_ports: List[Dict]) -> bool:
+        """处理Deployment的containerPort配置"""
+        if not parsed_service_ports:
+            return False
+
+        modified = False
+        spec = deployment_doc.get('spec', {})
+        template = spec.get('template', {})
+        pod_spec = template.get('spec', {})
+        containers = pod_spec.get('containers', [])
+
+        if not containers:
+            logger.warning("Deployment中没有找到containers配置")
+            return False
+
+        # 创建容器名称到索引的映射
+        container_name_to_index = {}
+        for i, container in enumerate(containers):
+            container_name = container.get('name', f'container-{i}')
+            container_name_to_index[container_name] = i
+
+        # 识别主容器
+        main_container_index = self._identify_main_container(containers)
+
+        # 按容器分组端口配置
+        container_ports = {}  # container_index -> [port_configs]
+
+        for service_port in parsed_service_ports:
+            target_container_index = main_container_index  # 默认使用主容器
+
+            # 检查是否指定了容器
+            if 'container' in service_port:
+                container_name = service_port['container']
+                if container_name in container_name_to_index:
+                    target_container_index = container_name_to_index[container_name]
+                    logger.info(f"端口 {service_port['name']} 指定到容器: {container_name}")
+                else:
+                    logger.warning(f"指定的容器 '{container_name}' 不存在，使用主容器")
+
+            if target_container_index not in container_ports:
+                container_ports[target_container_index] = []
+            container_ports[target_container_index].append(service_port)
+
+        # 处理每个容器的端口配置
+        for container_index, port_configs in container_ports.items():
+            if container_index >= len(containers):
+                continue
+
+            container = containers[container_index]
+            container_name = container.get('name', f'container-{container_index}')
+            existing_ports = container.get('ports', [])
+
+            # 获取现有的containerPort列表
+            existing_port_numbers = set()
+            for port in existing_ports:
+                if 'containerPort' in port:
+                    existing_port_numbers.add(port['containerPort'])
+
+            # 检查需要添加的端口
+            for service_port in port_configs:
+                port_number = service_port['targetPort']
+                port_name = service_port['name']
+
+                # 如果端口号不存在，添加新的containerPort
+                if port_number not in existing_port_numbers:
+                    new_container_port = {
+                        'containerPort': port_number,
+                        'name': port_name,
+                        'protocol': service_port.get('protocol', 'TCP')
+                    }
+                    existing_ports.append(new_container_port)
+                    logger.info(f"添加containerPort到 {container_name}: {port_name}:{port_number}")
+                    modified = True
+                else:
+                    # 端口号存在，检查是否需要更新名称
+                    for existing_port in existing_ports:
+                        if existing_port.get('containerPort') == port_number:
+                            if existing_port.get('name') != port_name:
+                                existing_port['name'] = port_name
+                                logger.info(f"更新 {container_name} containerPort名称: {port_number} -> {port_name}")
+                                modified = True
+                            break
+
+            # 更新容器的ports配置
+            if existing_ports:
+                container['ports'] = existing_ports
+
+        return modified
+
     def _process_multi_ports(self, service_doc: Dict, service_ports: Optional[str],
                             export_ports: Optional[str]) -> bool:
         """处理单个Service的多端口配置"""
@@ -198,7 +355,7 @@ class UnifiedPortConfigHandler:
 
         # 解析端口配置
         parsed_service_ports = self.parse_port_config(service_ports) if service_ports else []
-        parsed_export_ports = self.parse_port_config(export_ports) if export_ports else []
+        parsed_export_ports = self.parse_port_config(export_ports, is_export_port=True) if export_ports else []
 
         # 创建端口映射 (已移除端口验证)
         if parsed_service_ports or parsed_export_ports:
@@ -208,19 +365,6 @@ class UnifiedPortConfigHandler:
                 spec['ports'] = mapped_ports
                 modified = True
 
-                # 添加端口映射到spec
-                for mapping in port_mappings:
-                    port_entry = {
-                        'name': mapping['name'],
-                        'port': mapping['service_port'],
-                        'targetPort': mapping['target_port'],
-                        'protocol': 'TCP'
-                    }
-                    # 仅为有导出端口的服务端口添加nodePort配置
-                    if 'export_port' in mapping and mapping['export_port']:
-                        port_entry['nodePort'] = mapping['export_port']
-                    spec['ports'].append(port_entry)
-                
                 # 检查是否有任何端口配置了nodePort，如有则设置Service类型为NodePort
                 has_node_ports = any('nodePort' in port for port in spec['ports'])
                 if has_node_ports:
@@ -281,7 +425,7 @@ class UnifiedPortConfigHandler:
         ports = spec.get('ports', [])
         
         if not ports:
-            logger.warn("Service中没有找到ports配置")
+            logger.warning("Service中没有找到ports配置")
             return False
         
         # 查找HTTP端口
@@ -292,7 +436,7 @@ class UnifiedPortConfigHandler:
                 break
         
         if not http_port:
-            logger.warn("Service中没有找到HTTP端口")
+            logger.warning("Service中没有找到HTTP端口")
             return False
         
         if expose_port:
@@ -309,7 +453,7 @@ class UnifiedPortConfigHandler:
                     modified = True
                 else:
                     # 有固定值但用户未强制覆盖
-                    logger.warn(f"模板已有固定NodePort: {template_port}，使用 --force-port 可强制覆盖为 {expose_port}")
+                    logger.warning(f"模板已有固定NodePort: {template_port}，使用 --force-port 可强制覆盖为 {expose_port}")
             else:
                 # 动态添加nodePort
                 http_port['nodePort'] = int(expose_port)
@@ -349,7 +493,7 @@ class UnifiedPortConfigHandler:
         ports = spec.get('ports', [])
         
         if not ports:
-            logger.warn("Service中没有ports配置")
+            logger.warning("Service中没有ports配置")
             return True
         
         for port in ports:
@@ -429,8 +573,15 @@ def main():
     parser.add_argument('--force-port', action='store_true', help='强制覆盖端口')
 
     # 新的多端口参数
-    parser.add_argument('--service-port', help='服务端口配置 (格式: 8080 或 http:8080,admin:9090)')
-    parser.add_argument('--export-port', help='导出端口配置 (格式: 30080 或 http:30080,admin:30090)')
+    parser.add_argument('--service-port', help='''服务端口配置，支持多种格式:
+        - 简单格式: 8080 或 http:8080,admin:9090
+        - 容器指定格式: container1:http:8080,container2:admin:9090
+        - 混合格式: http:8080,sidecar:metrics:9090''')
+    parser.add_argument('--export-port', help='''导出端口配置，支持多种格式:
+        - 顺序映射: 30080,30090,30300
+        - 命名映射: http:30080,admin:30090
+        - 显式映射: 8080:30080,9090:30090 (servicePort:nodePort)
+        - 混合格式: 9090:31090,30080,4000:31400,30300''')
 
     # 功能参数
     parser.add_argument('--validate', action='store_true', help='验证端口配置')
