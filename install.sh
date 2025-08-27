@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 
 # DevOps 一键安装脚本
 # 作者: edison, srillia
@@ -47,7 +47,7 @@ check_root() {
         log_warn "检测到以root用户运行，建议使用普通用户运行此脚本"
         # 检查是否在交互式终端中
         if [[ -t 0 ]]; then
-            read -p "是否继续? (y/N): " -n 1 -r
+            read -p "是否继续 (y/N): " -n 1 -r
             echo
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 exit 1
@@ -478,26 +478,26 @@ verify_installation() {
 
     for file in "${required_files[@]}"; do
         if [[ -f "$file" ]]; then
-            log_info "✓ $file"
+            log_info "$file"
         else
-            log_error "✗ $file (缺失)"
+            log_error "$file (缺失)"
             ((errors++))
         fi
     done
 
     # 检查执行权限
     if [[ -x "$devops_home/bin/devops" ]]; then
-        log_info "✓ devops 脚本有执行权限"
+        log_info "devops 脚本有执行权限"
     else
-        log_error "✗ devops 脚本没有执行权限"
+        log_error "devops 脚本没有执行权限"
         ((errors++))
     fi
 
     # 检查环境变量
     if grep -q "DEVOPS_HOME" ~/.bashrc 2>/dev/null; then
-        log_info "✓ 环境变量已配置"
+        log_info "环境变量已配置"
     else
-        log_error "✗ 环境变量未配置"
+        log_error "环境变量未配置"
         ((errors++))
     fi
 
@@ -521,26 +521,26 @@ verify_installation() {
     
     for cmd in "${commands[@]}"; do
         if command_exists $cmd; then
-            log_info "✓ $cmd 可用"
+            log_info "$cmd 可用"
         else
-            log_error "✗ $cmd 不可用"
+            log_error "$cmd 不可用"
             ((errors++))
         fi
     done
     
-    # 检查 devops 命令
+    # 检查devops 命令
     if [[ -x "bin/devops" ]]; then
-        log_info "✓ devops 命令可用"
+        log_info "devops 命令可用"
     else
-        log_error "✗ devops 命令不可用"
+        log_error "devops 命令不可用"
         ((errors++))
     fi
     
     if [[ $errors -eq 0 ]]; then
-        log_info "所有组件验证通过！"
+        log_info "所有组件验证通过"
         return 0
     else
-        log_error "发现 $errors 个问题，请检查安装"
+        log_error "发现 $errors 个问题，请检查安装日志"
         return 1
     fi
 }
@@ -556,13 +556,15 @@ DevOps 一键安装脚本
   --full                      完整安装，包含所有开发环境和工具
   --minimal, --script-only    脚本专用安装，仅安装 DevOps 脚本和基础工具
   --offline                   离线安装，使用当前目录的代码（适用于已上传代码到服务器的情况）
+                              自动修复Windows换行符问题
   --help, -h                  显示此帮助信息
 
 安装模式:
   默认模式: 标准安装 - Java + Docker + Maven + Gradle (~10分钟)
   完整模式: 完整安装 - 标准 + Node.js + Go (~20分钟)
-  脚本模式: 脚本专用 - 仅脚本工具 (~1分钟)
-  离线模式: 使用本地代码安装 - 适用于已上传代码的情况 (~5分钟)
+  脚本模式: 脚本专用 - 仅脚本工具(~1分钟)
+  离线模式: 使用本地代码安装 - 适用于已上传代码的情况(~5分钟)
+            自动修复Windows/Linux换行符兼容性问题
 
 示例:
   $0                    # 标准安装
@@ -575,11 +577,11 @@ EOF
 
 # 显示使用说明
 show_usage() {
-    log_step "安装完成！"
+    log_step "安装完成"
 
     cat << EOF
 
-${GREEN}DevOps 工具安装成功！${NC}
+${GREEN}DevOps 工具安装成功 {NC}
 
 ${YELLOW}使用说明:${NC}
 1. 重新加载环境变量: source ~/.bashrc
@@ -615,7 +617,7 @@ devops run vue --git-url https://github.com/example/vue-project.git --dockerfile
 
 ${YELLOW}配置文件:${NC}
 - 工作空间配置: workspace/enable
-- 部署目标配置: $HOME/.deploy/deploy-target.sample (复制并重命名为 deploy-target)
+- 部署目标配置: $HOME/.deploy/deploy-target.sample (复制并重命名deploy-target)
 
 ${YELLOW}更多帮助:${NC}
 devops -h
@@ -666,7 +668,7 @@ download_devops_project() {
         log_info "使用 wget 下载..."
         wget -O devops.zip "$zip_url"
     else
-        log_error "curl 和 wget 都不可用"
+        log_error "curl wget 都不可用用"
         exit 1
     fi
 
@@ -694,6 +696,27 @@ download_devops_project() {
     fi
 
     log_info "DevOps 项目下载完成: $devops_dir"
+}
+
+# 修复换行符问题
+fix_line_endings() {
+    local target_dir="$1"
+    log_step "修复文件换行符格式..."
+
+    # 检查是否有 dos2unix 命令
+    if command_exists dos2unix; then
+        log_info "使用 dos2unix 修复换行符..."
+        find "$target_dir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "config" -o -name "devops*" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" -o -name "*.md" -o -name "*.txt" \) -exec dos2unix {} \; 2>/dev/null || true
+    else
+        log_info "使用 sed 修复换行符..."
+        find "$target_dir" -type f \( -name "*.sh" -o -name "*.conf" -o -name "config" -o -name "devops*" -o -name "*.py" -o -name "*.yml" -o -name "*.yaml" -o -name "*.md" -o -name "*.txt" \) -exec sed -i 's/\r$//' {} \; 2>/dev/null || true
+    fi
+
+    # 确保脚本有执行权限
+    chmod +x "$target_dir/bin/"* 2>/dev/null || true
+    chmod +x "$target_dir/install.sh" 2>/dev/null || true
+
+    log_info "换行符格式修复完成"
 }
 
 # 离线安装（使用当前目录的代码）
@@ -727,7 +750,7 @@ offline_install() {
 
     # 如果当前目录不是目标目录，则复制文件
     if [[ "$current_dir" != "$devops_home" ]]; then
-        log_step "复制项目文件到 $devops_home..."
+        log_step "复制项目文件$devops_home..."
         mkdir -p "$(dirname "$devops_home")"
         cp -r "$current_dir" "$devops_home"
         log_info "项目文件复制完成"
@@ -738,17 +761,20 @@ offline_install() {
     # 切换到目标目录
     cd "$devops_home"
 
+    # 修复换行符问题（重要：防止Windows换行符导致的脚本执行问题）
+    fix_line_endings "$devops_home"
+
     setup_environment
     setup_directories
     install_python_deps
 
     # 验证安装
     if verify_installation; then
-        log_info "离线安装完成！"
+        log_info "离线安装完成"
         log_info "DevOps 脚本已安装到: $devops_home"
         show_usage
-        log_info "DevOps 脚本已就绪，可以开始使用。"
-        log_warn "注意: 仅安装了DevOps脚本，使用 'devops install-tools' 安装开发环境工具。"
+        log_info "DevOps 脚本已就绪，可以开始使用"
+        log_warn "注意: 仅安装了DevOps脚本，使用'devops install-tools' 安装开发环境工具"
     else
         log_error "安装验证失败，请检查安装过程"
         exit 1
@@ -757,7 +783,7 @@ offline_install() {
 
 # 最小化安装（仅安装 DevOps 脚本）
 minimal_install() {
-    log_info "最小化安装模式 - 仅安装 DevOps 脚本"
+    log_info "最小化安装模式 - 仅安装DevOps 脚本"
 
     check_root
     detect_os
@@ -787,11 +813,11 @@ minimal_install() {
 
     # 验证安装
     if verify_installation; then
-        log_info "最小化安装完成！"
+        log_info "最小化安装完成"
         log_info "DevOps 脚本已安装到: $HOME/devops"
         show_usage
-        log_info "DevOps 脚本已就绪，可以开始使用。"
-        log_warn "注意: 未安装开发环境，使用 'devops install-tools' 安装所需工具。"
+        log_info "DevOps 脚本已就绪，可以开始使用"
+        log_warn "注意: 未安装开发环境，使用 'devops install-tools' 安装所需工具"
     else
         log_error "安装验证失败，请检查安装过程"
         exit 1
@@ -815,7 +841,7 @@ main() {
             check_root
             detect_os
 
-            # 检查是否为离线模式（当前目录是DevOps项目）
+            # 检查是否为离线模式（当前目录是DevOps项目)
             if is_devops_project; then
                 log_info "检测到当前目录为DevOps项目，使用离线模式"
                 # 复制到目标目录
@@ -827,11 +853,14 @@ main() {
                         log_warn "目标目录已存在，创建备份..."
                         mv "$devops_home" "${devops_home}.backup.$(date +%Y%m%d_%H%M%S)"
                     fi
-                    log_step "复制项目文件到 $devops_home..."
+                    log_step "复制项目文件 $devops_home..."
                     mkdir -p "$(dirname "$devops_home")"
                     cp -r "$current_dir" "$devops_home"
                     cd "$devops_home"
                 fi
+
+                # 修复换行符问题（离线模式）
+                fix_line_endings "$devops_home"
             else
                 # 在线下载
                 download_devops_project
@@ -852,9 +881,9 @@ main() {
 
             if verify_installation; then
                 show_usage
-                log_info "完整安装完成！请重新加载环境变量或重新登录终端。"
+                log_info "完整安装完成！请重新加载环境变量或重新登录终端"
             else
-                log_error "安装过程中出现问题，请检查错误信息。"
+                log_error "安装过程中出现问题，请检查错误信息"
                 exit 1
             fi
             ;;
@@ -862,12 +891,12 @@ main() {
             show_help
             ;;
         *)
-            log_info "开始 DevOps 标准安装..."
+            log_info "开始DevOps 标准安装..."
 
             check_root
             detect_os
 
-            # 检查是否为离线模式（当前目录是DevOps项目）
+            # 检查是否为离线模式（当前目录是DevOps项目)
             if is_devops_project; then
                 log_info "检测到当前目录为DevOps项目，使用离线模式"
                 # 复制到目标目录
@@ -879,11 +908,14 @@ main() {
                         log_warn "目标目录已存在，创建备份..."
                         mv "$devops_home" "${devops_home}.backup.$(date +%Y%m%d_%H%M%S)"
                     fi
-                    log_step "复制项目文件到 $devops_home..."
+                    log_step "复制项目文件 $devops_home..."
                     mkdir -p "$(dirname "$devops_home")"
                     cp -r "$current_dir" "$devops_home"
                     cd "$devops_home"
                 fi
+
+                # 修复换行符问题（离线模式）
+                fix_line_endings "$devops_home"
             else
                 # 在线下载
                 download_devops_project
@@ -895,7 +927,7 @@ main() {
             install_java
             install_maven
             install_gradle
-            # 标准安装不包含 Node.js 和 Go
+            # 标准安装不包含Node.js Go
 
             setup_environment
             setup_directories
@@ -903,9 +935,9 @@ main() {
 
             if verify_installation; then
                 show_usage
-                log_info "标准安装完成！请重新加载环境变量或重新登录终端。"
+                log_info "标准安装完成！请重新加载环境变量或重新登录终端"
             else
-                log_error "安装过程中出现问题，请检查错误信息。"
+                log_error "安装过程中出现问题，请检查错误信息"
                 exit 1
             fi
             ;;
@@ -917,3 +949,7 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]] || [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]}" ]]; then
     main "$@"
 fi
+
+
+
+
