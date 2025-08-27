@@ -663,6 +663,13 @@ body {
   color: var(--text-muted);
 }
 
+/* 中等屏幕响应式 */
+@media (max-width: 1024px) {
+  .steps-row-2 .step-item {
+    min-width: 350px;
+  }
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .container {
@@ -721,8 +728,22 @@ body {
 
   /* 简洁布局的响应式调整 */
   .steps-flow {
+    grid-template-rows: auto auto;
+    gap: var(--space-6);
+  }
+
+  .step-item:first-child {
+    max-width: 100%;
+  }
+
+  .steps-row-2 {
     flex-direction: column;
     gap: var(--space-6);
+  }
+
+  .steps-row-2 .step-item {
+    max-width: 100%;
+    min-width: auto;
   }
 
   .step-item {
@@ -859,19 +880,61 @@ body {
 
 /* 简洁的步骤流程样式 */
 .steps-flow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
   gap: var(--space-8);
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  flex-wrap: wrap;
 }
 
 .step-item {
-  flex: 1;
-  min-width: 280px;
   text-align: left;
+}
+
+/* 确保步骤项有一致的结构 */
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 第一步单独占一行 */
+.step-item:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* 第二步和第三步在同一行 */
+.steps-row-2 {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  gap: var(--space-6);
+  justify-content: center;
+  align-items: stretch;
+}
+
+.steps-row-2 .step-item {
+  flex: 1;
+  max-width: 500px;
+  min-width: 450px;
+  display: flex;
+  flex-direction: column;
+}
+
+.steps-row-2 .step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* 步骤之间的连接箭头样式调整 */
+.steps-row-2 .step-arrow {
+  display: none;
 }
 
 .step-header {
@@ -925,6 +988,53 @@ body {
   color: var(--text-primary);
   overflow-x: auto;
   white-space: nowrap;
+  position: relative;
+}
+
+.code-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+
+.code-container:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: var(--primary-dark);
+}
+
+.copy-btn.copied {
+  background: var(--success);
+}
+
+/* 示例命令区域的复制按钮特殊样式 */
+.example-command + .copy-btn {
+  background: rgba(37, 99, 235, 0.9);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.example-command + .copy-btn:hover {
+  background: rgba(29, 78, 216, 0.9);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* 简洁的功能列表样式 */

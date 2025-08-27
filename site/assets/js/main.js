@@ -278,5 +278,27 @@ window.addEventListener('resize', debounce(() => {
     // 这里可以添加响应式调整逻辑
 }, 250));
 
+// 通用代码复制功能（用于三步快速开始等代码块）
+function copyCode(button) {
+    const codeContainer = button.closest('.code-container');
+    const codeElement = codeContainer.querySelector('code');
+
+    if (!codeElement) return;
+
+    const text = codeElement.textContent;
+
+    // 尝试使用现代 API
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showCopySuccess(button);
+        }).catch(() => {
+            fallbackCopy(text, button);
+        });
+    } else {
+        fallbackCopy(text, button);
+    }
+}
+
 // 暴露全局函数供HTML调用
 window.copyCommand = copyCommand;
+window.copyCode = copyCode;

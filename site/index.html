@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DevOps - 企业级 CI/CD 自动化部署工具</title>
-    <meta name="description" content="DevOps是一款企业级CI/CD自动化部署工具，支持Java、Vue.js、Go等多种语言，一键部署到Kubernetes和Docker Swarm">
+    <meta name="description" content="DevOps是一款企业级CI/CD自动化部署工具，支持Java、Python、Vue.js、Go等多种语言，一键部署到Kubernetes和Docker Swarm">
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 </head>
@@ -38,7 +38,7 @@
                 <h1 class="hero-title">企业级 CI/CD 自动化部署工具</h1>
                 <p class="hero-subtitle">
                     一键部署，多语言支持，让复杂的容器化部署变得简单高效。
-                    支持Java、Vue.js、Go等主流技术栈，完美集成Kubernetes和Docker Swarm。
+                    支持Java、Python、Vue.js、Go等主流技术栈，完美集成Kubernetes和Docker Swarm。
                 </p>
                 <div class="hero-actions">
                     <a href="#quick-start" class="btn btn-primary btn-lg">
@@ -61,6 +61,7 @@
             </div>
 
             <div class="steps-flow">
+                <!-- 第一步：单独一行 -->
                 <div class="step-item">
                     <div class="step-header">
                         <div class="step-marker">1</div>
@@ -68,38 +69,48 @@
                     </div>
                     <div class="step-content">
                         <p>一行命令完成安装，自动配置所需环境</p>
-                        <div class="inline-code">
-                            <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                        <div class="code-container">
+                            <div class="inline-code">
+                                <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                            </div>
+                            <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="step-arrow">→</div>
-
-                <div class="step-item">
-                    <div class="step-header">
-                        <div class="step-marker">2</div>
-                        <h3>创建工作空间</h3>
-                    </div>
-                    <div class="step-content">
-                        <p>配置项目工作空间，隔离不同项目环境</p>
-                        <div class="inline-code">
-                            <code>devops create workspace demo -i</code>
+                <!-- 第二步和第三步：同一行 -->
+                <div class="steps-row-2">
+                    <div class="step-item">
+                        <div class="step-header">
+                            <div class="step-marker">2</div>
+                            <h3>创建工作空间</h3>
+                        </div>
+                        <div class="step-content">
+                            <p>配置项目工作空间，隔离不同项目环境</p>
+                            <div class="code-container">
+                                <div class="inline-code">
+                                    <code>devops create workspace demo -i</code>
+                                </div>
+                                <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="step-arrow">→</div>
+                    <div class="step-arrow">→</div>
 
-                <div class="step-item">
-                    <div class="step-header">
-                        <div class="step-marker">3</div>
-                        <h3>一键部署</h3>
-                    </div>
-                    <div class="step-content">
-                        <p>从代码拉取到容器化部署，一条命令搞定</p>
-                        <div class="inline-code">
-                            <code>devops run java --git-url https://github.com/example/app.git my-app</code>
+                    <div class="step-item">
+                        <div class="step-header">
+                            <div class="step-marker">3</div>
+                            <h3>一键部署</h3>
+                        </div>
+                        <div class="step-content">
+                            <p>从代码拉取到容器化部署，一条命令搞定</p>
+                            <div class="code-container">
+                                <div class="inline-code">
+                                    <code>devops run java --git-url https://github.com/example/app.git my-app</code>
+                                </div>
+                                <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -128,7 +139,7 @@
                     <div class="feature-icon">🔧</div>
                     <div class="feature-text">
                         <h3>多语言支持</h3>
-                        <p>支持Java、Vue.js、Go、Nginx、Tomcat等主流技术栈。自动识别项目类型，选择最佳构建策略。</p>
+                        <p>支持Java、Python、Vue.js、Go、Nginx、Tomcat等主流技术栈。自动识别项目类型，选择最佳构建策略。</p>
                     </div>
                 </div>
 
@@ -210,7 +221,7 @@
                     </div>
                 </div>
                 <div class="install-info-item" data-mode="1">
-                    <p class="install-desc">适合全栈开发，包含所有开发工具：Java、Node.js、Go 等。</p>
+                    <p class="install-desc">适合全栈开发，包含所有开发工具：Java、Python、Node.js、Go 等。</p>
                     <div class="install-details">
                         <span class="install-time">⏱️ 安装时间：~20分钟</span>
                         <span class="install-size">💾 磁盘占用：~5GB</span>
@@ -240,26 +251,46 @@
             <div class="examples-simple">
                 <div class="example-item">
                     <h3>Java Spring Boot 应用</h3>
-                    <div class="example-command">
-                        <code>devops run java --git-url https://github.com/example/spring-app.git --build-tool maven my-app</code>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run java --git-url https://github.com/example/spring-app.git --build-tool maven my-app</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
                     </div>
                     <p class="example-desc">自动从Git拉取代码，Maven构建，Docker镜像打包，部署到Kubernetes</p>
                 </div>
 
                 <div class="example-item">
                     <h3>Vue.js 前端应用</h3>
-                    <div class="example-command">
-                        <code>devops run vue --git-url https://github.com/example/vue-app.git --build-env prod my-frontend</code>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run vue --git-url https://github.com/example/vue-app.git --build-env prod my-frontend</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
                     </div>
                     <p class="example-desc">npm安装依赖，构建生产环境静态资源，Nginx容器化部署</p>
                 </div>
 
                 <div class="example-item">
                     <h3>Go 微服务应用</h3>
-                    <div class="example-command">
-                        <code>devops run go --git-url https://github.com/example/go-api.git --app-port 8080 my-api</code>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run go --git-url https://github.com/example/go-api.git  my-api</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
                     </div>
                     <p class="example-desc">Go模块依赖管理，静态编译，轻量级容器镜像构建</p>
+                </div>
+
+                <div class="example-item">
+                    <h3>Python Flask/Django 应用</h3>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run python --git-url https://github.com/example/flask-app.git --python-main app.py my-python-app</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <p class="example-desc">pip依赖安装，虚拟环境管理，WSGI服务器容器化部署</p>
                 </div>
             </div>
         </div>
