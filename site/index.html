@@ -68,12 +68,48 @@
                         <h3>安装 DevOps</h3>
                     </div>
                     <div class="step-content">
-                        <p>一行命令完成安装，自动配置所需环境</p>
-                        <div class="code-container">
-                            <div class="inline-code">
-                                <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                        <p>选择安装方式，自动配置所需环境</p>
+
+                        <!-- 安装方式选择器 -->
+                        <div class="install-mode-selector">
+                            <div class="mode-tabs">
+                                <button type="button" class="mode-tab active" onclick="switchInstallMode('online')">在线安装</button>
+                                <button type="button" class="mode-tab" onclick="switchInstallMode('offline')">离线安装</button>
                             </div>
-                            <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                        </div>
+
+                        <!-- 在线安装命令 -->
+                        <div id="online-install" class="install-mode active">
+                            <div class="code-container">
+                                <div class="inline-code">
+                                    <code>curl -fsSL https://github.com/edisonlil/devops/raw/refs/heads/dev/install.sh | bash</code>
+                                </div>
+                                <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+
+                        <!-- 离线安装命令 -->
+                        <div id="offline-install" class="install-mode">
+                            <div class="install-steps">
+                                <div class="offline-step">
+                                    <span class="step-label">1. 下载代码</span>
+                                    <div class="code-container">
+                                        <div class="inline-code">
+                                            <code>git clone -b dev https://github.com/edisonlil/devops.git</code>
+                                        </div>
+                                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                                    </div>
+                                </div>
+                                <div class="offline-step">
+                                    <span class="step-label">2. 执行安装</span>
+                                    <div class="code-container">
+                                        <div class="inline-code">
+                                            <code>cd devops && chmod +x install.sh && ./install.sh --offline</code>
+                                        </div>
+                                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

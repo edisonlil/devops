@@ -83,6 +83,22 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# 检查当前目录是否为DevOps项目
+is_devops_project() {
+    local current_dir="$(pwd)"
+
+    # 检查关键文件和目录是否存在
+    if [[ -f "install.sh" ]] && \
+       [[ -d "bin" ]] && \
+       [[ -f "bin/devops" ]] && \
+       [[ -d "workspace" ]] && \
+       [[ -f "README.md" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # 安装包管理器相关函数
 install_package() {
     local package=$1
@@ -539,17 +555,20 @@ DevOps 一键安装脚本
 选项:
   --full                      完整安装，包含所有开发环境和工具
   --minimal, --script-only    脚本专用安装，仅安装 DevOps 脚本和基础工具
+  --offline                   离线安装，使用当前目录的代码（适用于已上传代码到服务器的情况）
   --help, -h                  显示此帮助信息
 
 安装模式:
   默认模式: 标准安装 - Java + Docker + Maven + Gradle (~10分钟)
   完整模式: 完整安装 - 标准 + Node.js + Go (~20分钟)
   脚本模式: 脚本专用 - 仅脚本工具 (~1分钟)
+  离线模式: 使用本地代码安装 - 适用于已上传代码的情况 (~5分钟)
 
 示例:
   $0                    # 标准安装
   $0 --full             # 完整安装
   $0 --script-only      # 脚本专用安装
+  $0 --offline          # 离线安装（使用当前目录代码）
 
 EOF
 }
@@ -677,6 +696,65 @@ download_devops_project() {
     log_info "DevOps 项目下载完成: $devops_dir"
 }
 
+# 离线安装（使用当前目录的代码）
+offline_install() {
+    log_info "离线安装模式 - 使用当前目录的代码"
+
+    # 检查当前目录是否为DevOps项目
+    if ! is_devops_project; then
+        log_error "当前目录不是有效的DevOps项目目录"
+        log_error "请确保您在DevOps项目根目录下运行此脚本"
+        log_error "或者使用在线安装模式: $0"
+        exit 1
+    fi
+
+    local current_dir="$(pwd)"
+    local devops_home="$HOME/devops"
+
+    log_info "检测到有效的DevOps项目: $current_dir"
+
+    check_root
+    detect_os
+
+    # 安装基础工具
+    install_basic_tools
+
+    # 如果目标目录已存在，先备份
+    if [[ -d "$devops_home" ]] && [[ "$current_dir" != "$devops_home" ]]; then
+        log_warn "目标目录已存在，创建备份..."
+        mv "$devops_home" "${devops_home}.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    # 如果当前目录不是目标目录，则复制文件
+    if [[ "$current_dir" != "$devops_home" ]]; then
+        log_step "复制项目文件到 $devops_home..."
+        mkdir -p "$(dirname "$devops_home")"
+        cp -r "$current_dir" "$devops_home"
+        log_info "项目文件复制完成"
+    else
+        log_info "已在目标目录中，跳过文件复制"
+    fi
+
+    # 切换到目标目录
+    cd "$devops_home"
+
+    setup_environment
+    setup_directories
+    install_python_deps
+
+    # 验证安装
+    if verify_installation; then
+        log_info "离线安装完成！"
+        log_info "DevOps 脚本已安装到: $devops_home"
+        show_usage
+        log_info "DevOps 脚本已就绪，可以开始使用。"
+        log_warn "注意: 仅安装了DevOps脚本，使用 'devops install-tools' 安装开发环境工具。"
+    else
+        log_error "安装验证失败，请检查安装过程"
+        exit 1
+    fi
+}
+
 # 最小化安装（仅安装 DevOps 脚本）
 minimal_install() {
     log_info "最小化安装模式 - 仅安装 DevOps 脚本"
@@ -727,11 +805,38 @@ main() {
             log_info "开始 DevOps 脚本专用安装..."
             minimal_install
             ;;
+        --offline)
+            log_info "开始 DevOps 离线安装..."
+            offline_install
+            ;;
         --full)
             log_info "开始 DevOps 完整安装（所有组件）..."
 
             check_root
             detect_os
+
+            # 检查是否为离线模式（当前目录是DevOps项目）
+            if is_devops_project; then
+                log_info "检测到当前目录为DevOps项目，使用离线模式"
+                # 复制到目标目录
+                local devops_home="$HOME/devops"
+                local current_dir="$(pwd)"
+
+                if [[ "$current_dir" != "$devops_home" ]]; then
+                    if [[ -d "$devops_home" ]]; then
+                        log_warn "目标目录已存在，创建备份..."
+                        mv "$devops_home" "${devops_home}.backup.$(date +%Y%m%d_%H%M%S)"
+                    fi
+                    log_step "复制项目文件到 $devops_home..."
+                    mkdir -p "$(dirname "$devops_home")"
+                    cp -r "$current_dir" "$devops_home"
+                    cd "$devops_home"
+                fi
+            else
+                # 在线下载
+                download_devops_project
+                cd "$HOME/devops"
+            fi
 
             install_basic_tools
             install_docker
@@ -761,6 +866,29 @@ main() {
 
             check_root
             detect_os
+
+            # 检查是否为离线模式（当前目录是DevOps项目）
+            if is_devops_project; then
+                log_info "检测到当前目录为DevOps项目，使用离线模式"
+                # 复制到目标目录
+                local devops_home="$HOME/devops"
+                local current_dir="$(pwd)"
+
+                if [[ "$current_dir" != "$devops_home" ]]; then
+                    if [[ -d "$devops_home" ]]; then
+                        log_warn "目标目录已存在，创建备份..."
+                        mv "$devops_home" "${devops_home}.backup.$(date +%Y%m%d_%H%M%S)"
+                    fi
+                    log_step "复制项目文件到 $devops_home..."
+                    mkdir -p "$(dirname "$devops_home")"
+                    cp -r "$current_dir" "$devops_home"
+                    cd "$devops_home"
+                fi
+            else
+                # 在线下载
+                download_devops_project
+                cd "$HOME/devops"
+            fi
 
             install_basic_tools
             install_docker

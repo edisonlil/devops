@@ -68,9 +68,18 @@ function initThemeToggle() {
 
 // 安装模式切换
 function initInstallModes() {
-    const modeTabs = document.querySelectorAll('.mode-tab');
+    // 只选择"选择安装模式"部分的选项卡，避免与"三步快速开始"部分的选项卡冲突
+    const installSection = document.getElementById('install');
+    if (!installSection) return;
+
+    const modeTabs = installSection.querySelectorAll('.mode-tab');
     const commandElement = document.getElementById('install-command');
     const infoItems = document.querySelectorAll('.install-info-item');
+
+    // 初始化时设置默认命令
+    if (commandElement && installCommands[0]) {
+        commandElement.textContent = installCommands[0];
+    }
 
     modeTabs.forEach((tab, index) => {
         tab.addEventListener('click', () => {
@@ -80,7 +89,7 @@ function initInstallModes() {
 
             // 更新命令
             currentInstallMode = index;
-            if (commandElement) {
+            if (commandElement && installCommands[index]) {
                 commandElement.textContent = installCommands[index];
             }
 
@@ -299,6 +308,34 @@ function copyCode(button) {
     }
 }
 
+// 切换安装模式
+function switchInstallMode(mode) {
+    // 更新选项卡状态
+    const tabs = document.querySelectorAll('.mode-tab');
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // 激活当前选项卡
+    const activeTab = document.querySelector(`.mode-tab[onclick="switchInstallMode('${mode}')"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+
+    // 更新安装内容显示
+    const installModes = document.querySelectorAll('.install-mode');
+    installModes.forEach(modeDiv => {
+        modeDiv.classList.remove('active');
+    });
+
+    // 显示对应的安装模式
+    const targetMode = document.getElementById(`${mode}-install`);
+    if (targetMode) {
+        targetMode.classList.add('active');
+    }
+}
+
 // 暴露全局函数供HTML调用
 window.copyCommand = copyCommand;
 window.copyCode = copyCode;
+window.switchInstallMode = switchInstallMode;

@@ -1226,6 +1226,72 @@ body {
   text-align: center;
 }
 
+/* 安装模式选择器 */
+.install-mode-selector {
+  margin-bottom: var(--space-4);
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: var(--space-4);
+}
+
+.mode-tab {
+  flex: 1;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.mode-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.mode-tab.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.install-mode {
+  display: none;
+}
+
+.install-mode.active {
+  display: block;
+}
+
+/* 离线安装步骤 */
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.offline-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.step-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
 .install-info-item {
   display: none;
 }
