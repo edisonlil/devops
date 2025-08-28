@@ -339,6 +339,22 @@ function scm() {
 	if [ -n "$opt_git_url" ]; then
 		check_env_by_cmd_v git
 
+		# 如果配置了 workspace 默认 Git 凭据，且为 HTTP(S) URL，则注入认证信息
+		if [[ -n "${env[cfg_git_username]}" && -n "${env[cfg_git_password]}" && "$opt_git_url" =~ ^https?:// ]]; then
+			url_no_scheme=${opt_git_url#http://}
+			if [[ "$opt_git_url" == https://* ]]; then
+				scheme="https://"
+				url_no_scheme=${opt_git_url#https://}
+			else
+				scheme="http://"
+			fi
+			# 进行基本URL转义，只处理常见特殊字符
+			enc_user=$(printf '%s' "${env[cfg_git_username]}" | sed -e 's/%/%25/g' -e 's/@/%40/g' -e 's/:/%3A/g')
+			enc_pass=$(printf '%s' "${env[cfg_git_password]}" | sed -e 's/%/%25/g' -e 's/@/%40/g' -e 's/:/%3A/g')
+			opt_git_url="${scheme}${enc_user}:${enc_pass}@${url_no_scheme}"
+			info "已使用工作空间默认 Git 凭据进行认证"
+		fi
+
 		# 确保目标目录不存在，避免 "already exists and is not an empty directory" 错误
 		if [ -d "$cfg_temp_dir" ]; then
 			if [[ "${DEBUG}" == "true" ]]; then
@@ -382,7 +398,7 @@ function scm() {
 		date=`date +%Y-%m-%d_%H-%M-%S`
 		tmp_log=`svn log | head -2 | tail -1`
 		last_log=${tmp_log%% *}
-                env[tmp_docker_image_suffix]="${date}_${last_log}"
+		       env[tmp_docker_image_suffix]="${date}_${last_log}"
 		# 设置构建上下文路径
 		env[tmp_build_dist_path]="$cfg_temp_dir"
 	else

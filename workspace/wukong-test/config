@@ -1,0 +1,34 @@
+
+#构建平台，是 DOCKER_SWARM,KUBERNETES,DOCKER_COMPOSE
+BUILD_PLATFORM="KUBERNETES"
+
+#配置Kubernetes namespace
+BUILD_K8S_NAMESPACE="wukong-test"
+
+#是否启用harbor仓库
+BUILD_ENABEL_HARBOR=1
+#配置harbor仓库地址
+BUILD_HARBOR_ADDRESS="crpi-xjmwsgexhcapsczx.cn-guangzhou.personal.cr.aliyuncs.com"
+#配置harbor仓库
+BUILD_HARBOR_PROJECT="cb-library"
+#配置harbor用户名
+BUILD_HARBOR_USERNAME="aliyun7871333236"
+#配置harbor密码
+BUILD_HARBOR_PASSWORD="huanghaotian123"
+
+#Git 默认分支
+BUILD_GIT_BRANCH="fix-v12.0.2/修复es初始化报错"
+#Git 默认地址
+BUILD_GIT_URL="https://codeup.aliyun.com/64e3517595afb811ce3211e0/demo/wukong/wukongcrm.git"
+#Maven settings.xml
+BUILD_MAVEN_SETTINGS="/root/settings.xml"
+
+#启用dockerfile,路由dockerfile
+#BUILD_ENABEL_DOCKERFILES=""
+
+#Vue 项目 npm 镜像库配置
+#BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
+#BUILD_VUE_REGISTRY_AUTH="username:password"
+
+
+BUILD_JAVA_OPTS="-Dnacos.server-addr=192.168.20.21:30001  -Dnacos.namespace=wukong_test  -Dspring.profiles.active=test,core -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"

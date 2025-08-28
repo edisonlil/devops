@@ -157,11 +157,13 @@ env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
 env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
 env[cfg_git_branch]=$BUILD_GIT_BRANCH
 env[cfg_git_url]=$BUILD_GIT_URL
+env[cfg_git_username]=$BUILD_GIT_USERNAME
+env[cfg_git_password]=$BUILD_GIT_PASSWORD
 env[cfg_main_project_name]=
 env[cfg_maven_settings]=$BUILD_MAVEN_SETTINGS
 env[cfg_gradle_init_script]=$BUILD_GRADLE_INIT_SCRIPT
 env[cfg_build_version]=$BUILD_VERSION
-env[cfg_java_extra_opts]=
+env[cfg_java_extra_opts]=$BUILD_JAVA_OPTS
 env[cfg_vue_registry]=$BUILD_VUE_REGISTRY
 env[cfg_vue_registry_auth]=$BUILD_VUE_REGISTRY_AUTH
 
@@ -187,6 +189,11 @@ fi
 if [ "${env[opt_build_tool]}" == "" ]
 then
 env[opt_build_tool]=maven
+fi
+
+# 若未显式传入 --java-opts，使用 workspace 默认 JAVA_OPTS
+if [[ -z "${env[opt_java_opts]}" && -n "${env[cfg_java_extra_opts]}" ]]; then
+    env[opt_java_opts]="${env[cfg_java_extra_opts]}"
 fi
 
 

@@ -573,6 +573,11 @@ function create_workspace() {
 			echo "#Git 默认地址"
 			echo "BUILD_GIT_URL=\"$git_url\""
 		fi
+		# Git 默认凭据（可选，建议使用只读 Token/Robot）
+		echo "#Git 默认用户名（可选）"
+		echo "#BUILD_GIT_USERNAME=\"\""
+		echo "#Git 默认密码/Token（可选，建议使用环境变量引用）"
+		echo "#BUILD_GIT_PASSWORD=\"\""
 		if [ -n "$maven_settings" ]; then
 			echo "#Maven settings.xml"
 			echo "BUILD_MAVEN_SETTINGS=\"$maven_settings\""
@@ -590,8 +595,8 @@ function create_workspace() {
 			echo "#BUILD_VERSION=\"\""
 		fi
 		echo ""
-		echo "#启用dockerfile,路由dockerfile"
-		echo "#BUILD_ENABEL_DOCKERFILES=\"\""
+		echo "#Java 启动参数默认值 (JAVA_OPTS)，示例: -Xms512m -Xmx1024m"
+		echo "#BUILD_JAVA_OPTS=\"-Xms512m -Xmx1024m\""
 	} > "$cfg_file"
 
 	info "已创建工作空间: $workspace_name"

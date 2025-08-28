@@ -357,6 +357,16 @@ devops create workspace myproject --git-url https://github.com/example/repo.git<
             <td>Git默认分支</td>
             <td>main</td>
         </tr>
+        <tr>
+            <td><code>BUILD_GIT_USERNAME</code></td>
+            <td>Git 默认用户名（可选，用于 HTTP/HTTPS 自动认证）</td>
+            <td>robot-user</td>
+        </tr>
+        <tr>
+            <td><code>BUILD_GIT_PASSWORD</code></td>
+            <td>Git 默认密码/Token（可选，建议使用环境变量引用）</td>
+            <td>${GIT_TOKEN}</td>
+        </tr>
     </tbody>
 </table>
 
@@ -385,6 +395,11 @@ devops create workspace myproject --git-url https://github.com/example/repo.git<
             <td>构建工具版本配置</td>
             <td>node:18.12,jdk:17,maven:3.9.3</td>
         </tr>
+        <tr>
+            <td><code>BUILD_JAVA_OPTS</code></td>
+            <td>默认 Java 启动参数（命令行 --java-opts 未指定时生效）</td>
+            <td>-Xms512m -Xmx1024m -Dspring.profiles.active=prod</td>
+        </tr>
     </tbody>
 </table>
 
@@ -408,7 +423,7 @@ devops create workspace myproject --git-url https://github.com/example/repo.git<
                     </div>
 
                     <div class="tip">
-                        <strong>💡 提示：</strong>工作空间配置支持团队共享，可以确保团队成员使用相同的部署环境。
+                        <strong>💡 提示：</strong>工作空间配置支持团队共享，可以确保团队成员使用相同的部署环境。新增 <code>BUILD_JAVA_OPTS</code>（默认 JVM 参数）、<code>BUILD_GIT_USERNAME</code>/<code>BUILD_GIT_PASSWORD</code>（HTTP(S) Git 自动认证）；<code>BUILD_ENABEL_DOCKERFILES</code> 已弃用并移除。
                     </div>
                 </section>
 
