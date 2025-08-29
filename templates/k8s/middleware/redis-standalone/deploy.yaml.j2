@@ -54,6 +54,7 @@ data:
   # 密码将在部署时自动生成或使用用户提供的密码
   password: {{ redis_password | b64encode if redis_password != 'auto-generate' else 'YXV0by1nZW5lcmF0ZWQ=' }}
 
+{% if redis_persistence != 'none' %}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -74,6 +75,7 @@ spec:
   {% if storage_class %}
   storageClassName: {{ storage_class }}
   {% endif %}
+{% endif %}
 
 ---
 apiVersion: apps/v1
@@ -155,8 +157,12 @@ spec:
         configMap:
           name: {{ instance_name }}-redis-config
       - name: data
+        {% if redis_persistence != 'none' %}
         persistentVolumeClaim:
           claimName: {{ instance_name }}-redis-data
+        {% else %}
+        emptyDir: {}
+        {% endif %}
 
 ---
 apiVersion: v1

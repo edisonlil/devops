@@ -144,6 +144,11 @@ if [[ "${DEBUG}" == "true" ]]; then
     echo "DEBUG: opt_java_opts='${env[opt_java_opts]}'"
 fi
 
+# 通用参数规范化：--start-script → middleware_start_script（用于 SHELL 平台）
+if [[ -n "${env[opt_start_script]}" ]]; then
+    env[middleware_start_script]="${env[opt_start_script]}"
+fi
+
 
 #激活配置
 env[cfg_workspace_dir_name]="workspace"
@@ -220,6 +225,12 @@ fi
 # 若未显式传入 --git-branch，使用 workspace 默认分支
 if [[ -z "${env[opt_git_branch]}" && -n "${env[cfg_git_branch]}" ]]; then
     env[opt_git_branch]=${env[cfg_git_branch]}
+fi
+
+# 命令行 --platform 优先覆盖 workspace 配置
+if [[ -n "${env[opt_platform]}" ]]; then
+    env[cfg_build_platform]="${env[opt_platform]}"
+    env[cfg_platform]="${env[opt_platform]}"
 fi
 
 # 若未显式传入 --git-url 或 --svn-url，使用 workspace 默认 git 地址

@@ -349,6 +349,7 @@ function run_middleware() {
         "KUBERNETES") platform_dir="k8s" ;;
         "DOCKER_SWARM") platform_dir="swarm" ;;
         "DOCKER_COMPOSE") platform_dir="compose" ;;
+        "SHELL") platform_dir="shell" ;;
         *)
             error "不支持的平台: ${env[cfg_build_platform]}"
             exit 1
@@ -571,6 +572,7 @@ function choose_dockerfile() {
 		KUBERNETES) platform_dir="k8s" ;;
 		DOCKER_SWARM) platform_dir="swarm" ;;
 		DOCKER_COMPOSE) platform_dir="compose" ;;
+             SHELL) platform_dir="shell" ;;
 		*) error "unsupported platform: $cfg_build_platform"; exit 1;;
 	esac
 
@@ -738,6 +740,7 @@ function render_template() {
 		KUBERNETES) platform_dir="k8s" ;;
 		DOCKER_SWARM) platform_dir="swarm" ;;
 		DOCKER_COMPOSE) platform_dir="compose" ;;
+            SHELL) platform_dir="shell" ;;
 		*) error "unsupported platform: $cfg_build_platform"; exit 1;;
 	esac
 
@@ -985,6 +988,50 @@ function render_with_jinja2() {
     else
         error "Jinja2模板渲染失败"
         exit 1
+    fi
+}
+
+# 预渲染指定目录下的所有 Jinja2(.j2) 与占位符(.tpl) 模板到同名无后缀文件
+function prerender_all_templates_in_dir() {
+    local dir="$1"
+    local out_dir="${env[cfg_deploy_gen_location]}"
+    if [[ -z "$dir" || ! -d "$dir" ]]; then
+        return 0
+    fi
+    if [[ -z "$out_dir" ]]; then
+        warn "预渲染输出目录未设置(cgf_deploy_gen_location)"; return 0
+    fi
+    mkdir -p "$out_dir"
+    shopt -s nullglob
+    local rendered_count=0
+    local copied_count=0
+    local f
+    # .j2 → render_with_jinja2
+    for f in "$dir"/*.j2; do
+        local base_name="$(basename "${f%.j2}")"
+        local out_file="$out_dir/$base_name"
+        info "预渲染 Jinja2: $(basename "$f") -> $(basename "$out_file")"
+        render_with_jinja2 "$f" "$out_file" || { warn "预渲染失败: $f"; }
+        rendered_count=$((rendered_count+1))
+    done
+    # .tpl → render_with_placeholders
+    for f in "$dir"/*.tpl; do
+        local base_name="$(basename "${f%.tpl}")"
+        local out_file="$out_dir/$base_name"
+        info "预渲染占位符: $(basename "$f") -> $(basename "$out_file")"
+        render_with_placeholders "$f" "$out_file" || { warn "预渲染失败: $f"; }
+        rendered_count=$((rendered_count+1))
+    done
+    # 复制其他普通文件到部署目录（排除 .j2/.tpl）
+    for f in "$dir"/*; do
+        if [[ -f "$f" && "$f" != *.j2 && "$f" != *.tpl ]]; then
+            local target="$out_dir/$(basename "$f")"
+            cp -f "$f" "$target" && copied_count=$((copied_count+1))
+        fi
+    done
+    shopt -u nullglob
+    if [[ $rendered_count -gt 0 || $copied_count -gt 0 ]]; then
+        success "已预渲染/复制模板文件: 渲染 $rendered_count 个, 复制 $copied_count 个"
     fi
 }
 
@@ -1384,6 +1431,7 @@ function list_available_middleware_templates() {
         "KUBERNETES") platform_dir="k8s" ;;
         "DOCKER_SWARM") platform_dir="swarm" ;;
         "DOCKER_COMPOSE") platform_dir="compose" ;;
+        "SHELL") platform_dir="shell" ;;
         *) platform_dir="k8s" ;;
     esac
 
@@ -1443,6 +1491,7 @@ function parse_template_variables() {
         "KUBERNETES") platform_dir="k8s" ;;
         "DOCKER_SWARM") platform_dir="swarm" ;;
         "DOCKER_COMPOSE") platform_dir="compose" ;;
+        "SHELL") platform_dir="shell" ;;
         *) platform_dir="k8s" ;;
     esac
 
@@ -2324,13 +2373,25 @@ function run_middleware() {
         "KUBERNETES") platform_dir="k8s" ;;
         "DOCKER_SWARM") platform_dir="swarm" ;;
         "DOCKER_COMPOSE") platform_dir="compose" ;;
+        "SHELL") platform_dir="shell" ;;
         *) platform_dir="k8s" ;;
     esac
 
     local template_dir="${DEVOPS_ROOT}/templates/${platform_dir}/middleware/${template_name}"
     if [[ ! -d "$template_dir" ]]; then
-        error "模板目录不存在: $template_dir"
-        exit 1
+        # SHELL 平台允许回退到常见平台（例如 compose）下的模板
+        if [[ "$platform_dir" == "shell" ]]; then
+            local fallback_dir="${DEVOPS_ROOT}/templates/compose/middleware/${template_name}"
+            if [[ -d "$fallback_dir" ]]; then
+                template_dir="$fallback_dir"
+            else
+                error "模板目录不存在: $template_dir (尝试回退: $fallback_dir 也不存在)"
+                exit 1
+            fi
+        else
+            error "模板目录不存在: $template_dir"
+            exit 1
+        fi
     fi
 
     env[cfg_template_path]="$template_dir"
@@ -2338,14 +2399,62 @@ function run_middleware() {
     # 处理中间件变量
     process_middleware_variables "$template_name" "$instance_name"
 
+    # 预渲染模板目录中的所有 .j2/.tpl 文件（输出为同名无后缀文件），与平台无关
+    prerender_all_templates_in_dir "$template_dir"
+
+    # 当平台为 SHELL 时，直接执行模板中的启动脚本
+    if [[ "$platform_dir" == "shell" ]]; then
+        export_middleware_env_for_shell
+        run_shell_platform_start_script "$template_dir"
+    else
     # 渲染中间件模板（使用专门的中间件模板渲染器）
     render_middleware_template
 
     # 部署
     deploy
+    fi
 
     # 显示部署结果
     show_middleware_deployment_info "$instance_name"
+}
+
+# 将 middleware_* 变量导出为脚本可用的环境变量（中划线转下划线，大写）
+function export_middleware_env_for_shell() {
+    for var_name in "${!env[@]}"; do
+        if [[ "$var_name" =~ ^middleware_ ]]; then
+            local key="${var_name#middleware_}"
+            key="${key//-/_}"
+            local upper_key
+            upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+            export "$upper_key"="${env[$var_name]}"
+        fi
+    done
+    # 兼容实例名
+    if [[ -n "${env[cmd_job_name]}" ]]; then
+        export INSTANCE_NAME="${env[cmd_job_name]}"
+    fi
+}
+
+# 在 SHELL 平台执行启动脚本
+# 优先级：middleware_start_script > 默认 install.sh
+function run_shell_platform_start_script() {
+    local template_dir="$1"
+    local work_dir="${env[cfg_deploy_gen_location]:-$template_dir}"
+    local start_script
+    start_script="${env[middleware_start_script]}"
+    if [[ -z "$start_script" ]]; then
+        start_script="install.sh"
+    fi
+
+    local script_path="$work_dir/$start_script"
+    if [[ ! -f "$script_path" ]]; then
+        error "启动脚本不存在: $script_path"
+        echo "可通过 --start-script 或在元数据/命令行中设置 middleware_start_script 指定脚本名"
+        exit 1
+    fi
+
+    info "执行启动脚本: $script_path"
+    ( cd "$work_dir" && bash "$script_path" )
 }
 
 # 显示中间件部署信息

@@ -1,0 +1,239 @@
+# Harbor配置文件模板
+# 基于Harbor官方配置文件格式
+
+# Harbor主机名配置
+hostname: {{ hostname }}
+
+# HTTP配置
+http:
+  port: {{ http_port }}
+
+{% if https_enabled %}
+# HTTPS配置
+https:
+  port: {{ https_port }}
+  certificate: /your/certificate/path
+  private_key: /your/private/key/path
+{% endif %}
+
+# Harbor管理员初始密码
+harbor_admin_password: {{ harbor_admin_password }}
+
+# Harbor数据库配置
+database:
+  password: {{ database_password }}
+  max_idle_conns: 100
+  max_open_conns: 900
+
+# 数据存储配置
+data_volume: {{ data_path }}
+
+# Trivy扫描器配置
+trivy:
+  ignore_unfixed: false
+  skip_update: false
+  offline_scan: false
+  security_check: vuln
+  insecure: false
+
+# 作业服务配置
+jobservice:
+  max_job_workers: {{ max_job_workers }}
+
+# 通知配置
+notification:
+  webhook_job_max_retry: 10
+
+# 图表仓库配置
+chart:
+  absolute_url: disabled
+
+# 日志配置
+log:
+  level: {{ log_level }}
+  local:
+    rotate_count: 50
+    rotate_size: 200M
+    location: /var/log/harbor
+
+# 代理配置（可选）
+#_version: 1.10.0
+
+# 外部URL配置
+external_url: {% if https_enabled %}https://{{ hostname }}:{{ https_port }}{% else %}http://{{ hostname }}:{{ http_port }}{% endif %}
+
+# 外部数据库配置（可选，如果使用外部数据库）
+#external_database:
+#  harbor:
+#    host: harbor_db_host
+#    port: 5432
+#    db_name: registry
+#    username: postgres
+#    password: root123
+#    ssl_mode: disable
+#    max_idle_conns: 2
+#    max_open_conns: 0
+#  notary_signer:
+#    host: notary_signer_db_host
+#    port: 5432
+#    db_name: notary_signer
+#    username: postgres
+#    password: root123
+#    ssl_mode: disable
+#  notary_server:
+#    host: notary_server_db_host
+#    port: 5432
+#    db_name: notary_server
+#    username: postgres
+#    password: root123
+#    ssl_mode: disable
+
+# 外部Redis配置（可选，如果使用外部Redis）
+#external_redis:
+#  host: redis
+#  port: 6379
+#  password:
+#  registry_db_index: 1
+#  jobservice_db_index: 2
+#  chartmuseum_db_index: 3
+#  trivy_db_index: 5
+#  idle_timeout_seconds: 30
+
+# Notary配置（用于镜像签名）
+#notary:
+#  enable: true
+
+# Clair配置（已弃用，使用Trivy替代）
+#clair:
+#  updaters_interval: 12
+
+# 镜像复制配置
+#replication:
+#  max_replicas: 1024
+
+# 配额配置
+quota:
+  per_project_enable: {{ quota_per_project_enable }}
+  per_project_default_storage: {{ storage_per_project }}
+
+# 机器人账户配置
+robot:
+  token_duration: {{ robot_token_duration }}
+
+# 用户设置
+user_settings:
+  self_registration: {{ self_registration }}
+  token_expiration: {{ token_expiration }}
+  project_creation_restriction: {{ project_creation_restriction }}
+  verify_remote_cert: {{ verify_remote_cert }}
+
+# 审计日志配置
+audit:
+  skip_audit_log_database: false
+
+# 垃圾回收配置
+gc:
+  workers: 1
+
+# 镜像代理缓存配置
+proxy_cache:
+  enabled: false
+  expire_hours: 24
+
+# 内部TLS配置（可选）
+#internal_tls:
+#  enabled: true
+#  dir: /etc/harbor/tls/internal
+
+# 强制使用TLS
+#strong_ssl_ciphers: false
+
+# 上传大小限制
+upload_purging:
+  enabled: true
+  age: 168h
+  interval: 24h
+  dryrun: false
+
+# 缓存配置
+cache:
+  enabled: false
+  expire_hours: 24
+
+# P2P预热配置
+p2p_preheating:
+  enabled: false
+
+# 许可证配置（企业版）
+#license:
+#  path: /path/to/license
+
+# 度量配置
+metric:
+  enabled: false
+  port: 9090
+  path: /metrics
+
+# 追踪配置
+trace:
+  enabled: false
+  sample_rate: 1
+  jaeger:
+    endpoint: http://hostname:14268/api/traces
+
+# 存储配置
+storage_service:
+  ca_bundle:
+
+# 自动扫描配置
+scanner:
+  trivy:
+    timeout: 5m0s
+
+# 系统配置
+system:
+  # 系统级别的配置项
+  read_only: false
+
+# 网络配置
+network:
+  # 网络相关配置
+  session_timeout: 3600
+
+# 安全配置
+security:
+  # 安全相关配置
+  password_rules:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_number: true
+    require_special_char: false
+
+# 邮件配置（可选）
+#email:
+#  host: smtp.mydomain.com
+#  port: 587
+#  username: sample_admin@mydomain.com
+#  password: abc
+#  ssl: true
+#  from: admin <sample_admin@mydomain.com>
+#  identity:
+#  insecure: false
+
+# LDAP配置（可选）
+#auth_mode: ldap_auth
+#ldap:
+#  url: ldaps://ldap.mydomain.com
+#  searchdn: uid=searchuser,ou=people,dc=mydomain,dc=com
+#  search_password: password
+#  basedn: ou=people,dc=mydomain,dc=com
+#  filter: (objectClass=person)
+#  uid: uid
+#  scope: 2
+#  timeout: 5
+#  verify_cert: true
+#  group_basedn: ou=group,dc=mydomain,dc=com
+#  group_filter: objectclass=group
+#  group_gid: cn
+#  group_scope: 2

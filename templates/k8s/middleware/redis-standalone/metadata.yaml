@@ -48,7 +48,7 @@ variables:
 
   - name: "redis_persistence"
     type: "string"
-    default: "rdb"
+    default: "none"
     description: "持久化类型"
     options: ["rdb", "aof", "both", "none"]
 

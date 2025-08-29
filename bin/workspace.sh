@@ -273,12 +273,14 @@ function copy_workspace() {
 					echo "  1) KUBERNETES"
 					echo "  2) DOCKER_SWARM"
 					echo "  3) DOCKER_COMPOSE"
+					echo "  4) SHELL"
 					read -p "输入序号 [1]: " choice
 					choice=${choice:-1}
 					case "$choice" in
 						1) platform="KUBERNETES" ;;
 						2) platform="DOCKER_SWARM" ;;
 						3) platform="DOCKER_COMPOSE" ;;
+						4) platform="SHELL" ;;
 						*) echo "无效选择，请重试"; platform="" ;;
 					esac
 				done

@@ -1,0 +1,2 @@
+./prepare.sh
+./install.sh

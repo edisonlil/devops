@@ -157,7 +157,7 @@ _devops_completion() {
     local version_specs="node: volta: jdk: java: maven: gradle: python: py:"
     
     # 全局选项
-    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --build-version --workspace --namespace --app-port --expose-port --service-port --export-port --force-port --python-requirements --python-main -i --interactive --version --help"
+    local global_opts="--build-tool --git-url --git-branch --svn-url --java-opts --dockerfile --template --build-cmds --build-env --build-version --workspace --platform --namespace --app-port --expose-port --service-port --export-port --force-port --python-requirements --python-main --start-script -i --interactive --version --help"
 
     case ${COMP_CWORD} in
         1)

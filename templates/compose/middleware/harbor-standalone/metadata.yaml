@@ -1,0 +1,219 @@
+# Harbor单实例部署模板元数据
+name: "harbor-standalone"
+type: "harbor"
+description: "Harbor企业级Docker镜像仓库单实例部署模板，适用于Docker Compose环境"
+version: "1.0"
+author: "devops-team"
+platform: "docker-compose"
+
+# 支持的变量
+variables:
+  - name: "instance_name"
+    type: "string"
+    required: true
+    description: "实例名称"
+    example: "harbor-registry"
+
+  - name: "harbor_version"
+    type: "string"
+    default: "v2.9.0"
+    description: "Harbor版本"
+    example: "v2.10.0"
+
+  - name: "hostname"
+    type: "string"
+    required: true
+    description: "Harbor访问域名或IP地址"
+    example: "harbor.example.com"
+
+  - name: "http_port"
+    type: "string"
+    default: "80"
+    description: "HTTP访问端口"
+    example: "8080"
+
+  - name: "https_port"
+    type: "string"
+    default: "443"
+    description: "HTTPS访问端口"
+    example: "8443"
+
+  - name: "https_enabled"
+    type: "boolean"
+    default: false
+    description: "是否启用HTTPS"
+
+  - name: "harbor_admin_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Harbor管理员密码"
+    example: "Harbor12345"
+
+  - name: "database_password"
+    type: "string"
+    default: "auto-generate"
+    description: "PostgreSQL数据库密码"
+    example: "postgres123"
+
+  - name: "data_path"
+    type: "string"
+    default: "./harbor-data"
+    description: "数据存储路径"
+    example: "/opt/harbor/data"
+
+  - name: "log_level"
+    type: "string"
+    default: "info"
+    description: "日志级别"
+    options: ["debug", "info", "warning", "error", "fatal"]
+
+  - name: "max_job_workers"
+    type: "integer"
+    default: 10
+    description: "最大作业工作线程数"
+    validation: "value >= 1 and value <= 50"
+
+  - name: "token_expiration"
+    type: "integer"
+    default: 30
+    description: "Token过期时间（分钟）"
+    validation: "value >= 5 and value <= 1440"
+
+  - name: "project_creation_restriction"
+    type: "string"
+    default: "everyone"
+    description: "项目创建权限"
+    options: ["everyone", "adminonly"]
+
+  - name: "self_registration"
+    type: "boolean"
+    default: true
+    description: "是否允许用户自注册"
+
+  - name: "verify_remote_cert"
+    type: "boolean"
+    default: true
+    description: "是否验证远程证书"
+
+  - name: "robot_token_duration"
+    type: "integer"
+    default: 30
+    description: "机器人账户Token有效期（天）"
+    validation: "value >= 1 and value <= 365"
+
+  - name: "notification_enable"
+    type: "boolean"
+    default: true
+    description: "是否启用通知功能"
+
+  - name: "quota_per_project_enable"
+    type: "boolean"
+    default: true
+    description: "是否启用项目配额限制"
+
+  - name: "storage_per_project"
+    type: "string"
+    default: "-1"
+    description: "每个项目存储配额（-1表示无限制）"
+    example: "10GB"
+
+# 端口信息
+ports:
+  - name: "http"
+    port: 80
+    description: "Harbor HTTP访问端口"
+  - name: "https"
+    port: 443
+    description: "Harbor HTTPS访问端口"
+
+# 连接信息模板
+connection_info:
+  web_ui: "{% if https_enabled %}https://{{ hostname }}:{{ https_port }}{% else %}http://{{ hostname }}:{{ http_port }}{% endif %}"
+  docker_login: "docker login {% if https_enabled %}{{ hostname }}:{{ https_port }}{% else %}{{ hostname }}:{{ http_port }}{% endif %}"
+  admin_user: "admin"
+  admin_password: "{{ harbor_admin_password }}"
+
+# 使用说明
+usage:
+  basic: "devops run middleware harbor-standalone registry --hostname harbor.example.com"
+  with_params: "devops run middleware harbor-standalone registry --hostname harbor.example.com --https-enabled true --harbor-admin-password MyPassword123"
+  interactive: "devops run middleware harbor-standalone registry -i"
+
+# 管理命令
+management:
+  status: "devops middleware status registry"
+  logs: "devops middleware logs registry --follow"
+  backup: "devops middleware backup registry"
+  remove: "devops middleware remove registry"
+  web_access: "浏览器访问: http://{{ hostname }}:{{ http_port }} (用户名: admin)"
+
+# 依赖和要求
+requirements:
+  docker_version: ">=20.10"
+  docker_compose_version: ">=2.0"
+  disk_space: ">=20GB"
+  memory: ">=4GB"
+  cpu_cores: ">=2"
+
+# 标签
+labels:
+  app.kubernetes.io/name: "harbor"
+  app.kubernetes.io/instance: "{{ instance_name }}"
+  app.kubernetes.io/version: "{{ harbor_version }}"
+  app.kubernetes.io/component: "registry"
+  app.kubernetes.io/part-of: "middleware"
+  app.kubernetes.io/managed-by: "devops-middleware"
+
+# Harbor特定配置
+harbor:
+  components:
+    - "core"
+    - "portal"
+    - "registry"
+    - "registryctl"
+    - "jobservice"
+    - "log"
+    - "db"
+    - "redis"
+    - "proxy"
+  
+  features:
+    - "镜像仓库管理"
+    - "用户权限管理"
+    - "项目管理"
+    - "镜像扫描"
+    - "镜像签名"
+    - "复制策略"
+    - "垃圾回收"
+    - "审计日志"
+
+  security:
+    - "RBAC权限控制"
+    - "镜像漏洞扫描"
+    - "内容信任"
+    - "镜像签名验证"
+
+# 初始化脚本
+init_scripts:
+  - name: "prepare_config"
+    description: "准备Harbor配置文件"
+    required: true
+  - name: "generate_certs"
+    description: "生成SSL证书（如果启用HTTPS）"
+    required: false
+  - name: "init_database"
+    description: "初始化数据库"
+    required: true
+
+# 健康检查
+health_checks:
+  - name: "harbor_core"
+    endpoint: "/api/v2.0/health"
+    interval: "30s"
+    timeout: "10s"
+    retries: 3
+  - name: "harbor_portal"
+    endpoint: "/"
+    interval: "30s"
+    timeout: "10s"
+    retries: 3

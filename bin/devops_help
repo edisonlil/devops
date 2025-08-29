@@ -28,6 +28,7 @@ function devops_help() {
 	      --force-port           force override template fixed port
 	      --version              the version of devops
 	      --workspace            the workspace
+	      --platform             override BUILD_PLATFORM (KUBERNETES|DOCKER_SWARM|DOCKER_COMPOSE|SHELL)
               -i, --interactive      进入引导式交互配置模式
 
 	Commands:
@@ -59,6 +60,10 @@ function devops_help() {
 	  devops run middleware redis-standalone cache-server --memory-limit 2Gi --storage-size 5Gi
 	  devops run middleware mysql-standalone main-db --memory-limit 4Gi --storage-size 100Gi --mysql-database app_db
 	  devops run middleware redis-cluster cache-cluster --replicas 6 --memory-limit 2Gi
+
+	  # Shell 平台：执行模板启动脚本（默认 install.sh，可用 --start-script 指定）
+	  # 需在 workspace/config 设置 BUILD_PLATFORM="SHELL"，模板目录下包含启动脚本
+	  devops run middleware harbor-standalone harbor --start-script install.sh
 
 	  # 传统命令行部署
 	  devops run java crm --git-url https://git.example.com/crm.git
@@ -237,6 +242,15 @@ function devops_help() {
 	    restore <name> --from PATH 恢复中间件数据
 	    info <name>               查看连接信息
 	    templates list            列出可用模板
+
+	Shell Platform:
+	  当 BUILD_PLATFORM 为 SHELL 时，devops 不渲染/应用编排文件，而是执行模板目录下的启动脚本。
+	  行为：
+	    - 导出所有 middleware_* 变量为环境变量（下划线、大写），并设置 INSTANCE_NAME。
+	    - 默认执行 install.sh；可通过命令行 --start-script 覆盖（等价 env[middleware_start_script]）。
+	    - 模板搜索顺序：templates/shell/middleware/<name>；若不存在，回退到 templates/compose/middleware/<name>。
+	  示例：
+	    devops run middleware harbor-standalone harbor --start-script install.sh
 
 	  使用示例:
 	    devops run middleware redis-standalone cache --memory-limit 2Gi
