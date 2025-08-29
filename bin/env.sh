@@ -18,6 +18,9 @@ env[cfg_devops_bin_path]=$(dirname $(readlink -f "$0"))
 #devops项目所在路径
 env[cfg_devops_path]=`cd ${env[cfg_devops_bin_path]} && cd ../ && pwd`
 
+# 设置DEVOPS_ROOT环境变量，用于中间件模板扫描
+export DEVOPS_ROOT="${env[cfg_devops_path]}"
+
 function parse_params() {
         # 无参数时显示帮助
         if [[ -z "$1" ]]; then
@@ -90,12 +93,32 @@ function parse_params() {
                                         --python-requirements) env[opt_python_requirements]=$2; shift 2;;
                                         --python-main) env[opt_python_main]=$2; shift 2;;
                                         -i|--interactive) env[opt_interactive]=true; shift 1;;
+                                        --*)
+                                            # 动态参数处理：支持任意--变量名格式
+                                            local param_name="${1#--}"  # 移除--前缀
+                                            local env_key="opt_${param_name//-/_}"  # 将-转换为_
+
+                                            # 检查是否有参数值
+                                            if [[ -n "$2" && "$2" != -* ]]; then
+                                                env["$env_key"]="$2"
+                                                shift 2
+                                            else
+                                                # 布尔类型参数（如--enable-something）
+                                                env["$env_key"]="true"
+                                                shift 1
+                                            fi
+                                            ;;
                                         *) error "unknown parameter or command $1 ." ; exit 1 ; break;;
                                         esac
                                 else
                                         env[cmd_3]=$1
                                         shift 1
-                                        break
+                                        # 继续检查是否有cmd_4
+                                        if [[ $# -gt 0 && $1 != -* ]]; then
+                                            env[cmd_4]=$1
+                                            shift 1
+                                        fi
+                                        # 不要break，继续处理后续的--参数
                                 fi
                         done
 
@@ -113,7 +136,11 @@ if [[ "${DEBUG}" == "true" ]]; then
     echo "DEBUG: cmd_1='${env[cmd_1]}'"
     echo "DEBUG: cmd_2='${env[cmd_2]}'"
     echo "DEBUG: cmd_3='${env[cmd_3]}'"
+    echo "DEBUG: cmd_4='${env[cmd_4]}'"
     echo "DEBUG: opt_interactive='${env[opt_interactive]}'"
+    echo "DEBUG: opt_namespace='${env[opt_namespace]}'"
+    echo "DEBUG: opt_export_port='${env[opt_export_port]}'"
+    echo "DEBUG: opt_service_port='${env[opt_service_port]}'"
     echo "DEBUG: opt_java_opts='${env[opt_java_opts]}'"
 fi
 
@@ -152,6 +179,7 @@ env[cfg_harbor_project]=$BUILD_HARBOR_PROJECT
 env[cfg_harbor_username]=$BUILD_HARBOR_USERNAME
 env[cfg_harbor_password]=$BUILD_HARBOR_PASSWORD
 env[cfg_build_platform]=$BUILD_PLATFORM
+env[cfg_platform]=$BUILD_PLATFORM  # 设置平台变量，用于中间件部署
 env[cfg_swarm_stack_name]=$BUILD_DOCKER_STACK_NAME
 env[cfg_swarm_network]=$BUILD_DOCKER_SWARM_NETWORK
 env[cfg_k8s_namespace]=$BUILD_K8S_NAMESPACE
@@ -168,11 +196,25 @@ env[cfg_vue_registry]=$BUILD_VUE_REGISTRY
 env[cfg_vue_registry_auth]=$BUILD_VUE_REGISTRY_AUTH
 
 # namespace处理逻辑：命令行参数优先于配置文件
+if [[ "${DEBUG}" == "true" ]]; then
+    echo "DEBUG: 命名空间处理前: opt_namespace='${env[opt_namespace]}', cfg_k8s_namespace='${env[cfg_k8s_namespace]}'"
+fi
+
 if [[ -n "${env[opt_namespace]}" ]]; then
     env[cfg_k8s_namespace]=${env[opt_namespace]}
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 使用命令行命名空间: cfg_k8s_namespace='${env[cfg_k8s_namespace]}'"
+    fi
 elif [[ -z "${env[cfg_k8s_namespace]}" ]]; then
     # 如果配置文件和命令行都没有指定，使用默认namespace
     env[cfg_k8s_namespace]="default"
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 使用默认命名空间: cfg_k8s_namespace='${env[cfg_k8s_namespace]}'"
+    fi
+else
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 使用配置文件命名空间: cfg_k8s_namespace='${env[cfg_k8s_namespace]}'"
+    fi
 fi
 
 # 若未显式传入 --git-branch，使用 workspace 默认分支

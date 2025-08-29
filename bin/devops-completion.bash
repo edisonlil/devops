@@ -27,6 +27,53 @@ _get_shortcuts() {
     echo "${shortcuts[@]}"
 }
 
+# 辅助函数：获取中间件模板列表
+_get_middleware_templates() {
+    local middleware_templates=()
+
+    # 从全局模板目录获取中间件模板
+    local templates_dir="templates"
+    if [[ -d "${templates_dir}" ]]; then
+        for platform_dir in "${templates_dir}"/*; do
+            if [[ -d "${platform_dir}/middleware" ]]; then
+                for template_dir in "${platform_dir}/middleware"/*; do
+                    if [[ -d "${template_dir}" ]]; then
+                        local template_name=$(basename "${template_dir}")
+                        middleware_templates+=("${template_name}")
+                    fi
+                done
+            fi
+        done
+    fi
+
+    # 从当前workspace模板目录获取中间件模板（如果存在）
+    local current_workspace=""
+    if [[ -f "workspace/enable" ]]; then
+        current_workspace=$(grep "ENABEL_WORKSPACE_PATH" workspace/enable 2>/dev/null | cut -d'"' -f2)
+    fi
+
+    if [[ -z "$current_workspace" ]]; then
+        current_workspace="default"
+    fi
+
+    local workspace_templates_dir="workspace/$current_workspace/templates"
+    if [[ -d "${workspace_templates_dir}" ]]; then
+        for platform_dir in "${workspace_templates_dir}"/*; do
+            if [[ -d "${platform_dir}/middleware" ]]; then
+                for template_dir in "${platform_dir}/middleware"/*; do
+                    if [[ -d "${template_dir}" ]]; then
+                        local template_name=$(basename "${template_dir}")
+                        middleware_templates+=("${template_name}")
+                    fi
+                done
+            fi
+        done
+    fi
+
+    # 去重并输出
+    printf '%s\n' "${middleware_templates[@]}" | sort -u
+}
+
 # 辅助函数：补全模板ID
 _complete_template_ids() {
     local template_ids=()
@@ -89,10 +136,16 @@ _devops_completion() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # 主命令选项
-    local main_commands="run install-tools template env create copy shortcut"
+    local main_commands="run install-tools template env create copy shortcut middleware"
 
     # 项目类型选项
-    local project_types="java vue golang tomcat python"
+    local project_types="java vue golang tomcat python middleware"
+
+    # 中间件模板选项
+    local middleware_templates="redis-standalone redis-cluster mysql-standalone mysql-ha postgresql-standalone postgresql-ha kafka-standalone kafka-cluster elasticsearch-standalone elasticsearch-cluster mongodb-standalone mongodb-replicaset rabbitmq-standalone rabbitmq-cluster"
+
+    # 中间件管理命令
+    local middleware_actions="list status logs remove scale backup restore info templates"
 
     # 构建工具选项
     local build_tools="maven gradle"
@@ -145,6 +198,10 @@ _devops_completion() {
                     COMPREPLY=($(compgen -W "save run list show delete edit help" -- ${cur}))
                     return 0
                     ;;
+                "middleware")
+                    COMPREPLY=($(compgen -W "${middleware_actions}" -- ${cur}))
+                    return 0
+                    ;;
             esac
             ;;
         3)
@@ -185,6 +242,22 @@ _devops_completion() {
                         ;;
                     "save")
                         # shortcut save 需要快捷键名称（用户输入）
+                        return 0
+                        ;;
+                esac
+            elif [[ ${COMP_WORDS[1]} == "run" && ${COMP_WORDS[2]} == "middleware" ]]; then
+                # run middleware 需要中间件模板名称
+                local available_templates=($(_get_middleware_templates))
+                COMPREPLY=($(compgen -W "${available_templates[*]}" -- ${cur}))
+                return 0
+            elif [[ ${COMP_WORDS[1]} == "middleware" ]]; then
+                case "${COMP_WORDS[2]}" in
+                    "status"|"logs"|"remove"|"scale"|"backup"|"restore"|"info")
+                        # 这些命令需要中间件实例名称，暂时不提供补全
+                        return 0
+                        ;;
+                    "templates")
+                        COMPREPLY=($(compgen -W "list show validate copy create" -- ${cur}))
                         return 0
                         ;;
                 esac

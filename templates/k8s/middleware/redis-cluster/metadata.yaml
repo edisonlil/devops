@@ -1,0 +1,127 @@
+# Redis集群部署模板元数据
+name: "redis-cluster"
+type: "redis"
+description: "Redis集群部署模板，适用于生产环境高可用部署"
+version: "1.0"
+author: "devops-team"
+platform: "kubernetes"
+
+# 支持的变量
+variables:
+  - name: "instance_name"
+    type: "string"
+    required: true
+    description: "实例名称"
+    example: "cache-cluster"
+
+  - name: "namespace"
+    type: "string"
+    default: "default"
+    description: "Kubernetes命名空间"
+    example: "middleware"
+
+  - name: "memory_limit"
+    type: "string"
+    default: "1Gi"
+    description: "每个节点内存限制"
+    example: "2Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "storage_size"
+    type: "string"
+    default: "5Gi"
+    description: "每个节点存储大小"
+    example: "20Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "replicas"
+    type: "integer"
+    default: 6
+    description: "集群节点数量（建议6个：3主3从）"
+    validation: "value >= 6 and value % 2 == 0"
+
+  - name: "redis_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Redis访问密码"
+    example: "mypassword123"
+
+  - name: "redis_persistence"
+    type: "string"
+    default: "aof"
+    description: "持久化类型"
+    options: ["rdb", "aof", "both", "none"]
+
+  - name: "max_memory_policy"
+    type: "string"
+    default: "allkeys-lru"
+    description: "内存淘汰策略"
+    options: ["allkeys-lru", "volatile-lru", "allkeys-random", "volatile-random", "allkeys-lfu", "volatile-lfu"]
+
+  - name: "service_port"
+    type: "string"
+    default: "6379"
+    description: "服务端口"
+    example: "6379"
+
+  - name: "export_port"
+    type: "string"
+    default: ""
+    description: "外部访问端口（NodePort）"
+    example: "30379"
+
+# 端口信息
+ports:
+  - name: "redis"
+    port: 6379
+    description: "Redis服务端口"
+  - name: "cluster-bus"
+    port: 16379
+    description: "Redis集群总线端口"
+
+# 连接信息模板
+connection_info:
+  internal: "{{ instance_name }}.{{ namespace }}.svc.cluster.local:6379"
+  external: "{{ node_ip }}:{{ export_port }}"
+  cluster_nodes: "{% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-headless.{{ namespace }}.svc.cluster.local:6379{% if not loop.last %},{% endif %}{% endfor %}"
+
+# 使用说明
+usage:
+  basic: "devops run middleware redis-cluster cache-cluster"
+  with_params: "devops run middleware redis-cluster cache-cluster --memory-limit 2Gi --storage-size 10Gi --replicas 6"
+  interactive: "devops run middleware redis-cluster cache-cluster -i"
+
+# 管理命令
+management:
+  status: "devops middleware status cache-cluster"
+  logs: "devops middleware logs cache-cluster --follow"
+  scale: "devops middleware scale cache-cluster --replicas 8"
+  backup: "devops middleware backup cache-cluster"
+  remove: "devops middleware remove cache-cluster"
+  cluster_info: "kubectl exec -it cache-cluster-0 -- redis-cli cluster nodes"
+
+# 依赖和要求
+requirements:
+  kubernetes_version: ">=1.16"
+  storage_class: "支持ReadWriteOnce的存储类"
+  resources:
+    min_memory: "512Mi"
+    min_storage: "2Gi"
+    min_replicas: 6
+
+# 标签
+labels:
+  app.kubernetes.io/name: "redis"
+  app.kubernetes.io/instance: "{{ instance_name }}"
+  app.kubernetes.io/version: "7.0"
+  app.kubernetes.io/component: "database"
+  app.kubernetes.io/part-of: "middleware"
+  app.kubernetes.io/managed-by: "devops-middleware"
+
+# 集群特定配置
+cluster:
+  enabled: true
+  min_replicas_per_master: 1
+  cluster_require_full_coverage: true
+  cluster_node_timeout: 15000
+  cluster_migration_barrier: 1

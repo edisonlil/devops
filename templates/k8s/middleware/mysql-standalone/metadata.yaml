@@ -1,0 +1,127 @@
+# MySQL单实例部署模板元数据
+name: "mysql-standalone"
+type: "mysql"
+description: "MySQL单实例部署模板，适用于开发和测试环境"
+version: "1.0"
+author: "devops-team"
+platform: "kubernetes"
+
+# 支持的变量
+variables:
+  - name: "instance_name"
+    type: "string"
+    required: true
+    description: "实例名称"
+    example: "main-db"
+
+  - name: "namespace"
+    type: "string"
+    default: "default"
+    description: "Kubernetes命名空间"
+    example: "middleware"
+
+  - name: "memory_limit"
+    type: "string"
+    default: "1Gi"
+    description: "内存限制"
+    example: "4Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "storage_size"
+    type: "string"
+    default: "10Gi"
+    description: "存储大小"
+    example: "100Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "replicas"
+    type: "integer"
+    default: 1
+    description: "副本数量（单实例固定为1）"
+    validation: "value == 1"
+
+  - name: "mysql_root_password"
+    type: "string"
+    default: "auto-generate"
+    description: "MySQL root密码"
+    example: "mypassword123"
+
+  - name: "mysql_database"
+    type: "string"
+    default: ""
+    description: "初始数据库名"
+    example: "app_db"
+
+  - name: "mysql_user"
+    type: "string"
+    default: ""
+    description: "应用用户名"
+    example: "app_user"
+
+  - name: "mysql_password"
+    type: "string"
+    default: "auto-generate"
+    description: "应用用户密码"
+    example: "app_password"
+
+  - name: "mysql_charset"
+    type: "string"
+    default: "utf8mb4"
+    description: "字符集"
+    options: ["utf8mb4", "utf8", "latin1"]
+
+  - name: "service_port"
+    type: "string"
+    default: "3306"
+    description: "服务端口"
+    example: "3306"
+
+  - name: "export_port"
+    type: "string"
+    default: ""
+    description: "外部访问端口（NodePort）"
+    example: "30306"
+
+# 端口信息
+ports:
+  - name: "mysql"
+    port: 3306
+    description: "MySQL服务端口"
+
+# 连接信息模板
+connection_info:
+  internal: "{{ instance_name }}.{{ namespace }}.svc.cluster.local:3306"
+  external: "{{ node_ip }}:{{ export_port }}"
+  jdbc_url: "jdbc:mysql://{{ instance_name }}.{{ namespace }}.svc.cluster.local:3306/{{ mysql_database }}"
+
+# 使用说明
+usage:
+  basic: "devops run middleware mysql-standalone main-db"
+  with_params: "devops run middleware mysql-standalone main-db --memory-limit 4Gi --storage-size 100Gi --mysql-database app_db"
+  interactive: "devops run middleware mysql-standalone main-db -i"
+
+# 管理命令
+management:
+  status: "devops middleware status main-db"
+  logs: "devops middleware logs main-db --follow"
+  scale: "不支持扩缩容（单实例模式）"
+  backup: "devops middleware backup main-db"
+  remove: "devops middleware remove main-db"
+  connect: "kubectl exec -it main-db-mysql-0 -- mysql -u root -p"
+
+# 依赖和要求
+requirements:
+  kubernetes_version: ">=1.16"
+  storage_class: "支持ReadWriteOnce的存储类"
+  resources:
+    min_memory: "512Mi"
+    min_storage: "5Gi"
+
+# 标签
+labels:
+  app.kubernetes.io/name: "mysql"
+  app.kubernetes.io/instance: "{{ instance_name }}"
+  app.kubernetes.io/version: "8.0"
+  app.kubernetes.io/component: "database"
+  app.kubernetes.io/part-of: "middleware"
+  app.kubernetes.io/managed-by: "devops-middleware"

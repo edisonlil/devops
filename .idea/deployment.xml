@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="21" exclude=".svn;.cvs;.idea;.DS_Store;.git;.hg;*.hprof;*.pyc;node_modules">
+  <component name="PublishConfigData" exclude=".svn;.cvs;.idea;.DS_Store;.git;.hg;*.hprof;*.pyc;node_modules">
     <serverData>
-      <paths name="21">
+      <paths name="22">
         <serverdata>
           <mappings>
-            <mapping deploy="tmp/devops" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/root/devops/" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

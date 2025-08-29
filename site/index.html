@@ -38,7 +38,7 @@
                 <h1 class="hero-title">企业级 CI/CD 自动化部署工具</h1>
                 <p class="hero-subtitle">
                     一键部署，多语言支持，让复杂的容器化部署变得简单高效。
-                    支持Java、Python、Vue.js、Go等主流技术栈，完美集成Kubernetes和Docker Swarm。
+                    支持Java、Python、Vue.js、Go等主流技术栈，以及Redis、MySQL、Kafka等中间件服务，完美集成Kubernetes和Docker Swarm。
                 </p>
                 <div class="hero-actions">
                     <a href="#quick-start" class="btn btn-primary btn-lg">
@@ -193,8 +193,8 @@
                 <div class="feature-row">
                     <div class="feature-icon">📦</div>
                     <div class="feature-text">
-                        <h3>模板系统</h3>
-                        <p>两级模板系统，支持全局和workspace级别模板。团队可以定制专属模板，提高部署标准化程度。</p>
+                        <h3>智能模板系统</h3>
+                        <p>分层模板架构，支持应用和中间件模板。集成Jinja2引擎，提供变量管理、条件渲染、自动密码生成等高级特性。</p>
                     </div>
                 </div>
 
@@ -203,6 +203,14 @@
                     <div class="feature-text">
                         <h3>版本管理</h3>
                         <p>独立的构建工具版本管理，支持nvm、sdkman等多种版本管理器。确保团队环境一致性。</p>
+                    </div>
+                </div>
+
+                <div class="feature-row">
+                    <div class="feature-icon">🗄️</div>
+                    <div class="feature-text">
+                        <h3>中间件部署</h3>
+                        <p>一键部署Redis、MySQL、Kafka等基础设施服务。模板驱动，支持集群模式，提供完整的生命周期管理。</p>
                     </div>
                 </div>
 
@@ -223,6 +231,20 @@
             <div class="section-header">
                 <h2 class="section-title">选择安装模式</h2>
                 <p class="section-subtitle">根据您的需求选择合适的安装方式</p>
+
+                <!-- 系统要求提示 -->
+                <div class="system-requirements">
+                    <div class="requirement-item">
+                        <span class="requirement-icon">🐍</span>
+                        <div class="requirement-text">
+                            <strong>Python 3.6+</strong> 支持中间件部署功能
+                            <small>推荐 Python 3.7+ 以获得最佳体验</small>
+                        </div>
+                    </div>
+                    <div class="requirement-note">
+                        <small>💡 安装完成后需要安装Python依赖：<code>pip3 install --user PyYAML Jinja2</code></small>
+                    </div>
+                </div>
             </div>
             
             <div class="install-modes">
@@ -330,6 +352,28 @@
                         <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
                     </div>
                     <p class="example-desc">pip依赖安装，虚拟环境管理，WSGI服务器容器化部署</p>
+                </div>
+
+                <div class="example-item">
+                    <h3>Redis 缓存服务</h3>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run middleware redis-standalone cache-server --memory-limit 2Gi --storage-size 5Gi</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <p class="example-desc">一键部署Redis缓存服务，自动配置持久化存储和访问密码</p>
+                </div>
+
+                <div class="example-item">
+                    <h3>MySQL 数据库服务</h3>
+                    <div class="code-container">
+                        <div class="example-command">
+                            <code>devops run middleware mysql-standalone main-db --storage-size 100Gi --mysql-database app_db</code>
+                        </div>
+                        <button class="copy-btn" type="button" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <p class="example-desc">部署MySQL数据库，自动创建应用数据库和用户，配置高性能参数</p>
                 </div>
             </div>
         </div>

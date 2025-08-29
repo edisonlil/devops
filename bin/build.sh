@@ -24,35 +24,68 @@ function run() {
         if [[ "${DEBUG}" == "true" ]]; then
             echo "DEBUG: 调用run_interactive()"
         fi
-        run_interactive
+        # 检查是否是中间件交互式部署
+        if [[ "${env[cmd_2]}" == "middleware" ]]; then
+            run_middleware_interactive
+        else
+            run_interactive
+        fi
     else
         if [[ "${DEBUG}" == "true" ]]; then
             echo "DEBUG: 非交互式模式，cmd_2='${env[cmd_2]}'"
         fi
         if test -n "${env[cmd_2]}"; then
-            run_${env[cmd_2]}
+            # 特殊处理中间件命令，需要传递参数
+            if [[ "${env[cmd_2]}" == "middleware" ]]; then
+                run_middleware "${env[cmd_3]}" "${env[cmd_4]}"
+            else
+                run_${env[cmd_2]}
+            fi
         else
             echo "run need be followed by a cammand"; exit 1
         fi
     fi
 }
 
-# 查找模板目录，优先使用workspace模板
+# 查找应用模板目录，优先使用workspace模板
 function find_template_dir() {
 	local platform_dir="$1"
 	local template_id="$2"
 
-	# 优先查找workspace模板
-	local workspace_template_dir="${env[cfg_workspace_template_path]}/$platform_dir/$template_id"
+	# 优先查找workspace应用模板
+	local workspace_template_dir="${env[cfg_workspace_template_path]}/$platform_dir/app/$template_id"
 	if [ -d "$workspace_template_dir" ]; then
 		echo "$workspace_template_dir"
 		return 0
 	fi
 
-	# fallback到全局模板
-	local global_template_dir="${env[cfg_global_template_path]}/$platform_dir/$template_id"
+	# fallback到全局应用模板
+	local global_template_dir="${env[cfg_global_template_path]}/$platform_dir/app/$template_id"
 	if [ -d "$global_template_dir" ]; then
 		echo "$global_template_dir"
+		return 0
+	fi
+
+	# 模板不存在
+	return 1
+}
+
+# 查找中间件模板目录，优先使用workspace模板
+function find_middleware_template_dir() {
+	local platform_dir="$1"
+	local template_name="$2"
+
+	# 优先查找workspace中间件模板
+	local workspace_middleware_template="${env[cfg_workspace_template_path]}/$platform_dir/middleware/$template_name"
+	if [ -d "$workspace_middleware_template" ]; then
+		echo "$workspace_middleware_template"
+		return 0
+	fi
+
+	# fallback到全局中间件模板
+	local global_middleware_template="${env[cfg_global_template_path]}/$platform_dir/middleware/$template_name"
+	if [ -d "$global_middleware_template" ]; then
+		echo "$global_middleware_template"
 		return 0
 	fi
 
@@ -264,6 +297,108 @@ function run_nginx() {
 
 function run_python() {
 	run_devops python_build
+}
+
+function run_middleware() {
+    local template_name="$1"
+    local instance_name="$2"
+    info "执行run_middleware template_name = $1  instance_name = $2"
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 进入run_middleware()函数"
+        echo "DEBUG: template_name='$template_name'"
+        echo "DEBUG: instance_name='$instance_name'"
+    fi
+
+    # 检查必要参数
+    if [[ -z "$template_name" ]]; then
+        error "中间件模板名称不能为空"
+        echo "使用方法: devops run middleware <template-name> <instance-name>"
+        echo "示例: devops run middleware redis-standalone cache-server"
+        exit 1
+    fi
+
+    if [[ -z "$instance_name" ]]; then
+        error "中间件实例名称不能为空"
+        echo "使用方法: devops run middleware <template-name> <instance-name>"
+        echo "示例: devops run middleware redis-standalone cache-server"
+        exit 1
+    fi
+
+    # 检查docker环境
+    check_env_by_cmd_v docker
+
+    # 设置中间件特定的环境变量
+    env[cmd_type]="middleware"
+    env[middleware_template]="$template_name"  # 使用独立的中间件模板变量
+    env[cmd_job_name]="$instance_name"
+
+    # 检测前置参数（仅在非交互模式下）
+    if [[ "${env[opt_interactive]}" != "true" ]]; then
+        check_post_parmas
+    fi
+
+    # 检查Harbor登录状态
+    check_harbor_login_status
+
+    # 中间件不需要代码拉取，跳过scm步骤
+    info "中间件部署不需要代码拉取，跳过SCM步骤"
+
+    # 查找中间件模板
+    local platform_dir
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES") platform_dir="k8s" ;;
+        "DOCKER_SWARM") platform_dir="swarm" ;;
+        "DOCKER_COMPOSE") platform_dir="compose" ;;
+        *)
+            error "不支持的平台: ${env[cfg_build_platform]}"
+            exit 1
+            ;;
+    esac
+
+    # 查找中间件模板目录
+    local middleware_template_dir
+    middleware_template_dir=$(find_middleware_template_dir "$platform_dir" "$template_name")
+    if [[ $? -ne 0 ]]; then
+        error "找不到中间件模板: $template_name (平台: $platform_dir)"
+        echo "请检查以下目录是否存在模板:"
+        echo "  - workspace/${env[opt_workspace]}/templates/$platform_dir/middleware/$template_name/"
+        echo "  - templates/$platform_dir/middleware/$template_name/"
+        exit 1
+    fi
+
+    info "使用中间件模板: $middleware_template_dir"
+
+    # 设置模板目录环境变量
+    env[cfg_template_path]="$middleware_template_dir"
+
+    # 跳过dockerfile选择，中间件使用模板部署
+    info "中间件部署使用模板配置，跳过Dockerfile步骤"
+
+    # 处理中间件特定参数
+    process_middleware_variables "$template_name" "$instance_name"
+
+    # 设置部署相关的环境变量
+    env[cmd_job_name]="$instance_name"
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 部署变量设置："
+        echo "DEBUG: cfg_k8s_namespace=${env[cfg_k8s_namespace]}"
+        echo "DEBUG: cmd_job_name=${env[cmd_job_name]}"
+        echo "DEBUG: cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}"
+    fi
+
+    # 渲染中间件模板（使用专门的中间件模板渲染器）
+    render_middleware_template
+
+    # 处理端口配置（如果用户指定了端口参数）
+    local output_file="$cfg_deploy_gen_location/${cmd_job_name}.yml"
+    enhance_multi_ports "$output_file"
+
+    # 部署
+    deploy
+
+    # 输出连接信息
+    show_middleware_connection_info "$template_name" "$instance_name"
 }
 
 function run_devops() {
@@ -656,6 +791,13 @@ function render_template() {
 	local java_opts="${env[opt_java_opts]:-}"
 	local enable_harbor="${env[cfg_enable_harbor]:-0}"
 	
+	# 检查是否是中间件部署，如果是且包含Jinja2语法，使用专门的渲染器
+	if [[ "${env[cmd_type]}" == "middleware" ]] && grep -q "{{.*}}\|{%.*%}" "$deploy_tpl"; then
+		info "检测到中间件Jinja2模板，使用专门的渲染器"
+		render_middleware_jinja2 "$deploy_tpl" "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		return
+	fi
+
 	# 调用Python模板渲染器
 	local python_script="${BUILD_SCRIPT_DIR}/template_renderer.py"
 	if [ ! -f "$python_script" ]; then
@@ -720,6 +862,364 @@ function render_template() {
 	fi
 }
 
+# 中间件模板渲染函数（支持Jinja2）
+function render_middleware_template() {
+    local cfg_template_path="${env[cfg_template_path]}"
+    local cfg_deploy_gen_location="${env[cfg_deploy_gen_location]}"
+    local cmd_job_name="${env[cmd_job_name]}"
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 开始渲染中间件模板"
+        echo "DEBUG: template_path='$cfg_template_path'"
+        echo "DEBUG: output_location='$cfg_deploy_gen_location'"
+    fi
+
+    # 查找模板文件（按优先级查找）
+    local deploy_tpl=""
+    local template_type=""
+
+    # 1. 优先查找 Jinja2 模板
+    if [ -f "$cfg_template_path/deploy.yaml.j2" ]; then
+        deploy_tpl="$cfg_template_path/deploy.yaml.j2"
+        template_type="jinja2"
+    # 2. 其次查找占位符模板
+    elif [ -f "$cfg_template_path/deploy.yaml.tpl" ]; then
+        deploy_tpl="$cfg_template_path/deploy.yaml.tpl"
+        template_type="placeholder"
+    # 3. 最后查找普通YAML文件（向后兼容）
+    elif [ -f "$cfg_template_path/deploy.yaml" ]; then
+        deploy_tpl="$cfg_template_path/deploy.yaml"
+        # 检测文件内容确定类型
+        if grep -q "{{.*}}\|{%.*%}" "$deploy_tpl"; then
+            template_type="jinja2"
+        else
+            template_type="placeholder"
+        fi
+    else
+        error "未找到中间件模板文件，支持的文件名："
+        error "  - deploy.yaml.j2 (Jinja2模板)"
+        error "  - deploy.yaml.tpl (占位符模板)"
+        error "  - deploy.yaml (自动检测)"
+        exit 1
+    fi
+
+    info "渲染中间件模板: $deploy_tpl (类型: $template_type)"
+
+    # 确保输出目录存在
+    if [ ! -d "$cfg_deploy_gen_location" ]; then
+        mkdir -p "$cfg_deploy_gen_location"
+    fi
+
+    local output_file="$cfg_deploy_gen_location/${cmd_job_name}.yml"
+
+    # 根据模板类型选择渲染器
+    case "$template_type" in
+        "jinja2")
+            info "使用Jinja2渲染器"
+            render_with_jinja2 "$deploy_tpl" "$output_file"
+            ;;
+        "placeholder")
+            info "使用占位符渲染器"
+            render_with_placeholders "$deploy_tpl" "$output_file"
+            ;;
+        *)
+            error "未知的模板类型: $template_type"
+            exit 1
+            ;;
+    esac
+
+    success "中间件模板渲染成功: $output_file"
+}
+
+# 使用Jinja2渲染器
+function render_with_jinja2() {
+    local template_file="$1"
+    local output_file="$2"
+
+    # 检查Python环境
+    if ! command -v python3 &> /dev/null; then
+        error "Python3 未安装，无法使用Jinja2渲染器"
+        exit 1
+    fi
+
+    # 检查Jinja2依赖
+    if ! python3 -c "import jinja2" &> /dev/null; then
+        warn "Jinja2 未安装，尝试安装..."
+        if command -v pip3 &> /dev/null; then
+            pip3 install Jinja2 PyYAML
+        else
+            error "pip3 未安装，无法安装Jinja2依赖"
+            exit 1
+        fi
+    fi
+
+    # 调用动态Python Jinja2渲染器
+    local python_script="${BUILD_SCRIPT_DIR}/dynamic_middleware_renderer.py"
+    if [ ! -f "$python_script" ]; then
+        error "动态中间件渲染器不存在: $python_script"
+        exit 1
+    fi
+
+    # 构建渲染器参数
+    local python_args=(
+        "$python_script"
+        "--template" "$template_file"
+        "--output" "$output_file"
+        "--validate"
+    )
+
+    # 添加所有中间件变量作为参数
+    add_middleware_jinja2_variables "python_args"
+
+    # 调试信息
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: Python渲染器参数:"
+        for arg in "${python_args[@]}"; do
+            echo "DEBUG:   $arg"
+        done
+    fi
+
+    # 执行渲染
+    if python3 "${python_args[@]}"; then
+        success "Jinja2模板渲染成功"
+    else
+        error "Jinja2模板渲染失败"
+        exit 1
+    fi
+}
+
+# 动态添加所有中间件变量到Jinja2渲染器参数
+function add_middleware_jinja2_variables() {
+    local args_var_name="$1"
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 动态添加中间件变量到Jinja2参数"
+    fi
+
+    # 遍历所有middleware_开头的环境变量
+    for key in "${!env[@]}"; do
+        if [[ "$key" =~ ^middleware_ ]]; then
+            local var_value="${env[$key]}"
+
+            # 跳过空值（但保留调试信息）
+            if [[ -z "$var_value" ]]; then
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 跳过空值变量: $key"
+                fi
+                continue
+            fi
+
+            # 提取变量名（移除middleware_前缀）
+            local var_name="${key#middleware_}"
+
+            # 跳过与Python渲染器基础参数冲突的变量，以及特殊处理的变量
+            case "$var_name" in
+                template|output|validate)
+                    if [[ "${DEBUG}" == "true" ]]; then
+                        echo "DEBUG: 跳过冲突参数: $var_name"
+                    fi
+                    continue
+                    ;;
+            esac
+
+            # 特殊处理：namespace 使用 cfg_k8s_namespace 的值
+            if [[ "$var_name" == "namespace" ]]; then
+                var_value="${env[cfg_k8s_namespace]}"
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 特殊处理 namespace: 使用 cfg_k8s_namespace=$var_value"
+                fi
+            fi
+
+            # 将下划线转换为连字符（符合命令行参数约定）
+            local param_name="${var_name//_/-}"
+
+            # 添加到参数数组
+            eval "${args_var_name}+=(\"--${param_name}\" \"${var_value}\")"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 添加参数: --${param_name} = ${var_value}"
+            fi
+        fi
+    done
+}
+
+# 使用简单占位符渲染
+function render_with_placeholders() {
+    local template_file="$1"
+    local output_file="$2"
+
+    # 读取模板内容
+    local template_content
+    template_content=$(cat "$template_file")
+
+    # 替换占位符变量
+    template_content=$(render_middleware_placeholders "$template_content")
+
+    # 写入渲染后的文件
+    echo "$template_content" > "$output_file"
+}
+
+# 动态替换中间件模板中的占位符
+function render_middleware_placeholders() {
+    local content="$1"
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 开始动态占位符替换"
+    fi
+
+    # 动态替换所有 ?variable 占位符
+    for key in "${!env[@]}"; do
+        if [[ "$key" =~ ^middleware_ ]]; then
+            local var_value="${env[$key]}"
+
+            # 跳过空值
+            if [[ -z "$var_value" ]]; then
+                continue
+            fi
+
+            # 提取变量名（移除middleware_前缀）
+            local var_name="${key#middleware_}"
+
+            # 替换 ?variable 占位符
+            local placeholder="?${var_name}"
+            content="${content//$placeholder/$var_value}"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 替换占位符: $placeholder = $var_value"
+            fi
+        fi
+    done
+
+    # 自动计算资源请求值
+    if [[ -n "${env[middleware_memory_limit]}" ]]; then
+        local memory_request cpu_request cpu_limit
+        memory_request=$(calculate_memory_request "${env[middleware_memory_limit]}")
+        cpu_request="100m"
+        cpu_limit="500m"
+
+        # 替换计算出的资源值
+        content="${content//\?memory_request/$memory_request}"
+        content="${content//\?cpu_request/$cpu_request}"
+        content="${content//\?cpu_limit/$cpu_limit}"
+
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 计算资源: memory_request=$memory_request, cpu_request=$cpu_request, cpu_limit=$cpu_limit"
+        fi
+    fi
+
+    echo "$content"
+}
+
+# 计算内存请求值的辅助函数
+function calculate_memory_request() {
+    local memory_limit="$1"
+    local memory_request
+
+    if [[ "$memory_limit" =~ ^([0-9]+)([MG])i$ ]]; then
+        local value="${BASH_REMATCH[1]}"
+        local unit="${BASH_REMATCH[2]}"
+        local request_value=$((value * 7 / 10))
+        memory_request="${request_value}${unit}i"
+    else
+        memory_request="256Mi"
+    fi
+
+    echo "$memory_request"
+}
+
+# 处理简化的Jinja2语法
+function process_jinja2_syntax() {
+    local content="$1"
+
+    # 处理简单的if条件语句
+    # {% if variable %}...{% endif %}
+    while [[ "$content" =~ \{\%[[:space:]]*if[[:space:]]+([^[:space:]]+)[[:space:]]*\%\}(.*?)\{\%[[:space:]]*endif[[:space:]]*\%\} ]]; do
+        local var_name="${BASH_REMATCH[1]}"
+        local if_content="${BASH_REMATCH[2]}"
+        local full_match="${BASH_REMATCH[0]}"
+
+        # 动态检查变量是否存在且非空
+        local var_value=""
+        local middleware_key="middleware_${var_name}"
+
+        # 首先检查middleware_前缀的变量
+        if [[ -n "${env[$middleware_key]}" ]]; then
+            var_value="${env[$middleware_key]}"
+        # 然后检查opt_前缀的变量（向后兼容）
+        elif [[ -n "${env[opt_${var_name}]}" ]]; then
+            var_value="${env[opt_${var_name}]}"
+        fi
+
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 检查条件变量: $var_name = $var_value"
+        fi
+
+        if [[ -n "$var_value" && "$var_value" != "auto-generate" ]]; then
+            # 条件为真，保留内容
+            content="${content//$full_match/$if_content}"
+        else
+            # 条件为假，移除整个块
+            content="${content//$full_match/}"
+        fi
+    done
+
+    # 动态处理变量替换 {{ variable }}
+    for key in "${!env[@]}"; do
+        if [[ "$key" =~ ^middleware_ ]]; then
+            local var_value="${env[$key]}"
+
+            # 跳过空值
+            if [[ -z "$var_value" ]]; then
+                continue
+            fi
+
+            # 提取变量名（移除middleware_前缀）
+            local var_name="${key#middleware_}"
+
+            # 替换 {{ variable }} 模式（支持空格）
+            local pattern="\{\{[[:space:]]*${var_name}[[:space:]]*\}\}"
+            content="${content//$pattern/$var_value}"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 替换Jinja2变量: {{ $var_name }} = $var_value"
+            fi
+        fi
+    done
+
+    # 处理过滤器 {{ variable | filter }}
+    # 例如: {{ redis_password | b64encode }}
+    while [[ "$content" =~ \{\{[[:space:]]*([^[:space:]|]+)[[:space:]]*\|[[:space:]]*([^[:space:]]+)[[:space:]]*\}\} ]]; do
+        local var_name="${BASH_REMATCH[1]}"
+        local filter_name="${BASH_REMATCH[2]}"
+        local full_match="${BASH_REMATCH[0]}"
+
+        # 动态获取变量值
+        local var_value=""
+        local middleware_key="middleware_${var_name}"
+
+        if [[ -n "${env[$middleware_key]}" ]]; then
+            var_value="${env[$middleware_key]}"
+        else
+            var_value="$var_name"  # 如果找不到变量，保持原样
+        fi
+
+        # 应用过滤器
+        local filtered_value
+        case "$filter_name" in
+            "b64encode")
+                filtered_value=$(echo -n "$var_value" | base64 -w 0 2>/dev/null || echo -n "$var_value" | base64)
+                ;;
+            *)
+                filtered_value="$var_value"
+                ;;
+        esac
+
+        content="${content//$full_match/$filtered_value}"
+    done
+
+    echo "$content"
+}
+
 function deploy() {
         cfg_deploy_target=${env[cfg_deploy_target]}
 	if test -z "$cfg_deploy_target"  ; then
@@ -738,6 +1238,7 @@ function local_deploy() {
     cfg_swarm_stack_name=${env[cfg_swarm_stack_name]}
 	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
     cmd_job_name=${env[cmd_job_name]}
+    cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 
 	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
         #创建或者更新镜像
@@ -746,7 +1247,17 @@ function local_deploy() {
                 check_env_by_cmd_v kubectl
                 info "开始使用k8s部署服务到namespace: ${cfg_k8s_namespace}"
                 # 确保namespace存在
-                kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f -
+                if [[ -z "${cfg_k8s_namespace}" ]]; then
+                    error "命名空间变量为空，请检查配置"
+                    exit 1
+                fi
+
+                if ! kubectl get namespace ${cfg_k8s_namespace} >/dev/null 2>&1; then
+                    info "创建命名空间: ${cfg_k8s_namespace}"
+                    kubectl create namespace ${cfg_k8s_namespace}
+                else
+                    info "命名空间已存在: ${cfg_k8s_namespace}"
+                fi
                 if [[ -f $deploy_job_yml ]]; then
                     # 检查部署是否已经存在
                     if kubectl get -f ${deploy_job_yml} -n ${cfg_k8s_namespace} >/dev/null 2>&1; then
@@ -796,6 +1307,7 @@ function remote_deploy() {
 	cfg_deploy_target=${env[cfg_deploy_target]}
 	cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
     cmd_job_name=${env[cmd_job_name]}
+    cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 
 	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
 
@@ -822,7 +1334,7 @@ function remote_deploy() {
                     env[cfg_harbor_secret_name]="$secret_name"
                     harbor_secret_cmd="kubectl get secret $secret_name -n ${env[cfg_k8s_namespace]} >/dev/null 2>&1 || kubectl create secret docker-registry $secret_name --docker-server=${env[cfg_harbor_address]} --docker-username=${env[cfg_harbor_username]} --docker-password=${env[cfg_harbor_password]} --namespace=${env[cfg_k8s_namespace]} >/dev/null 2>&1;"
                 fi
-		remote_command="ssh $user@$ip 'kubectl create namespace ${cfg_k8s_namespace} --dry-run=client -o yaml | kubectl apply -f - && $harbor_secret_cmd' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
+		remote_command="ssh $user@$ip 'kubectl get namespace ${cfg_k8s_namespace} >/dev/null 2>&1 || kubectl create namespace ${cfg_k8s_namespace}; $harbor_secret_cmd' && cat $deploy_job_yml | ssh $user@$ip 'kubectl apply -f -'"
         elif [ "$cfg_build_platform" = "DOCKER_SWARM" ]
         then
                 info "开始使用docker swarm部署服务"
@@ -863,6 +1375,315 @@ function prune() {
 	#!清除没有运行的无用镜像
 	echo 'start prune local images:'
 	docker image prune -af --filter="label=maintainer=corp" --filter="until=24h"
+}
+
+# 动态扫描可用的中间件模板
+function list_available_middleware_templates() {
+    local platform_dir
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES") platform_dir="k8s" ;;
+        "DOCKER_SWARM") platform_dir="swarm" ;;
+        "DOCKER_COMPOSE") platform_dir="compose" ;;
+        *) platform_dir="k8s" ;;
+    esac
+
+    local templates_dir="${DEVOPS_ROOT}/templates/${platform_dir}/middleware"
+    local templates=()
+    local template_descriptions=()
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 扫描模板目录: $templates_dir"
+        echo "DEBUG: DEVOPS_ROOT=$DEVOPS_ROOT"
+        echo "DEBUG: platform_dir=$platform_dir"
+    fi
+
+    if [[ -d "$templates_dir" ]]; then
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 模板目录存在，开始扫描..."
+        fi
+
+        for template_dir in "$templates_dir"/*; do
+            if [[ -d "$template_dir" ]]; then
+                local template_name=$(basename "$template_dir")
+                local metadata_file="$template_dir/metadata.yaml"
+                local description="未知描述"
+
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 找到模板目录: $template_name"
+                fi
+
+                if [[ -f "$metadata_file" ]]; then
+                    # 提取描述信息
+                    description=$(grep "^description:" "$metadata_file" | sed 's/description:[[:space:]]*["'"'"']*\([^"'"'"']*\)["'"'"']*/\1/')
+                    if [[ "${DEBUG}" == "true" ]]; then
+                        echo "DEBUG: 读取到描述: $description"
+                    fi
+                fi
+
+                templates+=("$template_name")
+                template_descriptions+=("$description")
+            fi
+        done
+    else
+        if [[ "${DEBUG}" == "true" ]]; then
+            echo "DEBUG: 模板目录不存在: $templates_dir"
+        fi
+    fi
+
+    # 返回模板列表（通过全局变量）
+    available_templates=("${templates[@]}")
+    available_descriptions=("${template_descriptions[@]}")
+}
+
+# 解析模板元数据中的变量定义
+function parse_template_variables() {
+    local template_name="$1"
+    local platform_dir
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES") platform_dir="k8s" ;;
+        "DOCKER_SWARM") platform_dir="swarm" ;;
+        "DOCKER_COMPOSE") platform_dir="compose" ;;
+        *) platform_dir="k8s" ;;
+    esac
+
+    local template_dir="${DEVOPS_ROOT}/templates/${platform_dir}/middleware/${template_name}"
+    local metadata_file="$template_dir/metadata.yaml"
+
+    if [[ ! -f "$metadata_file" ]]; then
+        warn "模板元数据文件不存在: $metadata_file"
+        return 1
+    fi
+
+    # 清空之前的变量定义
+    template_variables=()
+
+    # 解析 variables 部分
+    local in_variables=false
+    local current_var=""
+    local var_name=""
+    local var_type=""
+    local var_default=""
+    local var_description=""
+    local var_required="false"
+
+    while IFS= read -r line; do
+        # 检测 variables 部分开始
+        if [[ "$line" =~ ^variables:[[:space:]]*$ ]]; then
+            in_variables=true
+            continue
+        fi
+
+        # 如果不在 variables 部分，跳过
+        if [[ "$in_variables" != "true" ]]; then
+            continue
+        fi
+
+        # 检测 variables 部分结束（下一个顶级键）
+        if [[ "$line" =~ ^[a-zA-Z_][a-zA-Z0-9_]*:[[:space:]]* && ! "$line" =~ ^[[:space:]]+ ]]; then
+            in_variables=false
+            break
+        fi
+
+        # 解析变量项
+        if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*[\"\']*([^\"\']+)[\"\']*[[:space:]]*$ ]]; then
+            # 保存上一个变量
+            if [[ -n "$var_name" ]]; then
+                template_variables+=("$var_name|$var_type|$var_default|$var_description|$var_required")
+            fi
+
+            # 开始新变量
+            var_name="${BASH_REMATCH[1]}"
+            var_type="string"
+            var_default=""
+            var_description=""
+            var_required="false"
+        elif [[ "$line" =~ ^[[:space:]]+type:[[:space:]]*[\"\']*([^\"\']+)[\"\']*[[:space:]]*$ ]]; then
+            var_type="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]+default:[[:space:]]*[\"\']*([^\"\']*)[\"\']*[[:space:]]*$ ]]; then
+            var_default="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]+default:[[:space:]]*([0-9]+)[[:space:]]*$ ]]; then
+            var_default="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]+description:[[:space:]]*[\"\']*([^\"\']*)[\"\']*[[:space:]]*$ ]]; then
+            var_description="${BASH_REMATCH[1]}"
+        elif [[ "$line" =~ ^[[:space:]]+required:[[:space:]]*(true|false)[[:space:]]*$ ]]; then
+            var_required="${BASH_REMATCH[1]}"
+        fi
+    done < "$metadata_file"
+
+    # 保存最后一个变量
+    if [[ -n "$var_name" ]]; then
+        template_variables+=("$var_name|$var_type|$var_default|$var_description|$var_required")
+    fi
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 解析到 ${#template_variables[@]} 个变量"
+        for var in "${template_variables[@]}"; do
+            echo "DEBUG: 变量: $var"
+        done
+    fi
+}
+
+# 根据模板变量定义收集用户输入
+function collect_template_variables() {
+    local template_name="$1"
+
+    # 解析模板变量
+    parse_template_variables "$template_name"
+
+    if [[ ${#template_variables[@]} -eq 0 ]]; then
+        info "该模板没有可配置的变量，使用默认配置"
+        return
+    fi
+
+    echo
+    info "📋 配置模板变量 ($template_name)"
+    echo
+
+    # 遍历每个变量，收集用户输入
+    for var_def in "${template_variables[@]}"; do
+        IFS='|' read -r var_name var_type var_default var_description var_required <<< "$var_def"
+
+        # 构建提示信息
+        local prompt="🔹 $var_description"
+        local is_required=true
+
+        if [[ -n "$var_default" ]]; then
+            prompt="$prompt (默认: $var_default)"
+            is_required=false
+        elif [[ "$var_required" != "true" ]]; then
+            is_required=false
+        fi
+
+        prompt="$prompt: "
+
+        # 收集用户输入
+        while true; do
+            read -p "$prompt" user_input
+
+            # 如果用户直接回车且有默认值，使用默认值
+            if [[ -z "$user_input" && -n "$var_default" ]]; then
+                user_input="$var_default"
+            fi
+
+            # 检查必填项
+            if [[ -z "$user_input" && "$is_required" == "true" ]]; then
+                warn "该项为必填项，请输入值"
+                continue
+            fi
+
+            # 类型验证
+            if [[ -n "$user_input" ]]; then
+                case "$var_type" in
+                    "integer")
+                        if ! [[ "$user_input" =~ ^[0-9]+$ ]]; then
+                            warn "请输入有效的整数"
+                            continue
+                        fi
+                        ;;
+                    "boolean")
+                        if ! [[ "$user_input" =~ ^(true|false|yes|no|1|0)$ ]]; then
+                            warn "请输入 true/false 或 yes/no 或 1/0"
+                            continue
+                        fi
+                        # 标准化布尔值
+                        case "$user_input" in
+                            yes|1) user_input="true" ;;
+                            no|0) user_input="false" ;;
+                        esac
+                        ;;
+                esac
+            fi
+
+            # 设置环境变量
+            env["middleware_${var_name}"]="$user_input"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 设置变量 middleware_${var_name}=$user_input"
+            fi
+
+            break
+        done
+    done
+}
+
+# 中间件交互式部署
+function run_middleware_interactive() {
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 进入run_middleware_interactive()函数"
+    fi
+    info "进入中间件交互式配置模式..."
+    echo
+
+    # 1. 动态选择中间件模板
+    if [[ -z "${env[cmd_3]}" ]]; then
+        list_available_middleware_templates
+
+        if [[ ${#available_templates[@]} -eq 0 ]]; then
+            error "未找到可用的中间件模板"
+            exit 1
+        fi
+
+        echo "可用的中间件模板："
+        for i in "${!available_templates[@]}"; do
+            local index=$((i + 1))
+            echo "  $index) ${available_templates[i]} - ${available_descriptions[i]}"
+        done
+        echo
+
+        while true; do
+            read -p "🔹 请选择中间件模板（输入序号或名称）: " middleware_choice
+
+            # 检查是否是序号
+            if [[ "$middleware_choice" =~ ^[0-9]+$ ]]; then
+                local choice_index=$((middleware_choice - 1))
+                if [[ $choice_index -ge 0 && $choice_index -lt ${#available_templates[@]} ]]; then
+                    env[cmd_3]="${available_templates[choice_index]}"
+                    break
+                else
+                    warn "无效的序号，请重试"
+                    continue
+                fi
+            else
+                # 检查是否是模板名称
+                local found=false
+                for template in "${available_templates[@]}"; do
+                    if [[ "$template" == "$middleware_choice" ]]; then
+                        env[cmd_3]="$template"
+                        found=true
+                        break
+                    fi
+                done
+
+                if [[ "$found" == "true" ]]; then
+                    break
+                else
+                    warn "未找到模板: $middleware_choice，请重试"
+                fi
+            fi
+        done
+    fi
+
+    # 2. 实例名称
+    if [[ -z "${env[cmd_4]}" ]]; then
+        while true; do
+            read -p "🔹 请输入实例名称: " instance_name
+            if [[ -n "$instance_name" && "$instance_name" =~ ^[a-z0-9-]+$ ]]; then
+                env[cmd_4]="$instance_name"
+                break
+            else
+                warn "实例名称只能包含小写字母、数字和连字符，请重试"
+            fi
+        done
+    fi
+
+    # 3. 根据模板元数据收集变量配置
+    collect_template_variables "${env[cmd_3]}"
+
+    # 4. 生成并显示命令
+    generate_middleware_command
+
+    # 5. 确认并执行
+    confirm_and_execute_middleware
 }
 
 function run_interactive() {
@@ -1109,4 +1930,469 @@ function run_interactive() {
         tomcat) run_devops tomcat_build ;;
         *) error "不支持的运行类型: ${env[cmd_2]}" ; exit 1 ;;
     esac
+}
+
+# 显示中间件连接信息
+function show_middleware_connection_info() {
+    local template_name="$1"
+    local instance_name="$2"
+
+    info "中间件部署完成！"
+    echo
+    echo "📋 连接信息："
+
+    # 根据平台显示不同的连接信息
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES")
+            local namespace="${env[opt_namespace]:-default}"
+            echo "- 内部访问: ${instance_name}.${namespace}.svc.cluster.local"
+
+            # 显示通用连接信息
+            echo "- 服务端口: ${env[middleware_service_port]:-80}"
+
+            # 显示模板特定的连接信息（从metadata.yaml读取）
+            local template_dir="${env[cfg_template_path]}"
+            if [[ -f "$template_dir/metadata.yaml" ]]; then
+                local connection_info
+                connection_info=$(grep -A 10 "connection:" "$template_dir/metadata.yaml" 2>/dev/null | grep -v "connection:" | sed 's/^[[:space:]]*//')
+                if [[ -n "$connection_info" ]]; then
+                    echo "- 连接信息："
+                    echo "$connection_info" | while read -r line; do
+                        if [[ -n "$line" ]]; then
+                            # 替换变量占位符
+                            line="${line//\{instance_name\}/$instance_name}"
+                            line="${line//\{namespace\}/$namespace}"
+                            echo "  $line"
+                        fi
+                    done
+                else
+                    echo "- 请查看模板文档了解具体连接信息"
+                fi
+            else
+                echo "- 请查看模板文档了解具体连接信息"
+            fi
+
+            # 显示外部访问端口（如果配置了）
+            if [[ -n "${env[opt_export_port]}" ]]; then
+                echo "- 外部访问端口: ${env[opt_export_port]}"
+            fi
+            ;;
+        "DOCKER_SWARM"|"DOCKER_COMPOSE")
+            echo "- 服务名称: ${instance_name}"
+            echo "- 网络访问: ${instance_name}:端口"
+            ;;
+    esac
+
+    echo
+    echo "🔧 管理命令："
+    echo "- 查看状态: devops middleware status ${instance_name}"
+    echo "- 查看日志: devops middleware logs ${instance_name}"
+    echo "- 删除服务: devops middleware remove ${instance_name}"
+
+    # 显示模板特定的使用提示
+    if [[ -f "${env[cfg_template_path]}/metadata.yaml" ]]; then
+        local usage_info
+        usage_info=$(grep -A 10 "usage:" "${env[cfg_template_path]}/metadata.yaml" 2>/dev/null | grep -v "usage:" | sed 's/^[[:space:]]*//')
+        if [[ -n "$usage_info" ]]; then
+            echo
+            echo "💡 使用提示："
+            echo "$usage_info"
+        fi
+    fi
+
+    echo
+}
+
+# 从metadata.yaml加载默认值
+function load_metadata_defaults() {
+    local metadata_file="$1"
+
+    if [[ ! -f "$metadata_file" ]]; then
+        warn "模板metadata.yaml不存在: $metadata_file，使用系统默认值"
+        # 使用系统默认值（命名空间已在env.sh中处理）
+        env[middleware_memory_limit]="512Mi"
+        env[middleware_storage_size]="5Gi"
+        env[middleware_replicas]="1"
+        env[middleware_service_port]="80"
+        return
+    fi
+
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 解析metadata.yaml: $metadata_file"
+    fi
+
+    # 解析YAML中的变量定义和默认值
+    local in_variables=false
+    local current_var=""
+
+    while IFS= read -r line; do
+        # 检测是否进入variables部分
+        if [[ "$line" =~ ^variables: ]]; then
+            in_variables=true
+            continue
+        fi
+
+        # 如果遇到其他顶级键，退出variables部分
+        if [[ "$in_variables" == true && "$line" =~ ^[a-zA-Z] ]]; then
+            in_variables=false
+        fi
+
+        if [[ "$in_variables" == true ]]; then
+            # 解析变量名
+            if [[ "$line" =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*\"([^\"]+)\" ]]; then
+                current_var="${BASH_REMATCH[1]}"
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 发现变量: $current_var"
+                fi
+            fi
+
+            # 解析默认值
+            if [[ -n "$current_var" && "$line" =~ ^[[:space:]]*default:[[:space:]]*\"?([^\"]+)\"? ]]; then
+                local default_value="${BASH_REMATCH[1]}"
+                # 移除可能的引号
+                default_value=$(echo "$default_value" | sed 's/^"//;s/"$//')
+                env["middleware_${current_var}"]="$default_value"
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 设置默认值: middleware_${current_var}=$default_value"
+                fi
+                current_var=""
+            elif [[ -n "$current_var" && "$line" =~ ^[[:space:]]*default:[[:space:]]*([0-9]+) ]]; then
+                # 处理数字类型的默认值
+                local default_value="${BASH_REMATCH[1]}"
+                env["middleware_${current_var}"]="$default_value"
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 设置数字默认值: middleware_${current_var}=$default_value"
+                fi
+                current_var=""
+            fi
+        fi
+    done < "$metadata_file"
+
+    # 确保基础变量有值（如果metadata中没有定义）
+    # namespace 使用系统统一的 cfg_k8s_namespace
+    env[middleware_memory_limit]="${env[middleware_memory_limit]:-512Mi}"
+    env[middleware_storage_size]="${env[middleware_storage_size]:-5Gi}"
+    env[middleware_replicas]="${env[middleware_replicas]:-1}"
+    env[middleware_service_port]="${env[middleware_service_port]:-80}"
+}
+
+# 动态应用命令行参数覆盖默认值
+function apply_command_line_overrides() {
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 开始应用命令行参数覆盖"
+        echo "DEBUG: opt_export_port=${env[opt_export_port]}"
+        echo "DEBUG: opt_service_port=${env[opt_service_port]}"
+    fi
+
+    # 遍历所有opt_开头的环境变量（命令行参数）
+    for key in "${!env[@]}"; do
+        if [[ "$key" =~ ^opt_ ]]; then
+            # 提取变量名（移除opt_前缀）
+            local var_name="${key#opt_}"
+            local var_value="${env[$key]}"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 处理参数: $key = $var_value"
+            fi
+
+            # 跳过系统保留参数和instance_name（直接复用命令中的<name>）
+            case "$var_name" in
+                interactive|workspace|namespace|build_tool|git_url|svn_url|java_opts|dockerfile|static_dir|template|git_branch|build_cmds|build_env|build_version|app_port|expose_port|force_port|python_requirements|python_main|instance_name)
+                    if [[ "${DEBUG}" == "true" ]]; then
+                        echo "DEBUG: 跳过系统参数: $var_name"
+                    fi
+                    continue
+                    ;;
+            esac
+
+            # 设置中间件变量
+            local middleware_key="middleware_${var_name}"
+            env["$middleware_key"]="$var_value"
+
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 应用参数覆盖: $key -> $middleware_key = $var_value"
+            fi
+        fi
+    done
+
+    # 处理auto-generate密码
+    for key in "${!env[@]}"; do
+        if [[ "$key" =~ ^middleware_ && "${env[$key]}" == "auto-generate" ]]; then
+            env["$key"]=$(generate_password)
+            if [[ "${DEBUG}" == "true" ]]; then
+                echo "DEBUG: 自动生成密码: $key"
+            fi
+        fi
+    done
+
+    # 确保基础变量有值
+    # namespace 使用系统统一的 cfg_k8s_namespace
+    env[middleware_instance_name]="${env[middleware_instance_name]:-${env[cmd_3]}}"
+}
+
+# 生成随机密码
+function generate_password() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -base64 16 2>/dev/null | tr -d "=+/" | cut -c1-16
+    else
+        echo "pass$(date +%s)"
+    fi
+}
+
+# 中间件Jinja2模板渲染
+function render_middleware_jinja2() {
+    local template_file="$1"
+    local output_file="$2"
+
+    # 检查Python环境
+    if ! command -v python3 &> /dev/null; then
+        error "Python3 未安装，无法使用Jinja2渲染器"
+        exit 1
+    fi
+
+    # 创建临时Python脚本
+    local temp_script="/tmp/middleware_renderer_$$.py"
+    cat > "$temp_script" << 'EOF'
+#!/usr/bin/env python3
+import sys
+import os
+import base64
+
+try:
+    from jinja2 import Environment, FileSystemLoader
+    import yaml
+except ImportError:
+    print("错误: 缺少依赖，请安装: pip3 install Jinja2 PyYAML", file=sys.stderr)
+    sys.exit(1)
+
+def main():
+    if len(sys.argv) != 3:
+        print("用法: python3 script.py template_file output_file", file=sys.stderr)
+        sys.exit(1)
+
+    template_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    # 从环境变量获取模板变量
+    variables = {}
+    for key, value in os.environ.items():
+        if key.startswith('middleware_'):
+            var_name = key[11:]  # 移除 'middleware_' 前缀
+            variables[var_name] = value
+
+    # 设置Jinja2环境
+    template_dir = os.path.dirname(template_file)
+    env = Environment(loader=FileSystemLoader(template_dir))
+
+    # 添加自定义过滤器
+    env.filters['b64encode'] = lambda x: base64.b64encode(x.encode()).decode()
+
+    # 渲染模板
+    template = env.get_template(os.path.basename(template_file))
+    rendered = template.render(**variables)
+
+    # 写入输出文件
+    with open(output_file, 'w') as f:
+        f.write(rendered)
+
+    print(f"中间件模板渲染成功: {output_file}")
+
+if __name__ == '__main__':
+    main()
+EOF
+
+    # 执行渲染
+    if python3 "$temp_script" "$template_file" "$output_file"; then
+        success "中间件Jinja2模板渲染成功"
+    else
+        error "中间件Jinja2模板渲染失败"
+        exit 1
+    fi
+
+    # 清理临时文件
+    rm -f "$temp_script"
+}
+
+# 处理中间件变量（MVP版本）
+function process_middleware_variables() {
+    local template_name="$1"
+    local instance_name="$2"
+    local template_dir="${env[cfg_template_path]}"
+    local metadata_file="$template_dir/metadata.yaml"
+
+    # 设置基础变量，instance_name直接复用命令中的<name>参数
+    env[middleware_instance_name]="$instance_name"
+
+    # 从metadata.yaml读取默认值，如果没有则使用系统默认值
+    load_metadata_defaults "$metadata_file"
+
+    # 应用命令行参数（覆盖默认值）
+    apply_command_line_overrides
+
+    # 调试：显示所有中间件变量
+    if [[ "${DEBUG}" == "true" ]]; then
+        echo "DEBUG: 所有中间件变量："
+        for key in "${!env[@]}"; do
+            if [[ "$key" =~ ^middleware_ ]]; then
+                echo "DEBUG: $key=${env[$key]}"
+            fi
+        done
+    fi
+}
+
+# 生成中间件部署命令
+function generate_middleware_command() {
+    local template_name="${env[cmd_3]}"
+    local instance_name="${env[cmd_4]}"
+
+    echo
+    info "📊 配置预览"
+    echo "模板: $template_name"
+    echo "实例名称: $instance_name"
+
+    # 显示配置的变量
+    echo
+    echo "配置变量:"
+    for var_name in "${!env[@]}"; do
+        if [[ "$var_name" =~ ^middleware_ ]]; then
+            local display_name="${var_name#middleware_}"
+            echo "  - $display_name: ${env[$var_name]}"
+        fi
+    done
+
+    # 生成等效的命令行
+    echo
+    echo "等效命令行:"
+    local cmd="devops run middleware $template_name $instance_name"
+
+    # 添加变量参数
+    for var_name in "${!env[@]}"; do
+        if [[ "$var_name" =~ ^middleware_ && -n "${env[$var_name]}" ]]; then
+            local param_name="${var_name#middleware_}"
+            # 将下划线转换为连字符
+            param_name="${param_name//_/-}"
+            cmd="$cmd --$param_name \"${env[$var_name]}\""
+        fi
+    done
+
+    echo "$cmd"
+}
+
+# 确认并执行中间件部署
+function confirm_and_execute_middleware() {
+    echo
+    while true; do
+        read -p "🔹 确认部署？[Y/n]: " confirm
+        case "$confirm" in
+            ""|y|Y|yes|Yes)
+                info "开始部署中间件..."
+                # 调用实际的中间件部署逻辑
+                run_middleware "${env[cmd_3]}" "${env[cmd_4]}"
+                break
+                ;;
+            n|N|no|No)
+                info "取消部署"
+                exit 0
+                ;;
+            *)
+                warn "请输入 y 或 n"
+                ;;
+        esac
+    done
+}
+
+# 中间件部署主函数
+function run_middleware() {
+    local template_name="$1"
+    local instance_name="$2"
+
+    if [[ -z "$template_name" || -z "$instance_name" ]]; then
+        error "缺少必要参数: template_name 和 instance_name"
+        exit 1
+    fi
+
+    info "部署中间件: $template_name -> $instance_name"
+
+    # 设置中间件特定的环境变量
+    env[cmd_type]="middleware"
+    env[middleware_template]="$template_name"  # 使用独立的中间件模板变量
+    env[cmd_job_name]="$instance_name"
+
+    # 查找模板目录
+    local platform_dir
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES") platform_dir="k8s" ;;
+        "DOCKER_SWARM") platform_dir="swarm" ;;
+        "DOCKER_COMPOSE") platform_dir="compose" ;;
+        *) platform_dir="k8s" ;;
+    esac
+
+    local template_dir="${DEVOPS_ROOT}/templates/${platform_dir}/middleware/${template_name}"
+    if [[ ! -d "$template_dir" ]]; then
+        error "模板目录不存在: $template_dir"
+        exit 1
+    fi
+
+    env[cfg_template_path]="$template_dir"
+
+    # 处理中间件变量
+    process_middleware_variables "$template_name" "$instance_name"
+
+    # 渲染中间件模板（使用专门的中间件模板渲染器）
+    render_middleware_template
+
+    # 部署
+    deploy
+
+    # 显示部署结果
+    show_middleware_deployment_info "$instance_name"
+}
+
+# 显示中间件部署信息
+function show_middleware_deployment_info() {
+    local instance_name="$1"
+
+    echo
+    success "🎉 中间件部署完成！"
+    echo
+    echo "📋 部署信息："
+    echo "- 实例名称: $instance_name"
+    echo "- 模板类型: ${env[middleware_template]}"
+
+    # 根据平台显示连接信息
+    case "${env[cfg_build_platform]}" in
+        "KUBERNETES")
+            local namespace="${env[cfg_k8s_namespace]:-default}"
+            echo "- 命名空间: $namespace"
+            echo "- 内部访问: ${instance_name}.${namespace}.svc.cluster.local"
+
+            # 显示外部访问端口（如果配置了）
+            if [[ -n "${env[middleware_export_port]}" ]]; then
+                echo "- 外部访问端口: ${env[middleware_export_port]}"
+            fi
+            ;;
+        "DOCKER_SWARM"|"DOCKER_COMPOSE")
+            echo "- 服务名称: ${instance_name}"
+            echo "- 网络访问: ${instance_name}:端口"
+            ;;
+    esac
+
+    echo
+    echo "🔧 管理命令："
+    echo "- 查看状态: devops middleware status ${instance_name}"
+    echo "- 查看日志: devops middleware logs ${instance_name}"
+    echo "- 删除服务: devops middleware remove ${instance_name}"
+
+    # 显示模板特定的使用提示
+    if [[ -f "${env[cfg_template_path]}/metadata.yaml" ]]; then
+        local usage_info
+        usage_info=$(grep -A 10 "usage:" "${env[cfg_template_path]}/metadata.yaml" 2>/dev/null | grep -v "usage:" | sed 's/^[[:space:]]*//')
+        if [[ -n "$usage_info" ]]; then
+            echo
+            echo "💡 使用提示："
+            echo "$usage_info"
+        fi
+    fi
+
+    echo
 }

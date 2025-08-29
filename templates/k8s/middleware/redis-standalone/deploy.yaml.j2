@@ -1,0 +1,188 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ instance_name }}-redis-config
+  namespace: {{ namespace }}
+  labels:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}
+    app.kubernetes.io/managed-by: devops-middleware
+data:
+  redis.conf: |
+    # Redis配置文件
+    port {{ service_port }}
+    bind 0.0.0.0
+    protected-mode yes
+
+    # 持久化配置
+    {% if redis_persistence == 'rdb' or redis_persistence == 'both' %}
+    save 900 1
+    save 300 10
+    save 60 10000
+    {% endif %}
+
+    {% if redis_persistence == 'aof' or redis_persistence == 'both' %}
+    appendonly yes
+    appendfsync everysec
+    {% endif %}
+    
+    # 内存管理
+    maxmemory-policy allkeys-lru
+    
+    # 日志配置
+    loglevel notice
+    
+    # 安全配置
+    {% if redis_password != 'auto-generate' and redis_password != '' %}
+    requirepass {{ redis_password }}
+    {% endif %}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ instance_name }}-redis-auth
+  namespace: {{ namespace }}
+  labels:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}
+    app.kubernetes.io/managed-by: devops-middleware
+type: Opaque
+data:
+  # 密码将在部署时自动生成或使用用户提供的密码
+  password: {{ redis_password | b64encode if redis_password != 'auto-generate' else 'YXV0by1nZW5lcmF0ZWQ=' }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ instance_name }}-redis-data
+  namespace: {{ namespace }}
+  labels:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}
+    app.kubernetes.io/managed-by: devops-middleware
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ storage_size }}
+  {% if storage_class %}
+  storageClassName: {{ storage_class }}
+  {% endif %}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ instance_name }}-redis
+  namespace: {{ namespace }}
+  labels:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}
+    app.kubernetes.io/version: "7.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: middleware
+    app.kubernetes.io/managed-by: devops-middleware
+spec:
+  replicas: {{ replicas }}
+  selector:
+    matchLabels:
+      app: {{ instance_name }}
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: {{ instance_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ instance_name }}
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/instance: {{ instance_name }}
+        app.kubernetes.io/version: "7.0"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: middleware
+        app.kubernetes.io/managed-by: devops-middleware
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ instance_name }}-redis-auth
+              key: password
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        {% if redis_password != '' %}
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        {% endif %}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/redis
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: {{ memory_request }}
+            cpu: {{ cpu_request }}
+          limits:
+            memory: {{ memory_limit }}
+            cpu: {{ cpu_limit }}
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: {{ instance_name }}-redis-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ instance_name }}-redis-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ instance_name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}
+    app.kubernetes.io/managed-by: devops-middleware
+spec:
+{% if export_port %}
+  type: NodePort
+{% else %}
+  type: ClusterIP
+{% endif %}
+  ports:
+  - port: {{ service_port }}
+    targetPort: 6379
+    name: redis
+{% if export_port %}
+    nodePort: {{ export_port }}
+{% endif %}
+  selector:
+    app: {{ instance_name }}
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: {{ instance_name }}

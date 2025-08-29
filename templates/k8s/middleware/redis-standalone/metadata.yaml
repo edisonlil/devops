@@ -1,0 +1,107 @@
+# Redis单实例部署模板元数据
+name: "redis-standalone"
+type: "redis"
+description: "Redis单实例部署模板，适用于开发和测试环境"
+version: "1.0"
+author: "devops-team"
+platform: "kubernetes"
+
+# 支持的变量
+variables:
+  - name: "instance_name"
+    type: "string"
+    required: true
+    description: "实例名称"
+    example: "cache-server"
+
+  - name: "namespace"
+    type: "string"
+    default: "default"
+    description: "Kubernetes命名空间"
+    example: "middleware"
+
+  - name: "memory_limit"
+    type: "string"
+    default: "512Mi"
+    description: "内存限制"
+    example: "2Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "storage_size"
+    type: "string"
+    default: "1Gi"
+    description: "存储大小"
+    example: "10Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "replicas"
+    type: "integer"
+    default: 1
+    description: "副本数量（单实例固定为1）"
+    validation: "value == 1"
+
+  - name: "redis_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Redis访问密码"
+    example: "mypassword123"
+
+  - name: "redis_persistence"
+    type: "string"
+    default: "rdb"
+    description: "持久化类型"
+    options: ["rdb", "aof", "both", "none"]
+
+  - name: "service_port"
+    type: "string"
+    default: "6379"
+    description: "服务端口"
+    example: "6379"
+
+  - name: "export_port"
+    type: "string"
+    default: ""
+    description: "外部访问端口（NodePort）"
+    example: "30379"
+
+# 端口信息
+ports:
+  - name: "redis"
+    port: 6379
+    description: "Redis服务端口"
+
+# 连接信息模板
+connection_info:
+  internal: "{{ instance_name }}.{{ namespace }}.svc.cluster.local:6379"
+  external: "{{ node_ip }}:{{ export_port }}"
+
+# 使用说明
+usage:
+  basic: "devops run middleware redis-standalone my-cache"
+  with_params: "devops run middleware redis-standalone my-cache --memory-limit 2Gi --storage-size 5Gi"
+  interactive: "devops run middleware redis-standalone my-cache -i"
+
+# 管理命令
+management:
+  status: "devops middleware status my-cache"
+  logs: "devops middleware logs my-cache --follow"
+  scale: "不支持扩缩容（单实例模式）"
+  backup: "devops middleware backup my-cache"
+  remove: "devops middleware remove my-cache"
+
+# 依赖和要求
+requirements:
+  kubernetes_version: ">=1.16"
+  storage_class: "支持ReadWriteOnce的存储类"
+  resources:
+    min_memory: "256Mi"
+    min_storage: "1Gi"
+
+# 标签
+labels:
+  app.kubernetes.io/name: "redis"
+  app.kubernetes.io/instance: "{{ instance_name }}"
+  app.kubernetes.io/version: "7.0"
+  app.kubernetes.io/component: "database"
+  app.kubernetes.io/part-of: "middleware"
+  app.kubernetes.io/managed-by: "devops-middleware"

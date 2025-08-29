@@ -32,6 +32,8 @@ function devops_help() {
 
 	Commands:
 	  run <type> <name>            运行构建和部署（支持交互式 -i）
+	  run middleware <template> <name>  部署中间件服务（支持交互式 -i）
+	  middleware <action>          中间件管理（list/status/logs/remove/scale等）
 	  install-tools                安装开发工具
 	  env use <workspace>          切换默认工作空间
 	  env harbor-login             登录当前工作空间的Harbor
@@ -47,6 +49,16 @@ function devops_help() {
 	  devops run vue frontend -i
 	  devops run python api -i
 	  devops run -i  # 完全交互式，会提示选择类型和项目名
+
+	  # 中间件部署（交互式）
+	  devops run middleware redis-standalone cache-server -i
+	  devops run middleware mysql-standalone main-db -i
+	  devops run middleware redis-cluster cache-cluster -i
+
+	  # 中间件部署（命令行）
+	  devops run middleware redis-standalone cache-server --memory-limit 2Gi --storage-size 5Gi
+	  devops run middleware mysql-standalone main-db --memory-limit 4Gi --storage-size 100Gi --mysql-database app_db
+	  devops run middleware redis-cluster cache-cluster --replicas 6 --memory-limit 2Gi
 
 	  # 传统命令行部署
 	  devops run java crm --git-url https://git.example.com/crm.git
@@ -87,6 +99,16 @@ function devops_help() {
 	  devops run vue my-app --build-version "node:18.12" --build-env "prod"     # 指定Node.js版本和构建环境
 	  devops run java my-app --build-version "jdk:17,maven:3.9.3"              # 指定JDK和Maven版本
 	  devops run vue my-app --build-version "volta:18.12"                      # 使用Volta管理Node.js版本
+
+	  # 中间件管理
+	  devops middleware list                  # 列出已部署的中间件
+	  devops middleware status cache-server   # 查看中间件状态
+	  devops middleware logs cache-server --follow  # 查看中间件日志
+	  devops middleware remove cache-server   # 删除中间件
+	  devops middleware scale cache-cluster --replicas 8  # 扩缩容中间件
+	  devops middleware backup main-db        # 备份中间件数据
+	  devops middleware info cache-server     # 查看连接信息
+	  devops middleware templates list        # 列出可用模板
 
 	  # 模板管理
 	  devops template list                    # 列出所有可用模板（全局和workspace）
@@ -180,6 +202,48 @@ function devops_help() {
 	    BUILD_VERSION="node:18.12"           # 单个工具版本
 	    BUILD_VERSION="jdk:17,maven:3.9.3"  # 多个工具版本
 	    #BUILD_VERSION=""                    # 注释掉表示不使用默认版本
+
+	Middleware Deployment:
+	  中间件部署提供开箱即用的数据库、缓存、消息队列等基础设施服务：
+
+	  支持的中间件类型:
+	    缓存: redis-standalone, redis-cluster, redis-sentinel
+	    数据库: mysql-standalone, mysql-ha, postgresql-standalone, postgresql-ha
+	    消息队列: kafka-standalone, kafka-cluster, rabbitmq-standalone, rabbitmq-cluster
+	    搜索引擎: elasticsearch-standalone, elasticsearch-cluster
+	    存储: mongodb-standalone, mongodb-replicaset, minio-standalone, minio-distributed
+
+	  中间件部署参数:
+	    --memory-limit SIZE        内存限制 (如: 2Gi, 512Mi)
+	    --storage-size SIZE        存储大小 (如: 10Gi, 100Gi)
+	    --replicas COUNT          副本数量
+	    --service-port PORT       服务端口
+	    --export-port PORT        外部访问端口 (NodePort)
+	    --backup-enabled          启用自动备份
+	    --monitoring-enabled      启用监控
+
+	  中间件特定参数:
+	    Redis: --redis-password, --redis-persistence, --max-memory-policy
+	    MySQL: --mysql-root-password, --mysql-database, --mysql-user, --mysql-charset
+	    Kafka: --kafka-partitions, --kafka-retention-hours, --kafka-zookeeper-enabled
+
+	  中间件管理命令:
+	    list                      列出已部署的中间件
+	    status <name>             查看中间件状态
+	    logs <name>               查看中间件日志
+	    remove <name>             删除中间件
+	    scale <name> --replicas N 扩缩容中间件
+	    backup <name>             备份中间件数据
+	    restore <name> --from PATH 恢复中间件数据
+	    info <name>               查看连接信息
+	    templates list            列出可用模板
+
+	  使用示例:
+	    devops run middleware redis-standalone cache --memory-limit 2Gi
+	    devops run middleware mysql-standalone db --storage-size 100Gi --mysql-database app_db
+	    devops middleware list
+	    devops middleware status cache
+	    devops middleware scale cache-cluster --replicas 6
 
 	Install Tools:
 	  devops install-tools 提供开发环境工具的自动安装和检查功能

@@ -1151,3 +1151,87 @@
     gap: var(--space-1);
   }
 }
+
+/* 环境要求和系统要求样式 */
+.requirement-section {
+  margin: var(--space-6) 0;
+}
+
+.requirement-section h4 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: var(--space-4) 0 var(--space-2) 0;
+}
+
+.requirement-section ul {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-6);
+}
+
+.requirement-section li {
+  margin-bottom: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.requirement-section li strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 警告块样式增强 */
+.warning-block {
+  background: #fef3cd;
+  border: 1px solid #fbbf24;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.warning-block strong {
+  color: #92400e;
+  font-weight: 600;
+}
+
+/* 模板格式表格样式 */
+.template-formats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-4) 0;
+  font-size: 0.9rem;
+}
+
+.template-formats-table th,
+.template-formats-table td {
+  padding: var(--space-3);
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.template-formats-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.template-formats-table td {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.template-formats-table code {
+  background: var(--bg-tertiary);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--primary);
+}
+
+.template-formats-table tr:nth-child(even) td {
+  background: var(--bg-secondary);
+}
+
+.template-formats-table tr:hover td {
+  background: var(--bg-tertiary);
+}

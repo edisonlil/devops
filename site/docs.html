@@ -52,6 +52,7 @@
                         <li><a href="#java-deployment" class="sidebar-link">Java 应用部署</a></li>
                         <li><a href="#vue-deployment" class="sidebar-link">Vue.js 应用部署</a></li>
                         <li><a href="#python-deploy" class="sidebar-link">Python 应用部署</a></li>
+                        <li><a href="#middleware-deployment" class="sidebar-link">中间件部署</a></li>
                         <li><a href="#interactive-mode" class="sidebar-link">交互式部署</a></li>
                     </ul>
                 </div>
@@ -61,7 +62,7 @@
                         <li><a href="#install-tools" class="sidebar-link">环境工具安装</a></li>
                         <li><a href="#multi-port" class="sidebar-link">多端口配置 & 多容器支持</a></li>
                         <li><a href="#version-management" class="sidebar-link">版本管理</a></li>
-                        <li><a href="#template-system" class="sidebar-link">模板系统</a></li>
+                        <li><a href="#template-system" class="sidebar-link">模板系统详解</a></li>
                         <li><a href="#troubleshooting" class="sidebar-link">故障排除</a></li>
                     </ul>
                 </div>
@@ -135,6 +136,37 @@
                 <!-- 安装指南 -->
                 <section id="installation" class="docs-section">
                     <h1>安装指南</h1>
+
+                    <!-- 系统要求 -->
+                    <div class="info-block">
+                        <h3>📋 系统要求</h3>
+                        <div class="requirement-section">
+                            <h4>Python版本要求</h4>
+                            <p>DevOps工具需要Python环境来支持模板渲染和中间件部署功能：</p>
+                            <ul>
+                                <li><strong>Python 3.6+</strong>: 支持基本功能</li>
+                                <li><strong>Python 3.7+</strong>: 推荐版本，支持所有功能</li>
+                            </ul>
+
+                            <h4>Python依赖包</h4>
+                            <p>安装完成后，需要安装以下Python依赖：</p>
+                            <div class="code-block">
+                                <code># 对于Python 3.6
+pip3 install "PyYAML>=5.1,<7.0" "Jinja2>=2.10,<3.1"
+
+# 对于Python 3.7+（推荐）
+pip3 install "PyYAML>=5.4.1" "Jinja2>=2.11.0"
+
+# 或者使用用户模式安装
+pip3 install --user PyYAML Jinja2</code>
+                                <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                            <div class="warning-block">
+                                <strong>注意</strong>: 如果遇到依赖安装问题，请确保Python版本符合要求。Python 3.6用户需要使用较低版本的Jinja2。
+                            </div>
+                        </div>
+                    </div>
+
                     <p>DevOps 提供了三种安装模式，根据你的需求选择合适的方式：</p>
 
                     <div class="install-option">
@@ -641,6 +673,294 @@ devops run python \
                     </div>
                 </section>
 
+                <!-- 中间件部署 -->
+                <section id="middleware-deployment" class="docs-section">
+                    <h1>中间件部署</h1>
+                    <p>DevOps 提供开箱即用的中间件部署功能，支持 Redis、MySQL、Kafka 等常用基础设施服务的一键部署和管理。</p>
+
+                    <div class="info-block">
+                        <h3>📋 环境要求</h3>
+                        <p><strong>Python版本要求</strong>：中间件部署功能需要Python环境支持模板渲染</p>
+                        <ul>
+                            <li><strong>Python 3.6+</strong>: 支持基本功能</li>
+                            <li><strong>Python 3.7+</strong>: 推荐版本，支持所有功能</li>
+                        </ul>
+                        <p><strong>依赖包安装</strong>：</p>
+                        <div class="code-block">
+                            <code># 安装Python依赖
+pip3 install --user PyYAML Jinja2
+
+# 或者根据Python版本选择
+# Python 3.6: pip3 install "PyYAML>=5.1,<7.0" "Jinja2>=2.10,<3.1"
+# Python 3.7+: pip3 install "PyYAML>=5.4.1" "Jinja2>=2.11.0"</code>
+                            <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                        </div>
+                    </div>
+
+                    <h2>支持的中间件类型</h2>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h3>🗄️ 缓存服务</h3>
+                            <ul>
+                                <li>redis-standalone - Redis单实例</li>
+                                <li>redis-cluster - Redis集群</li>
+                                <li>redis-sentinel - Redis哨兵模式</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h3>🗃️ 数据库服务</h3>
+                            <ul>
+                                <li>mysql-standalone - MySQL单实例</li>
+                                <li>mysql-ha - MySQL高可用</li>
+                                <li>postgresql-standalone - PostgreSQL单实例</li>
+                                <li>postgresql-ha - PostgreSQL高可用</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h3>📨 消息队列</h3>
+                            <ul>
+                                <li>kafka-standalone - Kafka单节点</li>
+                                <li>kafka-cluster - Kafka集群</li>
+                                <li>rabbitmq-standalone - RabbitMQ单实例</li>
+                                <li>rabbitmq-cluster - RabbitMQ集群</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h2>快速开始</h2>
+                    <h3>部署 Redis 缓存服务</h3>
+                    <div class="code-block">
+                        <code># 交互式部署（推荐）
+devops run middleware redis-standalone cache-server -i
+
+# 动态参数部署 - 参数名对应模板变量
+devops run middleware redis-standalone cache-server \
+  --memory-limit 2Gi \
+  --storage-size 5Gi \
+  --redis-password mypassword
+
+# 完整配置 - 所有参数都是动态匹配
+devops run middleware redis-standalone cache-server \
+  --memory-limit 4Gi \
+  --storage-size 20Gi \
+  --redis-password securepass123 \
+  --redis-persistence both \
+  --max-memory-policy allkeys-lru \
+  --export-port 30379</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>💡 动态参数说明</h3>
+                        <p>参数名称直接对应模板中的变量名：</p>
+                        <ul>
+                            <li><code>cache-server</code> → <code>{{ instance_name }}</code>（自动复用命令中的名称）</li>
+                            <li><code>--memory-limit</code> → <code>{{ memory_limit }}</code></li>
+                            <li><code>--redis-password</code> → <code>{{ redis_password }}</code></li>
+                            <li><code>--redis-persistence</code> → <code>{{ redis_persistence }}</code></li>
+                        </ul>
+                        <p>用户可以传递任意 <code>--变量名</code> 参数，只要模板中有对应的变量就会生效。<code>instance_name</code> 会自动复用命令中的实例名称。</p>
+                    </div>
+
+                    <h3>部署 MySQL 数据库</h3>
+                    <div class="code-block">
+                        <code># 交互式部署
+devops run middleware mysql-standalone main-db -i
+
+# 命令行部署 - 基础配置
+devops run middleware mysql-standalone main-db \
+  --memory-limit 4Gi \
+  --storage-size 100Gi \
+  --mysql-database app_db \
+  --mysql-user app_user
+
+# 命令行部署 - 完整配置
+devops run middleware mysql-standalone main-db \
+  --memory-limit 8Gi \
+  --storage-size 500Gi \
+  --mysql-root-password rootpass123 \
+  --mysql-database production_db \
+  --mysql-user webapp_user \
+  --mysql-password userpass123 \
+  --mysql-charset utf8mb4 \
+  --export-port 30306</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>中间件管理</h2>
+                    <p>部署完成后，可以使用以下命令管理中间件服务：</p>
+
+                    <div class="code-block">
+                        <code># 列出已部署的中间件
+devops middleware list
+
+# 查看中间件状态
+devops middleware status cache-server
+
+# 查看中间件日志
+devops middleware logs cache-server --follow
+
+# 扩缩容中间件（支持集群模式）
+devops middleware scale cache-cluster --replicas 6
+
+# 备份中间件数据
+devops middleware backup main-db
+
+# 删除中间件
+devops middleware remove cache-server</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>通用参数</h2>
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>说明</th>
+                                    <th>示例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>--memory-limit</code></td>
+                                    <td>内存限制</td>
+                                    <td>2Gi, 512Mi</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--storage-size</code></td>
+                                    <td>存储大小</td>
+                                    <td>10Gi, 100Gi</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--replicas</code></td>
+                                    <td>副本数量</td>
+                                    <td>1, 3, 6</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--export-port</code></td>
+                                    <td>外部访问端口</td>
+                                    <td>30379, 30306</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--namespace</code></td>
+                                    <td>Kubernetes命名空间</td>
+                                    <td>middleware, production</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2>中间件特定参数</h2>
+                    <h3>Redis 参数</h3>
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>说明</th>
+                                    <th>选项</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>--redis-password</code></td>
+                                    <td>Redis访问密码</td>
+                                    <td>自定义密码或auto-generate</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--redis-persistence</code></td>
+                                    <td>持久化类型</td>
+                                    <td>rdb, aof, both, none</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--max-memory-policy</code></td>
+                                    <td>内存淘汰策略</td>
+                                    <td>allkeys-lru, volatile-lru</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3>MySQL 参数</h3>
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>参数</th>
+                                    <th>说明</th>
+                                    <th>示例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>--mysql-root-password</code></td>
+                                    <td>root用户密码</td>
+                                    <td>自定义密码或auto-generate</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--mysql-database</code></td>
+                                    <td>初始数据库名</td>
+                                    <td>app_db, production_db</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--mysql-user</code></td>
+                                    <td>应用用户名</td>
+                                    <td>app_user, web_user</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--mysql-charset</code></td>
+                                    <td>字符集</td>
+                                    <td>utf8mb4, utf8, latin1</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🎯 连接信息</h3>
+                        <p>部署完成后，系统会自动显示连接信息：</p>
+                        <ul>
+                            <li><strong>内部访问</strong>：service-name.namespace.svc.cluster.local:port</li>
+                            <li><strong>外部访问</strong>：node-ip:export-port（如果配置了外部端口）</li>
+                            <li><strong>密码信息</strong>：存储在 Kubernetes Secret 中</li>
+                            <li><strong>管理命令</strong>：使用 devops middleware 命令管理</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>📁 模板目录结构</h3>
+                        <p>中间件模板按以下结构组织：</p>
+                        <ul>
+                            <li><strong>全局模板</strong>：templates/{platform}/middleware/{template-name}/</li>
+                            <li><strong>工作空间模板</strong>：workspace/{workspace}/templates/{platform}/middleware/{template-name}/</li>
+                            <li><strong>应用模板</strong>：templates/{platform}/app/{template-name}/</li>
+                        </ul>
+                        <p>例如：templates/k8s/middleware/redis-standalone/</p>
+                    </div>
+
+                    <div class="warning-block">
+                        <h3>⚠️ 注意事项</h3>
+                        <ul>
+                            <li>生产环境建议使用集群模式以确保高可用</li>
+                            <li>定期备份重要数据，使用 <code>devops middleware backup</code> 命令</li>
+                            <li>合理配置资源限制，避免影响其他服务</li>
+                            <li>使用强密码并妥善保管访问凭据</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🔗 相关文档</h3>
+                        <p>了解更多中间件模板系统的详细信息：</p>
+                        <ul>
+                            <li><a href="#template-system" class="sidebar-link">模板系统详解</a> - Jinja2语法、变量管理、自定义模板开发</li>
+                            <li><strong>模板路径</strong>：templates/k8s/middleware/{template-name}/</li>
+                            <li><strong>变量配置</strong>：通过metadata.yaml定义默认值和验证规则</li>
+                            <li><strong>高级功能</strong>：支持条件渲染、循环、过滤器等Jinja2特性</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <!-- 交互式部署 -->
                 <section id="interactive-mode" class="docs-section">
                     <h1>交互式部署</h1>
@@ -654,8 +974,26 @@ devops run -i
 # 指定类型的交互式部署
 devops run java -i
 devops run vue my-app -i
-devops run python my-api -i</code>
+devops run python my-api -i
+
+# 中间件交互式部署（新功能）
+devops run middleware -i
+devops run middleware redis-standalone my-redis -i</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🆕 中间件交互式部署升级</h3>
+                        <p>中间件交互式部署功能已升级，现在支持：</p>
+                        <ul>
+                            <li><strong>动态模板选择</strong>：自动扫描可用的中间件模板</li>
+                            <li><strong>基于元数据的配置</strong>：根据模板的 metadata.yaml 自动生成配置界面</li>
+                            <li><strong>智能默认值</strong>：有默认值的变量显示为 <code>变量描述 (默认: 默认值):</code></li>
+                            <li><strong>非必填处理</strong>：有默认值的变量变为非必填，用户可直接回车使用默认值</li>
+                        </ul>
+                        <div class="warning-block">
+                            <strong>环境要求</strong>：中间件交互式部署需要 Python 3.6+ 和相关依赖包（PyYAML, Jinja2）
+                        </div>
                     </div>
 
                     <h2>交互式流程</h2>
@@ -1074,28 +1412,251 @@ BUILD_VERSION="node:18.12,jdk:17,maven:3.9.3"</code>
                     </div>
                 </section>
 
-                <!-- 模板系统 -->
+                <!-- 模板系统详解 -->
                 <section id="template-system" class="docs-section">
-                    <h1>模板系统</h1>
-                    <p>DevOps 提供两级模板系统：全局模板和 workspace 级别模板，支持团队定制。</p>
+                    <h1>模板系统详解</h1>
+                    <p class="lead">DevOps 提供强大的模板系统，支持应用部署和中间件部署，具备Jinja2模板引擎、变量管理、分层目录结构等高级特性。</p>
 
-                    <h2>模板管理命令</h2>
+                    <h2>📁 模板目录结构</h2>
+                    <p>DevOps 采用分层的模板目录结构，清晰区分不同类型的模板：</p>
+
                     <div class="code-block">
-                        <code># 列出所有模板
-devops template list
-
-# 显示模板详情
-devops template show spring-boot
-
-# 复制全局模板到 workspace
-devops template copy spring-boot --workspace myproject
-
-# 创建基于模板的作业
-devops template create spring-boot my-app --workspace myproject</code>
+                        <code>templates/
+├── k8s/                    # Kubernetes平台模板
+│   ├── app/               # 应用部署模板
+│   │   ├── spring-boot/   # Spring Boot应用
+│   │   ├── vue-nginx/     # Vue.js + Nginx
+│   │   ├── python/        # Python应用
+│   │   └── nginx/         # 静态网站
+│   └── middleware/        # 中间件部署模板
+│       ├── redis-standalone/  # Redis单实例
+│       ├── mysql-standalone/  # MySQL单实例
+│       └── redis-cluster/     # Redis集群
+├── swarm/                 # Docker Swarm平台模板
+│   ├── app/
+│   └── middleware/
+└── compose/               # Docker Compose模板
+    ├── app/
+    └── middleware/</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
                     </div>
 
-                    <h2>自定义模板</h2>
+                    <h2>🎯 模板类型</h2>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h3>📱 应用模板</h3>
+                            <p>用于部署各种应用程序，包含Dockerfile和部署配置</p>
+                            <ul>
+                                <li>Spring Boot / Java应用</li>
+                                <li>Vue.js / React前端应用</li>
+                                <li>Python Flask/Django应用</li>
+                                <li>静态网站 (Nginx)</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h3>🗄️ 中间件模板</h3>
+                            <p>用于部署基础设施服务，支持Jinja2模板语法</p>
+                            <ul>
+                                <li>Redis (单实例/集群)</li>
+                                <li>MySQL / PostgreSQL</li>
+                                <li>Kafka / RabbitMQ</li>
+                                <li>Elasticsearch / MongoDB</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h2>🔧 Jinja2模板引擎支持</h2>
+                    <p>中间件模板支持完整的Jinja2语法，提供强大的模板渲染能力：</p>
+
+                    <h3>变量替换</h3>
+                    <div class="code-block">
+                        <code># 基本变量替换
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ instance_name }}-config
+  namespace: {{ namespace }}
+data:
+  port: "{{ service_port }}"
+  memory: "{{ memory_limit }}"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>条件渲染</h3>
+                    <div class="code-block">
+                        <code># 条件语句
+{% if redis_persistence == 'rdb' or redis_persistence == 'both' %}
+save 900 1
+save 300 10
+save 60 10000
+{% endif %}
+
+{% if export_port %}
+spec:
+  type: NodePort
+  ports:
+  - port: {{ service_port }}
+    nodePort: {{ export_port }}
+{% else %}
+spec:
+  type: ClusterIP
+{% endif %}</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>过滤器支持</h3>
+                    <div class="code-block">
+                        <code># 内置过滤器
+data:
+  password: {{ redis_password | b64encode }}  # Base64编码
+  config: {{ config_content | default('') }}  # 默认值</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>📋 变量管理系统</h2>
+                    <p>DevOps 提供完整的变量管理系统，支持从metadata.yaml读取默认值，命令行参数覆盖：</p>
+
+                    <h3>变量优先级</h3>
+                    <div class="info-block">
+                        <h4>优先级顺序（从高到低）：</h4>
+                        <ol>
+                            <li><strong>命令行参数</strong> - 用户直接传入的参数</li>
+                            <li><strong>metadata.yaml默认值</strong> - 模板定义的默认值</li>
+                            <li><strong>系统默认值</strong> - 系统内置的兜底值</li>
+                        </ol>
+                    </div>
+
+                    <h3>metadata.yaml 变量定义</h3>
+                    <p>每个模板都包含metadata.yaml文件，定义支持的变量和默认值：</p>
+                    <div class="code-block">
+                        <code># templates/k8s/middleware/redis-standalone/metadata.yaml
+name: "redis-standalone"
+type: "redis"
+description: "Redis单实例部署模板"
+
+variables:
+  - name: "memory_limit"
+    type: "string"
+    default: "512Mi"
+    description: "内存限制"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "redis_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Redis访问密码"
+
+  - name: "redis_persistence"
+    type: "string"
+    default: "rdb"
+    description: "持久化类型"
+    options: ["rdb", "aof", "both", "none"]</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>自动密码生成</h3>
+                    <p>当变量值为 <code>auto-generate</code> 时，系统会自动生成安全的随机密码：</p>
+                    <div class="code-block">
+                        <code># 自动生成密码的变量
+redis_password: "auto-generate"      # 自动生成16位随机密码
+mysql_root_password: "auto-generate" # 自动生成MySQL root密码
+mysql_password: "auto-generate"      # 自动生成应用用户密码</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>🏗️ 模板结构</h2>
+                    <p>每个模板目录包含以下文件：</p>
+
+                    <h3>应用模板结构</h3>
+                    <div class="code-block">
+                        <code>templates/k8s/app/spring-boot/
+├── deploy.yaml      # Kubernetes部署配置
+├── dockerfile       # Docker构建文件
+└── metadata.yaml    # 模板元数据（可选）</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>中间件模板结构</h3>
+                    <div class="code-block">
+                        <code>templates/k8s/middleware/redis-standalone/
+├── deploy.yaml.j2   # Jinja2模板（推荐）
+├── deploy.yaml.tpl  # 占位符模板（可选）
+├── deploy.yaml      # 自动检测（向后兼容）
+└── metadata.yaml    # 模板元数据（必需）</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>📋 模板文件后缀名规范</h4>
+                        <table class="template-formats-table">
+                            <thead>
+                                <tr>
+                                    <th>后缀名</th>
+                                    <th>模板类型</th>
+                                    <th>语法</th>
+                                    <th>用途</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>.yaml.j2</code></td>
+                                    <td>Jinja2模板</td>
+                                    <td><code>{{ variable }}</code>, <code>{% if %}</code></td>
+                                    <td>复杂逻辑、条件渲染（推荐）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>.yaml.tpl</code></td>
+                                    <td>占位符模板</td>
+                                    <td><code>?variable</code></td>
+                                    <td>简单变量替换</td>
+                                </tr>
+                                <tr>
+                                    <td><code>.yaml</code></td>
+                                    <td>自动检测</td>
+                                    <td>混合或未知</td>
+                                    <td>向后兼容</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p><strong>检测优先级</strong>：<code>deploy.yaml.j2</code> → <code>deploy.yaml.tpl</code> → <code>deploy.yaml</code></p>
+                    </div>
+
+                    <h2>🔄 工作空间模板</h2>
+                    <p>支持在工作空间中创建自定义模板，覆盖全局模板：</p>
+                    <div class="code-block">
+                        <code># 工作空间模板路径
+workspace/myproject/templates/
+├── k8s/
+│   ├── app/
+│   │   └── custom-spring-boot/    # 自定义应用模板
+│   └── middleware/
+│       └── custom-redis/          # 自定义中间件模板
+└── swarm/
+    └── ...</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>🛠️ 模板管理命令</h2>
+                    <div class="code-block">
+                        <code># 列出所有应用模板
+devops template list
+
+# 列出中间件模板
+devops middleware templates list
+
+# 显示模板详情
+devops template show spring-boot
+devops middleware templates show redis-standalone
+
+# 复制全局模板到工作空间
+devops template copy spring-boot --workspace myproject
+
+# 验证模板语法
+devops template validate redis-standalone</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>📝 自定义模板开发</h2>
                     <div class="step-by-step">
                         <div class="step">
                             <div class="step-number">1</div>
@@ -1128,15 +1689,419 @@ echo "worker_processes auto;" > workspace/myproject/templates/k8s/vue-nginx/ngin
                         </div>
                     </div>
 
+                    <h2>🔧 Jinja2模板引擎支持</h2>
+                    <p>中间件模板支持完整的Jinja2语法，提供强大的模板渲染能力：</p>
+
+                    <h3>变量替换</h3>
+                    <div class="code-block">
+                        <code># 基本变量替换
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ instance_name }}-config
+  namespace: {{ namespace }}
+data:
+  port: "{{ service_port }}"
+  memory: "{{ memory_limit }}"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>条件渲染</h3>
+                    <div class="code-block">
+                        <code># 条件语句
+{% if redis_persistence == 'rdb' or redis_persistence == 'both' %}
+save 900 1
+save 300 10
+save 60 10000
+{% endif %}
+
+{% if export_port %}
+spec:
+  type: NodePort
+  ports:
+  - port: {{ service_port }}
+    nodePort: {{ export_port }}
+{% else %}
+spec:
+  type: ClusterIP
+{% endif %}</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>过滤器支持</h3>
+                    <div class="code-block">
+                        <code># 内置过滤器
+data:
+  password: {{ redis_password | b64encode }}  # Base64编码
+  config: {{ config_content | default('') }}  # 默认值</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>� 变量管理系统</h2>
+                    <p>DevOps 提供完整的变量管理系统，支持从metadata.yaml读取默认值，命令行参数覆盖：</p>
+
+                    <h3>变量优先级</h3>
                     <div class="info-block">
-                        <h3>📁 模板存储位置</h3>
+                        <h4>优先级顺序（从高到低）：</h4>
+                        <ol>
+                            <li><strong>命令行参数</strong> - 用户直接传入的参数</li>
+                            <li><strong>metadata.yaml默认值</strong> - 模板定义的默认值</li>
+                            <li><strong>系统默认值</strong> - 系统内置的兜底值</li>
+                        </ol>
+                    </div>
+
+                    <h3>metadata.yaml 变量定义</h3>
+                    <p>每个中间件模板都包含metadata.yaml文件，定义支持的变量和默认值：</p>
+                    <div class="code-block">
+                        <code># templates/k8s/middleware/redis-standalone/metadata.yaml
+name: "redis-standalone"
+type: "redis"
+description: "Redis单实例部署模板"
+
+variables:
+  - name: "memory_limit"
+    type: "string"
+    default: "512Mi"
+    description: "内存限制"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "redis_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Redis访问密码"
+
+  - name: "redis_persistence"
+    type: "string"
+    default: "rdb"
+    description: "持久化类型"
+    options: ["rdb", "aof", "both", "none"]</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>自动密码生成</h3>
+                    <p>当变量值为 <code>auto-generate</code> 时，系统会自动生成安全的随机密码：</p>
+                    <div class="code-block">
+                        <code># 自动生成密码的变量
+redis_password: "auto-generate"      # 自动生成16位随机密码
+mysql_root_password: "auto-generate" # 自动生成MySQL root密码
+mysql_password: "auto-generate"      # 自动生成应用用户密码</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>💻 命令行参数传递</h2>
+                    <p>DevOps 支持动态的命令行参数传递，用户可以传递任意 <code>--变量名</code> 格式的参数，系统会自动匹配模板中的变量：</p>
+
+                    <h3>动态参数格式</h3>
+                    <div class="info-block">
+                        <h4>参数格式规则：</h4>
                         <ul>
-                            <li><strong>全局模板</strong>：<code>templates/</code> 目录</li>
-                            <li><strong>Workspace 模板</strong>：<code>workspace/{name}/templates/</code> 目录</li>
+                            <li><strong>格式</strong>：<code>--变量名 值</code></li>
+                            <li><strong>变量名</strong>：与模板中 <code>{{ 变量名 }}</code> 或 metadata.yaml 中定义的变量名一致</li>
+                            <li><strong>自动转换</strong>：<code>--memory-limit</code> → <code>memory_limit</code></li>
+                            <li><strong>布尔参数</strong>：<code>--enable-auth</code>（无值时默认为true）</li>
+                            <li><strong>实例名称</strong>：<code>instance_name</code> 自动复用命令中的 <code>&lt;name&gt;</code> 参数</li>
+                        </ul>
+                    </div>
+
+                    <h3>基于模板变量的参数传递</h3>
+                    <p>参数名称直接对应模板中的变量名，无需预定义：</p>
+                    <div class="code-block">
+                        <code># 模板中定义的变量：{{ memory_limit }}, {{ redis_password }}
+# 对应的命令行参数：
+--memory-limit 2Gi          # 对应 {{ memory_limit }}
+--redis-password mypass     # 对应 {{ redis_password }}
+--storage-size 100Gi        # 对应 {{ storage_size }}
+--replicas 3                # 对应 {{ replicas }}
+--export-port 30379         # 对应 {{ export_port }}</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>实际使用示例</h3>
+                    <div class="code-block">
+                        <code># Redis部署 - 参数名对应模板变量
+devops run middleware redis-standalone cache-server \
+  --memory-limit 2Gi \
+  --storage-size 10Gi \
+  --redis-password mypassword \
+  --redis-persistence both \
+  --max-memory-policy allkeys-lru \
+  --export-port 30379
+
+# MySQL部署 - 参数名对应模板变量
+devops run middleware mysql-standalone main-db \
+  --memory-limit 4Gi \
+  --storage-size 100Gi \
+  --mysql-root-password rootpass123 \
+  --mysql-database app_db \
+  --mysql-user app_user \
+  --mysql-password userpass123
+
+# 自定义模板 - 任意变量名都支持
+devops run middleware custom-redis my-cache \
+  --custom-config-value "some value" \
+  --enable-monitoring true \
+  --backup-schedule "0 2 * * *"</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>变量名匹配规则</h3>
+                    <div class="info-block">
+                        <h4>参数名与模板变量的对应关系：</h4>
+                        <table class="config-table">
+                            <thead>
+                                <tr>
+                                    <th>命令行参数</th>
+                                    <th>模板变量</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>&lt;name&gt;</code></td>
+                                    <td><code>{{ instance_name }}</code></td>
+                                    <td>自动复用命令中的实例名称</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--memory-limit</code></td>
+                                    <td><code>{{ memory_limit }}</code></td>
+                                    <td>自动转换连字符为下划线</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--redis-password</code></td>
+                                    <td><code>{{ redis_password }}</code></td>
+                                    <td>直接对应模板变量</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--mysql-root-password</code></td>
+                                    <td><code>{{ mysql_root_password }}</code></td>
+                                    <td>支持复杂变量名</td>
+                                </tr>
+                                <tr>
+                                    <td><code>--custom-config</code></td>
+                                    <td><code>{{ custom_config }}</code></td>
+                                    <td>任意自定义变量</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3>动态参数工作原理</h3>
+                    <div class="info-block">
+                        <h4>参数处理流程：</h4>
+                        <ol>
+                            <li><strong>解析metadata.yaml</strong>：读取变量定义和默认值</li>
+                            <li><strong>提取模板变量</strong>：扫描deploy.yaml中的 <code>{{ 变量名 }}</code></li>
+                            <li><strong>匹配命令行参数</strong>：<code>--变量名</code> 自动匹配对应变量</li>
+                            <li><strong>应用优先级</strong>：命令行参数 > metadata默认值 > 系统默认值</li>
+                        </ol>
+                    </div>
+
+                    <div class="code-block">
+                        <code># 示例：动态参数匹配
+# metadata.yaml中定义：
+variables:
+  - name: "custom_timeout"
+    default: "30s"
+  - name: "enable_ssl"
+    default: "false"
+
+# 模板中使用：
+name: {{ instance_name }}-config    # 自动使用命令中的<name>
+timeout: {{ custom_timeout }}
+ssl_enabled: {{ enable_ssl }}
+
+# 命令行传递：
+devops run middleware my-service my-instance \
+  --custom-timeout 60s \    # 覆盖默认值30s
+  --enable-ssl true \       # 覆盖默认值false
+  --new-variable value      # 新变量，如果模板中有{{ new_variable }}就会生效
+
+# 结果：instance_name = "my-instance"（自动复用）</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>🏗️ 模板结构详解</h2>
+                    <p>DevOps 采用分层的模板目录结构：</p>
+
+                    <h3>应用模板结构</h3>
+                    <div class="code-block">
+                        <code>templates/k8s/app/spring-boot/
+├── deploy.yaml      # Kubernetes部署配置
+├── dockerfile       # Docker构建文件
+└── metadata.yaml    # 模板元数据（可选）</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>中间件模板结构</h3>
+                    <div class="code-block">
+                        <code>templates/k8s/middleware/redis-standalone/
+├── deploy.yaml.j2   # Jinja2模板（推荐）
+├── deploy.yaml.tpl  # 占位符模板（可选）
+└── metadata.yaml    # 模板元数据（必需）</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>🛠️ 模板管理命令</h2>
+                    <div class="code-block">
+                        <code># 列出所有应用模板
+devops template list
+
+# 列出中间件模板
+devops middleware templates list
+
+# 显示模板详情
+devops template show spring-boot
+devops middleware templates show redis-standalone
+
+# 复制全局模板到工作空间
+devops template copy spring-boot --workspace myproject
+
+# 验证模板语法
+devops template validate redis-standalone</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3> 模板存储位置</h3>
+                        <ul>
+                            <li><strong>全局应用模板</strong>：<code>templates/{platform}/app/{template-name}/</code></li>
+                            <li><strong>全局中间件模板</strong>：<code>templates/{platform}/middleware/{template-name}/</code></li>
+                            <li><strong>工作空间模板</strong>：<code>workspace/{name}/templates/{platform}/{type}/{template-name}/</code></li>
                         </ul>
                         <div class="concept-example">
-                            <strong>优先级：</strong>Workspace 模板 > 全局模板
+                            <strong>优先级：</strong>工作空间模板 > 全局模板
                         </div>
+                        <div class="concept-example">
+                            <strong>示例路径：</strong>
+                            <ul>
+                                <li>templates/k8s/app/spring-boot/</li>
+                                <li>templates/k8s/middleware/redis-standalone/</li>
+                                <li>workspace/myproject/templates/k8s/middleware/custom-redis/</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h2>📝 自定义模板开发示例</h2>
+                    <p>以下是创建自定义Redis集群模板的完整示例：</p>
+
+                    <h3>1. 创建模板目录</h3>
+                    <div class="code-block">
+                        <code>mkdir -p workspace/myproject/templates/k8s/middleware/redis-cluster</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>2. 创建metadata.yaml</h3>
+                    <div class="code-block">
+                        <code># workspace/myproject/templates/k8s/middleware/redis-cluster/metadata.yaml
+name: "redis-cluster"
+type: "redis"
+description: "Redis集群部署模板，支持3-6个节点"
+version: "1.0"
+
+variables:
+  - name: "cluster_nodes"
+    type: "integer"
+    default: 6
+    description: "集群节点数量"
+    validation: "value >= 3 && value <= 6"
+
+  - name: "memory_limit"
+    type: "string"
+    default: "1Gi"
+    description: "每个节点内存限制"
+
+  - name: "redis_password"
+    type: "string"
+    default: "auto-generate"
+    description: "Redis集群密码"
+
+ports:
+  - name: "redis"
+    port: 6379
+  - name: "cluster-bus"
+    port: 16379</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>3. 创建deploy.yaml（支持Jinja2）</h3>
+                    <div class="code-block">
+                        <code># workspace/myproject/templates/k8s/middleware/redis-cluster/deploy.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ instance_name }}-redis-config
+  namespace: {{ namespace }}
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    cluster-node-timeout 5000
+    {% if redis_password %}
+    requirepass {{ redis_password }}
+    masterauth {{ redis_password }}
+    {% endif %}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ instance_name }}-redis
+  namespace: {{ namespace }}
+spec:
+  serviceName: {{ instance_name }}-redis-headless
+  replicas: {{ cluster_nodes }}
+  selector:
+    matchLabels:
+      app: {{ instance_name }}-redis
+  template:
+    metadata:
+      labels:
+        app: {{ instance_name }}-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        - containerPort: 16379
+        resources:
+          limits:
+            memory: {{ memory_limit }}
+          requests:
+            memory: {{ memory_limit | replace('Gi', '0.7Gi') | replace('Mi', '0.7Mi') }}
+        volumeMounts:
+        - name: config
+          mountPath: /usr/local/etc/redis/redis.conf
+          subPath: redis.conf
+      volumes:
+      - name: config
+        configMap:
+          name: {{ instance_name }}-redis-config</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h3>4. 使用自定义模板</h3>
+                    <div class="code-block">
+                        <code># 使用自定义Redis集群模板
+devops run middleware redis-cluster my-cluster \
+  --workspace myproject \
+  --cluster-nodes 6 \
+  --memory-limit 2Gi \
+  --redis-password mypassword</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="warning-block">
+                        <h3>⚠️ 模板开发注意事项</h3>
+                        <ul>
+                            <li><strong>文件后缀名</strong>：使用 <code>.yaml.j2</code> (Jinja2) 或 <code>.yaml.tpl</code> (占位符) 明确标识模板类型</li>
+                            <li><strong>Jinja2语法</strong>：中间件模板支持完整的Jinja2语法，包括条件、循环、过滤器</li>
+                            <li><strong>向后兼容</strong>：<code>.yaml</code> 文件仍然支持，但推荐使用明确的后缀名</li>
+                            <li><strong>变量命名</strong>：使用下划线命名法，避免与系统变量冲突</li>
+                            <li><strong>metadata.yaml</strong>：中间件模板必须包含metadata.yaml文件定义变量</li>
+                            <li><strong>测试验证</strong>：开发完成后使用 <code>devops template validate</code> 验证语法</li>
+                            <li><strong>版本管理</strong>：建议在metadata.yaml中标明版本号</li>
+                        </ul>
                     </div>
                 </section>
 

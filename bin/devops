@@ -33,6 +33,12 @@ case ${env[cmd_1]} in
             shift # 移除 'shortcut' 参数
             handle_shortcut_command "$@"
             ;;
+        middleware)
+            # 中间件管理功能
+            shift # 移除 'middleware' 参数
+            source "$SCRIPT_DIR/middleware_manager.sh"
+            middleware_main "$@"
+            ;;
         env)
             shift
             subcmd="$1"; shift || true
