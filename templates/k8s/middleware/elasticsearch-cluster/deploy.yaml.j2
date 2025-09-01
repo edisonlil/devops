@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ instance_name }}-config
+  namespace: {{ namespace }}
+data:
+  jvm.options: |
+    -Xms{{ jvm_heap_size }}
+    -Xmx{{ jvm_heap_size }}
+    -XX:+UseG1GC
+    -Djava.awt.headless=true
+    -Dfile.encoding=UTF-8
+    -Djna.nosys=true
+    {% if elasticsearch_version.startswith('6.') %}
+    -Djava.security.manager=allow
+    -Djava.security.policy=/usr/share/elasticsearch/config/elasticsearch.policy
+    {% endif %}
+
+  {% if elasticsearch_version.startswith('6.') %}
+  elasticsearch.policy: |
+    grant {
+      permission javax.management.MBeanTrustPermission "register";
+      permission java.io.FilePermission "/usr/share/elasticsearch/data/-", "read,write,delete";
+      permission java.io.FilePermission "/usr/share/elasticsearch/logs/-", "read,write,delete";
+      permission java.lang.RuntimePermission "accessDeclaredMembers";
+      permission java.lang.RuntimePermission "modifyThread";
+      permission java.net.SocketPermission "*", "connect,resolve";
+    };
+
+  {% endif %}
+  elasticsearch-master.yml: |
+    cluster.name: {{ cluster_name }}
+    node.name: ${HOSTNAME}{% if elasticsearch_version.startswith('6.') %}.{{ instance_name }}-discovery{% endif %}
+    network.host: 0.0.0.0
+    {% if elasticsearch_version.startswith('6.') %}
+    discovery.zen.ping.unicast.hosts: {% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-discovery.{{ namespace }}.svc.cluster.local{% if not loop.last %},{% endif %}{% endfor %}
+    discovery.zen.minimum_master_nodes: {{ (replicas | int / 2) | int + 1 }}
+    {% else %}
+    discovery.seed_hosts: {% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-discovery.{{ namespace }}.svc.cluster.local{% if not loop.last %},{% endif %}{% endfor %}
+    cluster.initial_master_nodes: {{ instance_name }}-0
+    {% endif %}
+    
+    node.master: true
+    node.data: false
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+
+  elasticsearch-data.yml: |
+    cluster.name: {{ cluster_name }}
+    node.name: ${HOSTNAME}{% if elasticsearch_version.startswith('6.') %}.{{ instance_name }}-discovery{% endif %}
+    network.host: 0.0.0.0
+    {% if elasticsearch_version.startswith('6.') %}
+    discovery.zen.ping.unicast.hosts: {% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-discovery.{{ namespace }}.svc.cluster.local{% if not loop.last %},{% endif %}{% endfor %}
+    {% else %}
+    discovery.seed_hosts: {% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-discovery.{{ namespace }}.svc.cluster.local{% if not loop.last %},{% endif %}{% endfor %}
+    {% endif %}
+    
+    node.master: false
+    node.data: true
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ instance_name }}
+  namespace: {{ namespace }}
+spec:
+  serviceName: {{ instance_name }}-discovery
+  replicas: {{ replicas }}
+  selector:
+    matchLabels:
+      app: {{ instance_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ instance_name }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      dnsConfig:
+        options:
+          - name: single-request
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch:{{ elasticsearch_version }}
+        resources:
+          requests:
+            memory: {{ memory_request }}
+            cpu: {{ cpu_request }}
+          limits:
+            memory: {{ memory_limit }}
+            cpu: {{ cpu_limit }}
+        ports:
+        - containerPort: 9200
+          name: http
+        - containerPort: 9300
+          name: transport
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /etc/elasticsearch/config
+        command:
+          - "sh"
+          - "-c"
+          - |
+            # 复制配置文件到可写目录
+            cp /etc/elasticsearch/config/* /usr/share/elasticsearch/config/
+            
+            # 根据节点角色选择配置模板
+            if [ "$(hostname)" = "{{ instance_name }}-0" ]; then
+              cp /usr/share/elasticsearch/config/elasticsearch-master.yml /usr/share/elasticsearch/config/elasticsearch.yml
+            else
+              cp /usr/share/elasticsearch/config/elasticsearch-data.yml /usr/share/elasticsearch/config/elasticsearch.yml
+            fi
+            
+            # 根据版本安装插件（可选）
+            {% if elasticsearch_version.startswith('6.') %}
+            # 6.x版本安装ICU分词器
+            echo '开始安装 ICU 分词器'
+            elasticsearch-plugin install --batch analysis-icu
+            {% endif %}
+            
+            # 启动 Elasticsearch
+            exec /usr/local/bin/docker-entrypoint.sh
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ServiceName
+          value: {{ instance_name }}-discovery
+      volumes:
+      - name: config
+        configMap:
+          name: {{ instance_name }}-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        annotations:
+          volume.beta.kubernetes.io/storage-class: {{ storage_class }}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ storage_size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ instance_name }}-discovery
+  namespace: {{ namespace }}
+spec:
+  clusterIP: None
+  selector:
+    app: {{ instance_name }}
+  ports:
+    - port: 9300
+      name: transport
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ instance_name }}
+  namespace: {{ namespace }}
+spec:
+  selector:
+    app: {{ instance_name }}
+{% if export_port %}
+  type: NodePort
+{% else %}
+  type: ClusterIP
+{% endif %}
+  ports:
+    - protocol: TCP
+      port: 9200
+      targetPort: 9200
+      name: http
+{% if export_port %}
+      nodePort: {{ export_port }}
+{% endif %}

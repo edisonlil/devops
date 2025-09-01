@@ -1,0 +1,152 @@
+# Elasticsearch集群部署模板元数据
+name: "elasticsearch-cluster"
+type: "elasticsearch"
+description: "Elasticsearch集群部署模板，适用于生产环境高可用部署"
+version: "1.0"
+author: "devops-team"
+platform: "kubernetes"
+
+# 支持的变量
+variables:
+  - name: "instance_name"
+    type: "string"
+    required: true
+    description: "实例名称"
+    example: "elasticsearch"
+
+  - name: "namespace"
+    type: "string"
+    default: "default"
+    description: "Kubernetes命名空间"
+    example: "middleware"
+
+  - name: "memory_limit"
+    type: "string"
+    default: "2Gi"
+    description: "每个节点内存限制"
+    example: "4Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "memory_request"
+    type: "string"
+    default: "1Gi"
+    description: "每个节点内存请求"
+    example: "2Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "cpu_limit"
+    type: "string"
+    default: "1000m"
+    description: "每个节点CPU限制"
+    example: "2000m"
+    validation: "^[0-9]+m$"
+
+  - name: "cpu_request"
+    type: "string"
+    default: "500m"
+    description: "每个节点CPU请求"
+    example: "1000m"
+    validation: "^[0-9]+m$"
+
+  - name: "storage_size"
+    type: "string"
+    default: "10Gi"
+    description: "每个节点存储大小"
+    example: "50Gi"
+    validation: "^[0-9]+[MG]i$"
+
+  - name: "replicas"
+    type: "integer"
+    default: 3
+    description: "集群节点数量（建议3个以上）"
+    validation: "value >= 1"
+
+  - name: "elasticsearch_version"
+    type: "string"
+    default: "7.10.0"
+    description: "Elasticsearch版本（支持6.x和7.x版本）"
+    example: "7.17.0"
+    validation: "^[67]\\.[0-9]+\\.[0-9]+$"
+
+  - name: "cluster_name"
+    type: "string"
+    default: "elastic-cluster"
+    description: "Elasticsearch集群名称"
+    example: "my-elastic-cluster"
+
+  - name: "jvm_heap_size"
+    type: "string"
+    default: "1g"
+    description: "JVM堆内存大小"
+    example: "2g"
+    validation: "^[0-9]+[mg]$"
+
+  - name: "node_port"
+    type: "string"
+    default: ""
+    description: "外部访问端口（NodePort）"
+    example: "30003"
+
+  - name: "storage_class"
+    type: "string"
+    default: "nfs-cbk8s"
+    description: "存储类名称"
+    example: "fast-ssd"
+
+# 端口信息
+ports:
+  - name: "http"
+    port: 9200
+    description: "Elasticsearch HTTP API端口"
+  - name: "transport"
+    port: 9300
+    description: "Elasticsearch节点间通信端口"
+
+# 连接信息模板
+connection_info:
+  internal: "{{ instance_name }}.{{ namespace }}.svc.cluster.local:9200"
+  external: "{{ node_ip }}:{{ node_port }}"
+  cluster_nodes: "{% for i in range(replicas | int) %}{{ instance_name }}-{{ i }}.{{ instance_name }}-discovery.{{ namespace }}.svc.cluster.local:9300{% if not loop.last %},{% endif %}{% endfor %}"
+
+# 使用说明
+usage:
+  basic: "devops run middleware elasticsearch-cluster elasticsearch"
+  with_params: "devops run middleware elasticsearch-cluster elasticsearch --memory-limit 4Gi --storage-size 50Gi --replicas 3"
+  interactive: "devops run middleware elasticsearch-cluster elasticsearch -i"
+
+# 管理命令
+management:
+  status: "devops middleware status elasticsearch"
+  logs: "devops middleware logs elasticsearch --follow"
+  scale: "devops middleware scale elasticsearch --replicas 5"
+  backup: "devops middleware backup elasticsearch"
+  remove: "devops middleware remove elasticsearch"
+  cluster_health: "curl -X GET '{{ connection_info.internal }}/_cluster/health?pretty'"
+  indices: "curl -X GET '{{ connection_info.internal }}/_cat/indices?v'"
+
+# 依赖和要求
+requirements:
+  kubernetes_version: ">=1.16"
+  storage_class: "支持ReadWriteOnce的存储类"
+  resources:
+    min_memory: "1Gi"
+    min_storage: "5Gi"
+    min_replicas: 1
+
+# 标签
+labels:
+  app.kubernetes.io/name: "elasticsearch"
+  app.kubernetes.io/instance: "{{ instance_name }}"
+  app.kubernetes.io/version: "{{ elasticsearch_version }}"
+  app.kubernetes.io/component: "search"
+  app.kubernetes.io/part-of: "middleware"
+  app.kubernetes.io/managed-by: "devops-middleware"
+
+# 集群特定配置
+cluster:
+  enabled: true
+  master_nodes: 1
+  data_nodes: "{{ replicas | int - 1 }}"
+  minimum_master_nodes: "{{ (replicas | int / 2) | int + 1 }}"
+  discovery_type: "zen"
+  security_enabled: false
