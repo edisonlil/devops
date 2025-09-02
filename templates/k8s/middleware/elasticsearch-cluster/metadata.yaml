@@ -81,15 +81,9 @@ variables:
     example: "2g"
     validation: "^[0-9]+[mg]$"
 
-  - name: "service_port"
-    type: "string"
-    default: "6379"
-    description: "服务端口"
-    example: "6379"
-
   - name: "export_port"
     type: "string"
-    default: ""
+    default: "30379"
     description: "外部访问端口（NodePort）"
     example: "30379"
 
