@@ -3,33 +3,38 @@ import type { RouteRecordRaw } from 'vue-router'
 
 const routes: RouteRecordRaw[] = [
   {
-    path: '/',
-    redirect: '/workspace'
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/auth/Login.vue'),
+    meta: { 
+      title: '登录',
+      requiresGuest: true 
+    }
   },
   {
-    path: '/workspace',
-    name: 'WorkspaceHome',
-    component: () => import('@/views/workspace/WorkspaceHome.vue'),
+    path: '/workspace-select',
+    name: 'WorkspaceSelect',
+    component: () => import('@/views/auth/WorkspaceSelect.vue'),
     meta: { 
-      title: '工作空间',
+      title: '选择工作空间',
       requiresAuth: true 
     }
   },
   {
+    path: '/',
+    redirect: '/login'
+  },
+  {
     path: '/workspace/:workspaceName',
+    name: 'WorkspaceHome',
+    component: () => import('@/views/workspace/WorkspaceHome.vue'),
+    meta: { requiresAuth: true, title: '控制台' }
+  },
+  {
+    path: '/workspace/:workspaceName/manage',
     component: () => import('@/views/workspace/WorkspaceLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      {
-        path: '',
-        redirect: to => `/workspace/${to.params.workspaceName}/dashboard`
-      },
-      {
-        path: 'dashboard',
-        name: 'WorkspaceDashboard',
-        component: () => import('@/views/workspace/WorkspaceDashboard.vue'),
-        meta: { title: '工作空间概览' }
-      },
       {
         path: 'middleware',
         name: 'MiddlewareManager',
@@ -76,6 +81,18 @@ const routes: RouteRecordRaw[] = [
           title: '全局模板管理',
           requiresPermission: 'admin' 
         }
+      },
+      {
+        path: 'deploy',
+        name: 'RemoteDeployManager',
+        component: () => import('@/views/deploy/RemoteDeployManager.vue'),
+        meta: { title: '远程部署管理' }
+      },
+      {
+        path: 'deploy/application',
+        name: 'ApplicationDeploy',
+        component: () => import('@/views/deploy/ApplicationDeploy.vue'),
+        meta: { title: '应用部署' }
       }
     ]
   }
@@ -86,6 +103,32 @@ const router = createRouter({
   routes
 })
 
+// SSH会话检查函数
+const checkSSHSession = (): boolean => {
+  const session = localStorage.getItem('ssh_session')
+  if (!session) return false
+  
+  try {
+    const sessionData = JSON.parse(session)
+    return sessionData.connected && sessionData.timestamp
+  } catch {
+    return false
+  }
+}
+
+// 获取默认工作空间
+const getDefaultWorkspaceFromSession = (): string | null => {
+  const session = localStorage.getItem('ssh_session')
+  if (!session) return null
+  
+  try {
+    const sessionData = JSON.parse(session)
+    return sessionData.defaultWorkspace || null
+  } catch {
+    return null
+  }
+}
+
 // 路由守卫
 router.beforeEach((to, from, next) => {
   // 设置页面标题
@@ -93,11 +136,24 @@ router.beforeEach((to, from, next) => {
     document.title = `${to.meta.title} - DevOps Platform`
   }
   
-  // 这里可以添加认证逻辑
-  // if (to.meta.requiresAuth && !isAuthenticated()) {
-  //   next('/login')
-  //   return
-  // }
+  const isAuthenticated = checkSSHSession()
+  
+  // 检查认证
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next('/login')
+    return
+  }
+  
+  // 检查游客访问（已登录用户不能访问登录页）
+  if (to.meta.requiresGuest && isAuthenticated) {
+    const defaultWorkspace = getDefaultWorkspaceFromSession()
+    if (defaultWorkspace) {
+      next(`/workspace/${defaultWorkspace}`)
+    } else {
+      next('/workspace-select')
+    }
+    return
+  }
   
   next()
 })

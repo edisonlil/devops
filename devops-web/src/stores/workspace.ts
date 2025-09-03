@@ -79,13 +79,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  // 更新工作空间列表（用于SSH登录后更新）
+  const updateWorkspaces = (newWorkspaces: Workspace[]) => {
+    workspaces.value = newWorkspaces
+  }
+
   // 初始化
   const init = () => {
     const savedWorkspace = localStorage.getItem('currentWorkspace')
     if (savedWorkspace) {
       currentWorkspace.value = savedWorkspace
     }
-    fetchWorkspaces()
+    // SSH登录后会通过updateWorkspaces更新工作空间列表，这里不自动fetchWorkspaces
+    // fetchWorkspaces()
   }
 
   return {
@@ -99,6 +105,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     switchWorkspace,
     createWorkspace,
     getWorkspaceSummary,
+    updateWorkspaces,
     init
   }
 })

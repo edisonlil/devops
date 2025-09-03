@@ -1,139 +1,189 @@
 <template>
   <div class="application-manager">
-    <div class="manager-header">
-      <h2>应用管理</h2>
-      <n-space>
+    <!-- 页面标题区域 -->
+    <div class="page-header">
+      <div class="header-content">
+        <h1 class="page-title text-h1">应用管理</h1>
+        <p class="page-subtitle text-subtitle">部署和管理容器化应用程序</p>
+      </div>
+      <div class="header-actions">
+      </div>
+    </div>
+
+    <!-- 应用列表 -->
+    <div class="applications-section">
+      <!-- 搜索和操作区域 -->
+      <div class="search-section">
+        <n-input
+          v-model:value="searchQuery"
+          placeholder="搜索应用..."
+          clearable
+          size="medium"
+          style="width: 300px;"
+        >
+          <template #prefix>
+            <n-icon size="16"><Search /></n-icon>
+          </template>
+        </n-input>
+
         <n-button type="primary" @click="showDeployDialog = true">
           <template #icon>
             <n-icon><Add /></n-icon>
           </template>
           部署应用
         </n-button>
-        <n-button @click="refreshData" :loading="loading">
-          <template #icon>
-            <n-icon><Refresh /></n-icon>
-          </template>
-          刷新
-        </n-button>
-      </n-space>
-    </div>
-
-    <!-- 功能提示 -->
-    <div class="feature-notice">
-      <n-alert type="info" :show-icon="false">
-        <template #icon>
-          <n-icon><InformationCircle /></n-icon>
-        </template>
-        <strong>应用管理功能开发中</strong>
-        <p style="margin: 8px 0 0 0;">
-          此功能将支持容器化应用的部署、管理和监控。包括：
-        </p>
-        <ul style="margin: 8px 0 0 20px; padding: 0;">
-          <li>Docker 镜像部署</li>
-          <li>Kubernetes 应用管理</li>
-          <li>应用生命周期管理</li>
-          <li>服务发现和负载均衡</li>
-          <li>应用监控和日志</li>
-        </ul>
-      </n-alert>
-    </div>
-
-    <!-- 应用概览 -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <n-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-value">0</div>
-            <div class="stat-label">运行中应用</div>
-          </div>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-value">0</div>
-            <div class="stat-label">部署任务</div>
-          </div>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-value">0</div>
-            <div class="stat-label">服务数量</div>
-          </div>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-value">$0.00</div>
-            <div class="stat-label">月成本</div>
-          </div>
-        </n-card>
       </div>
-    </div>
 
-    <!-- 快速操作 -->
-    <div class="quick-actions-section">
-      <n-card title="🚀 快速开始">
-        <div class="quick-actions">
-          <div class="action-card" @click="showComingSoon('Docker 部署')">
-            <div class="action-icon">🐳</div>
-            <div class="action-title">Docker 部署</div>
-            <div class="action-description">从 Docker 镜像快速部署应用</div>
+      <div class="application-list">
+        <div class="table-container">
+          <div class="table-header">
+            <div class="col-name" @click="handleSort('name')">
+              <span>名称</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'name' }">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </n-icon>
+            </div>
+            <div class="col-status" @click="handleSort('status')">
+              <span>状态</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'status' }">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </n-icon>
+            </div>
+            <div class="col-cpu" @click="handleSort('cpu')">
+              <span>CPU</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'cpu' }">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </n-icon>
+            </div>
+            <div class="col-memory" @click="handleSort('memory')">
+              <span>内存</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'memory' }">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </n-icon>
+            </div>
+            <div class="col-created" @click="handleSort('createdAt')">
+              <span>创建时间</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'createdAt' }">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+                </svg>
+              </n-icon>
+            </div>
+            <div class="col-actions">
+              <span>操作</span>
+            </div>
+          </div>
+
+          <div class="table-body">
+          
+          <div v-if="filteredApplications.length === 0" class="empty-state">
+            <div class="empty-content">
+              <div class="empty-icon">📦</div>
+              <div class="empty-title">暂无应用</div>
+              <div class="empty-description">点击"部署应用"开始部署第一个应用</div>
+            </div>
           </div>
           
-          <div class="action-card" @click="showComingSoon('Git 部署')">
-            <div class="action-icon">📦</div>
-            <div class="action-title">Git 部署</div>
-            <div class="action-description">从 Git 仓库构建并部署应用</div>
+          <div 
+            v-for="app in filteredApplications" 
+            :key="app.id"
+            class="table-row"
+          >
+            <div class="col-name">
+              <div class="app-info">
+                <div class="app-details">
+                  <div class="app-name">{{ app.name }}</div>
+                  <div class="app-type">{{ app.type }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-status">
+              <div class="status-indicator">
+                <div class="status-dot" :class="`status-${app.status}`"></div>
+                <span class="status-text">{{ getStatusText(app.status) }}</span>
+              </div>
+            </div>
+            
+            <div class="col-cpu">
+              <div class="resource-info-horizontal">
+                <n-progress
+                  type="line"
+                  :percentage="app.cpu"
+                  :height="6"
+                  :show-indicator="false"
+                  :color="getResourceColor(app.cpu)"
+                  :border-radius="3"
+                  :fill-border-radius="3"
+                />
+                <span class="resource-text">{{ app.cpu }}%</span>
+              </div>
+            </div>
+            
+            <div class="col-memory">
+              <div class="resource-info-horizontal">
+                <n-progress
+                  type="line"
+                  :percentage="app.memory"
+                  :height="6"
+                  :show-indicator="false"
+                  :color="getResourceColor(app.memory)"
+                  :border-radius="3"
+                  :fill-border-radius="3"
+                />
+                <span class="resource-text">{{ app.memory }}%</span>
+              </div>
+            </div>
+            
+            <div class="col-created">
+              <span class="created-time">{{ formatTime(app.createdAt) }}</span>
+            </div>
+            
+            <div class="col-actions">
+              <div class="action-buttons">
+                <a
+                  v-if="app.status === 'stopped'"
+                  href="#"
+                  class="action-link primary"
+                  @click.prevent="startApplication(app)"
+                >
+                  启动
+                </a>
+                <a
+                  href="#"
+                  class="action-link"
+                  @click.prevent="showApplicationDetail(app)"
+                >
+                  详情
+                </a>
+                <n-dropdown
+                  :options="getMoreActions(app)"
+                  @select="handleMoreAction"
+                  trigger="click"
+                >
+                  <a href="#" class="action-link">
+                    <n-icon size="16"><EllipsisHorizontal /></n-icon>
+                  </a>
+                </n-dropdown>
+              </div>
+            </div>
           </div>
-          
-          <div class="action-card" @click="showComingSoon('应用商店')">
-            <div class="action-icon">🏪</div>
-            <div class="action-title">应用商店</div>
-            <div class="action-description">从应用商店一键部署常用应用</div>
-          </div>
-          
-          <div class="action-card" @click="showComingSoon('Helm Chart')">
-            <div class="action-icon">⚓</div>
-            <div class="action-title">Helm Chart</div>
-            <div class="action-description">使用 Helm Chart 部署复杂应用</div>
           </div>
         </div>
-      </n-card>
-    </div>
-
-    <!-- 应用列表 -->
-    <div class="applications-section">
-      <n-card title="应用列表">
-        <template #header-extra>
-          <n-space>
-            <n-input 
-              v-model:value="searchQuery" 
-              placeholder="搜索应用..." 
-              clearable
-              style="width: 200px;"
-            >
-              <template #prefix>
-                <n-icon><Search /></n-icon>
-              </template>
-            </n-input>
-            <n-select
-              v-model:value="statusFilter"
-              placeholder="状态筛选"
-              clearable
-              style="width: 120px;"
-              :options="statusOptions"
-            />
-          </n-space>
-        </template>
-
-        <n-empty description="暂无应用部署" />
-      </n-card>
+      </div>
     </div>
 
     <!-- 部署应用对话框 -->
     <n-modal v-model:show="showDeployDialog" style="width: 600px;">
-      <n-card title="部署应用" :bordered="false" size="huge">
+      <n-card title="部署新应用" :bordered="false" size="huge">
         <template #header-extra>
           <n-button quaternary circle @click="showDeployDialog = false">
             <template #icon>
@@ -143,43 +193,39 @@
         </template>
         
         <div class="deploy-options">
-          <n-alert type="info" style="margin-bottom: 20px;">
-            应用部署功能正在开发中，敬请期待！
-          </n-alert>
-          
           <div class="deploy-methods">
-            <div class="method-card disabled">
+            <div class="method-card" @click="deployMethod = 'docker'">
               <div class="method-icon">🐳</div>
               <div class="method-content">
                 <div class="method-title">Docker 镜像</div>
                 <div class="method-description">从 Docker Hub 或私有仓库部署</div>
               </div>
-              <div class="method-status">开发中</div>
             </div>
             
-            <div class="method-card disabled">
+            <div class="method-card" @click="deployMethod = 'git'">
               <div class="method-icon">📦</div>
               <div class="method-content">
                 <div class="method-title">Git 仓库</div>
                 <div class="method-description">从源码构建并部署</div>
               </div>
-              <div class="method-status">开发中</div>
             </div>
             
-            <div class="method-card disabled">
+            <div class="method-card" @click="deployMethod = 'yaml'">
               <div class="method-icon">📄</div>
               <div class="method-content">
                 <div class="method-title">YAML 配置</div>
                 <div class="method-description">上传 Kubernetes YAML 文件</div>
               </div>
-              <div class="method-status">开发中</div>
             </div>
           </div>
         </div>
 
         <template #footer>
-          <div style="display: flex; justify-content: flex-end;">
-            <n-button @click="showDeployDialog = false">关闭</n-button>
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <n-button @click="showDeployDialog = false">取消</n-button>
+            <n-button type="primary" @click="proceedToDeploy" :disabled="!deployMethod">
+              继续
+            </n-button>
           </div>
         </template>
       </n-card>
@@ -188,43 +234,194 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { Add, Refresh, Search, Close, InformationCircle } from '@vicons/ionicons5'
+import { Add, Search, Close, EllipsisHorizontal } from '@vicons/ionicons5'
 
+const router = useRouter()
 const message = useMessage()
 
-const loading = ref(false)
 const showDeployDialog = ref(false)
 const searchQuery = ref('')
-const statusFilter = ref<string | null>(null)
+const deployMethod = ref('')
+const sortField = ref('')
+const sortOrder = ref('asc')
 
-const statusOptions = [
-  { label: '运行中', value: 'running' },
-  { label: '已停止', value: 'stopped' },
-  { label: '部署中', value: 'deploying' },
-  { label: '异常', value: 'error' }
-]
+// 模拟应用数据
+const applications = ref([
+  {
+    id: '1',
+    name: 'web-frontend',
+    type: 'Vue.js',
+    status: 'running',
+    cpu: 15,
+    memory: 32,
+    createdAt: '2025-08-29T17:34:00Z',
+    starting: false
+  },
+  {
+    id: '2', 
+    name: 'api-backend',
+    type: 'Java',
+    status: 'running',
+    cpu: 45,
+    memory: 68,
+    createdAt: '2025-08-29T16:43:00Z',
+    starting: false
+  },
+  {
+    id: '3',
+    name: 'nginx-proxy',
+    type: 'Nginx',
+    status: 'stopped',
+    cpu: 0,
+    memory: 0,
+    createdAt: '2025-08-28T14:22:00Z',
+    starting: false
+  }
+])
 
-const refreshData = async () => {
-  loading.value = true
+// 过滤后的应用列表
+const filteredApplications = computed(() => {
+  let filtered = applications.value.filter(app => {
+    const matchesSearch = !searchQuery.value ||
+      app.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    return matchesSearch
+  })
+
+  // 排序
+  if (sortField.value) {
+    filtered.sort((a, b) => {
+      let aValue = a[sortField.value]
+      let bValue = b[sortField.value]
+
+      // 处理特殊字段
+      if (sortField.value === 'createdAt') {
+        aValue = new Date(aValue).getTime()
+        bValue = new Date(bValue).getTime()
+      }
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase()
+        bValue = bValue.toLowerCase()
+      }
+
+      if (sortOrder.value === 'asc') {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
+  }
+
+  return filtered
+})
+
+
+
+// 获取状态类型
+const getStatusType = (status: string) => {
+  const types = {
+    'running': 'success',
+    'stopped': 'default',
+    'deploying': 'info',
+    'error': 'error'
+  }
+  return types[status] || 'default'
+}
+
+// 获取状态文本
+const getStatusText = (status: string) => {
+  const texts = {
+    'running': '运行中',
+    'stopped': '已停机',
+    'deploying': '部署中',
+    'error': '异常'
+  }
+  return texts[status] || status
+}
+
+// 获取资源使用率颜色
+const getResourceColor = (percentage: number) => {
+  if (percentage < 50) return '#52c41a'
+  if (percentage < 80) return '#faad14'
+  return '#ff4d4f'
+}
+
+// 格式化时间
+const formatTime = (timeStr: string) => {
+  const date = new Date(timeStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 启动应用
+const startApplication = async (app: any) => {
+  app.starting = true
   try {
-    // 这里将来会调用实际的API获取应用列表
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // 这里将来调用实际的API启动应用
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    app.status = 'running'
+    app.cpu = Math.floor(Math.random() * 50) + 10
+    app.memory = Math.floor(Math.random() * 60) + 20
+    message.success(`应用 ${app.name} 启动成功`)
   } catch (error: any) {
-    message.error(error.message || '获取应用列表失败')
+    message.error(error.message || '启动应用失败')
   } finally {
-    loading.value = false
+    app.starting = false
   }
 }
 
-const showComingSoon = (feature: string) => {
-  message.info(`${feature} 功能开发中，敬请期待！`)
+// 查看应用详情
+const showApplicationDetail = (app: any) => {
+  message.info(`应用详情功能开发中...`)
 }
 
-onMounted(() => {
-  refreshData()
-})
+// 获取更多操作选项
+const getMoreActions = (app: any) => [
+  {
+    label: '编辑配置',
+    key: 'edit'
+  },
+  {
+    label: '查看日志',
+    key: 'logs'
+  },
+  {
+    label: '重新部署',
+    key: 'redeploy'
+  }
+]
+
+// 处理更多操作
+const handleMoreAction = (key: string) => {
+  message.info(`${key} 功能开发中...`)
+}
+
+// 继续部署流程
+const proceedToDeploy = () => {
+  showDeployDialog.value = false
+  message.info(`${deployMethod.value} 部署功能开发中...`)
+  deployMethod.value = ''
+}
+
+// 处理排序
+const handleSort = (field: string) => {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortOrder.value = 'asc'
+  }
+}
+
+
 </script>
 
 <style scoped>
@@ -232,103 +429,315 @@ onMounted(() => {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  background: #ffffff;
+  min-height: 100vh;
 }
 
-.manager-header {
+/* 页面头部样式 - 与WorkspaceHome保持一致 */
+.page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  padding: 0 4px;
 }
 
-.manager-header h2 {
+.header-content h1.page-title {
+  margin: 0 0 8px 0;
+}
+
+.header-content .page-subtitle {
   margin: 0;
-  color: #333;
 }
 
-.feature-notice {
-  margin-bottom: 24px;
-}
-
-.stats-section {
-  margin-bottom: 24px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  text-align: center;
-}
-
-.stat-content {
-  padding: 8px;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.quick-actions-section {
-  margin-bottom: 24px;
-}
-
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.action-card {
+.header-actions {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  border: 2px solid #f0f0f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
+  gap: 12px;
 }
 
-.action-card:hover {
-  border-color: #1890ff;
-  background: rgba(24, 144, 255, 0.05);
-}
-
-.action-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.action-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.action-description {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.4;
-}
-
+/* 列表区域样式 */
 .applications-section {
   margin-bottom: 24px;
 }
 
+/* 搜索和操作区域样式 */
+.search-section {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 按钮样式覆盖 */
+.search-section .n-button--primary-type,
+.n-button--primary-type {
+  border: none !important;
+  border-color: transparent !important;
+}
+
+.search-section .n-button--primary-type:hover,
+.n-button--primary-type:hover {
+  border: none !important;
+  border-color: transparent !important;
+}
+
+.search-section .n-button--primary-type:focus,
+.n-button--primary-type:focus {
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+
+
+/* 表格容器样式 */
+.table-container {
+  background: #FFFFFF;
+  width: 100%;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 180px 80px 180px 180px 150px 120px;
+  gap: 32px;
+  padding: 16px 0 16px 24px;
+  background: #FFFFFF;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.table-header > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.table-header > div:hover {
+  color: #666666;
+}
+
+.table-header .col-actions {
+  cursor: default;
+}
+
+.table-header .col-actions:hover {
+  color: #8C8C8C;
+}
+
+.sort-icon {
+  font-size: 12px;
+  color: #D9D9D9;
+  transition: all 0.2s ease;
+}
+
+.sort-icon.active {
+  color: #8C8C8C;
+}
+
+.table-body {
+  background: #FFFFFF;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 180px 80px 180px 180px 150px 120px;
+  gap: 32px;
+  padding: 16px 0 16px 24px;
+  transition: all 0.2s ease;
+  align-items: center;
+  min-height: 60px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F5F5F5;
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+.table-row:hover {
+  background: #F8F9FA;
+}
+
+/* 确保所有列都左对齐 */
+.col-name,
+.col-status,
+.col-created,
+.col-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* CPU和内存列需要特殊处理，让进度条占满宽度 */
+.col-cpu,
+.col-memory {
+  display: block;
+}
+
+/* 应用信息 */
+.app-info {
+  display: flex;
+  align-items: center;
+}
+
+.app-details {
+  flex: 1;
+}
+
+.app-name {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  line-height: var(--line-height-normal);
+}
+
+.app-type {
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+/* 状态指示器 */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.status-running {
+  background-color: #52C41A;
+}
+
+.status-dot.status-stopped {
+  background-color: #BFBFBF;
+}
+
+.status-dot.status-deploying {
+  background-color: #1890FF;
+}
+
+.status-dot.status-error {
+  background-color: #FF4D4F;
+}
+
+.status-text {
+  font-size: var(--font-size-caption);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-regular);
+}
+
+/* 状态标签 */
+.status-tag {
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+/* 资源使用率 */
+.resource-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.resource-info-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.resource-text {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-primary);
+  text-align: left;
+  min-width: 40px;
+  flex-shrink: 0;
+}
+
+/* 创建时间 */
+.created-time {
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.action-link {
+  font-size: var(--font-size-small);
+  color: #1890FF;
+  text-decoration: none;
+  font-weight: var(--font-weight-regular);
+  transition: color 0.2s ease;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.action-link:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+.action-link.primary {
+  color: #1890FF;
+  font-weight: var(--font-weight-regular);
+}
+
+.action-link.primary:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+/* 空状态 */
+.empty-state {
+  grid-column: 1 / -1;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-content {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 8px;
+}
+
+.empty-description {
+  font-size: 14px;
+  color: #86868b;
+  line-height: 1.5;
+}
+
+/* 部署方式选择 */
 .deploy-options {
   width: 100%;
 }
@@ -344,18 +753,19 @@ onMounted(() => {
   align-items: center;
   padding: 16px;
   border: 2px solid #f0f0f0;
-  border-radius: 8px;
+  border-radius: 12px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.method-card.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.method-card:hover {
+  border-color: #007AFF;
+  background: rgba(0, 122, 255, 0.05);
 }
 
-.method-card:not(.disabled):hover {
-  border-color: #1890ff;
-  background: rgba(24, 144, 255, 0.05);
+.method-card.selected {
+  border-color: #007AFF;
+  background: rgba(0, 122, 255, 0.1);
 }
 
 .method-icon {
@@ -371,53 +781,85 @@ onMounted(() => {
 .method-title {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: #1d1d1f;
   margin-bottom: 4px;
 }
 
 .method-description {
   font-size: 14px;
-  color: #666;
+  color: #86868b;
 }
 
-.method-status {
-  font-size: 12px;
-  color: #faad14;
-  background: rgba(250, 173, 20, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
+/* 响应式设计 */
 @media (max-width: 768px) {
   .application-manager {
     padding: 16px;
   }
-  
-  .manager-header {
+
+  .page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 16px;
   }
-  
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-  }
-  
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-  
-  .method-card {
+
+  .search-section {
     flex-direction: column;
-    text-align: center;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .search-section .n-input {
+    width: 100% !important;
+  }
+  
+  .table-header {
+    padding: 16px 20px 16px 32px;
+    gap: 24px;
+  }
+
+  .table-row {
+    grid-template-columns: 120px 60px 100px 100px 110px 70px;
+    gap: 24px;
+    padding: 16px 20px 16px 32px;
+    font-size: 12px;
+    min-height: 60px;
+  }
+
+  .sort-icon {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-header,
+  .table-row {
+    grid-template-columns: 1fr 60px 80px;
+    gap: 16px;
+    padding: 16px 12px 16px 20px;
+    min-height: 64px;
+  }
+
+  .col-cpu,
+  .col-memory,
+  .col-created {
+    display: none;
+  }
+
+  .action-buttons {
+    flex-direction: column;
     gap: 8px;
   }
-  
-  .method-icon {
-    margin-right: 0;
-    margin-bottom: 8px;
+
+  .app-name {
+    font-size: var(--font-size-body);
+  }
+
+  .app-type {
+    font-size: var(--font-size-small);
+  }
+
+  .action-link {
+    font-size: var(--font-size-small);
   }
 }
 </style>

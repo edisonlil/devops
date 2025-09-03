@@ -6,6 +6,21 @@ const api = axios.create({
   timeout: 10000
 })
 
+// 远程工作空间相关类型定义
+export interface RemoteWorkspacesResponse {
+  workspaces: string[]
+}
+
+export interface WorkspaceEnableResponse {
+  exists: boolean
+  workspace?: string
+  content?: string
+}
+
+export interface CreateEnableRequest {
+  workspace: string
+}
+
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
@@ -31,6 +46,23 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// 远程工作空间API
+export const getRemoteWorkspaces = (): Promise<{ data: RemoteWorkspacesResponse }> => {
+  return api.get('/remote/workspaces')
+}
+
+export const getWorkspaceEnable = (): Promise<{ data: WorkspaceEnableResponse }> => {
+  return api.get('/remote/workspace/enable')
+}
+
+export const createEnableFile = (data: CreateEnableRequest): Promise<{ success: boolean }> => {
+  return api.post('/remote/workspace/enable', data)
+}
+
+export const getRemoteWorkspaceConfig = (name: string): Promise<{ data: any }> => {
+  return api.get(`/remote/workspace/${name}/config`)
+}
 
 export const workspaceApi = {
   // 获取工作空间列表

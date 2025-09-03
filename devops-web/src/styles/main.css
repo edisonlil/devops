@@ -7,18 +7,53 @@
 
 html, body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #ffffff;
-  color: #262626;
+  color: #1d1d1f;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* DevOps Web 字体规范 */
+:root {
+  /* 字体家族 */
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-text: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  /* 字体大小 */
+  --font-size-h1: 32px;        /* 页面主标题 */
+  --font-size-h2: 24px;        /* 区域标题 */
+  --font-size-h3: 18px;        /* 列表标题 */
+  --font-size-h4: 17px;        /* 卡片标题 */
+  --font-size-body: 14px;      /* 正文内容 */
+  --font-size-subtitle: 17px;  /* 副标题 */
+  --font-size-caption: 13px;   /* 说明文字 */
+  --font-size-small: 12px;     /* 小字 */
+  --font-size-tiny: 10px;      /* 极小字 */
+
+  /* 字体粗细 */
+  --font-weight-bold: 700;     /* 粗体 */
+  --font-weight-semibold: 600; /* 半粗体 */
+  --font-weight-medium: 500;   /* 中等 */
+  --font-weight-regular: 400;  /* 常规 */
+
+  /* 行高 */
+  --line-height-tight: 1.1;    /* 紧密 */
+  --line-height-normal: 1.3;   /* 正常 */
+  --line-height-relaxed: 1.4;  /* 宽松 */
+
+  /* 颜色 */
+  --text-primary: #1d1d1f;     /* 主要文字 */
+  --text-secondary: #86868b;   /* 次要文字 */
+  --text-tertiary: #c7c7cc;    /* 三级文字 */
 }
 
 /* 全局组件样式覆盖 */
 .n-button {
   font-weight: 400 !important;
+  border-radius: 8px !important;
 }
 
 .n-select {
@@ -34,8 +69,103 @@ html, body {
 
 /* 按钮样式 */
 .n-button--primary-type {
-  background: #1890ff !important;
-  border-color: #1890ff !important;
+  background: #007AFF !important;
+  border-color: #007AFF !important;
+  border-radius: 8px !important;
+}
+
+.n-button--primary-type:hover {
+  background: #0056CC !important;
+  border-color: #0056CC !important;
+}
+
+.n-button--primary-type:focus {
+  background: #007AFF !important;
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2) !important;
+}
+
+/* 小按钮样式 */
+.n-button--small-size {
+  border-radius: 6px !important;
+}
+
+/* 次要按钮样式 */
+.n-button--quaternary-type {
+  border-radius: 6px !important;
+}
+
+/* 字体样式类 */
+.text-h1 {
+  font-family: var(--font-display);
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+}
+
+.text-h2 {
+  font-family: var(--font-display);
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+}
+
+.text-h3 {
+  font-family: var(--font-display);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+}
+
+.text-h4 {
+  font-family: var(--font-display);
+  font-size: var(--font-size-h4);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+}
+
+.text-body {
+  font-family: var(--font-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-primary);
+}
+
+.text-subtitle {
+  font-family: var(--font-text);
+  font-size: var(--font-size-subtitle);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-relaxed);
+  color: var(--text-secondary);
+}
+
+.text-caption {
+  font-family: var(--font-text);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+}
+
+.text-small {
+  font-family: var(--font-text);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+}
+
+.text-tiny {
+  font-family: var(--font-text);
+  font-size: var(--font-size-tiny);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
 }
 
 .n-button--primary-type:hover {

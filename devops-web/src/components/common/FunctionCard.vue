@@ -10,15 +10,15 @@
       </div>
       <div v-if="stats && stats.length > 0" class="card-stats-header">
         <div v-for="stat in stats" :key="stat.label" class="stat-item-header">
-          <span class="stat-value-header">{{ stat.value }}</span>
-          <span class="stat-label-header">{{ stat.label }}</span>
+          <span class="stat-value-header text-body">{{ stat.value }}</span>
+          <span class="stat-label-header text-tiny">{{ stat.label }}</span>
         </div>
       </div>
     </div>
 
     <div class="card-content">
-      <h3 class="card-title">{{ title }}</h3>
-      <p class="card-description">{{ description }}</p>
+      <h3 class="card-title text-h4">{{ title }}</h3>
+      <p class="card-description text-body">{{ description }}</p>
     </div>
   </div>
 </template>
@@ -68,6 +68,7 @@ const getIconPath = (iconName: string): string => {
   const icons: Record<string, string> = {
     middleware: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>',
     application: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="10" height="10" rx="1" ry="1"/>',
+    deploy: '<path d="M10 2v6.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V2h2L12 6 8 2h2z"/><path d="M4 14h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6z"/><rect x="2" y="12" width="20" height="2" rx="1"/>',
     database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
     monitoring: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
     cicd: '<circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>',
@@ -149,21 +150,12 @@ const handleClick = () => {
 }
 
 .card-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: #1d1d1f;
   margin: 0 0 8px 0;
-  line-height: 1.3;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .card-description {
-  font-size: 14px;
-  color: #86868b;
   margin: 0 0 16px 0;
-  line-height: 1.4;
   flex: 1;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
 }
 
 .card-stats-header {
@@ -181,18 +173,12 @@ const handleClick = () => {
 }
 
 .stat-value-header {
-  font-size: 14px;
   font-weight: 600;
-  color: #1d1d1f;
   line-height: 1.2;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .stat-label-header {
-  font-size: 10px;
-  color: #86868b;
   line-height: 1.2;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   text-align: center;
   white-space: nowrap;
 }

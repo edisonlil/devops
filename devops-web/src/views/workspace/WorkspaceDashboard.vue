@@ -1,386 +1,485 @@
 <template>
-  <div class="workspace-dashboard">
-    <div class="dashboard-header">
-      <h2>工作空间概览</h2>
-      <n-space>
-        <n-button @click="refreshData" :loading="loading">
-          <template #icon>
-            <n-icon><Refresh /></n-icon>
-          </template>
-          刷新数据
-        </n-button>
-      </n-space>
+  <div class="control-panel">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">控制台</h1>
+      <p class="page-subtitle">管理您的 DevOps 资源和服务</p>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <n-card class="stat-card">
-          <n-statistic label="中间件总数" :value="summary?.overview.totalInstances || 0">
-            <template #suffix>个</template>
-          </n-statistic>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <n-statistic label="运行中" :value="summary?.overview.runningInstances || 0" value-style="color: #52c41a;">
-            <template #suffix>个</template>
-          </n-statistic>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <n-statistic label="异常" :value="summary?.overview.errorInstances || 0" value-style="color: #ff4d4f;">
-            <template #suffix>个</template>
-          </n-statistic>
-        </n-card>
-        
-        <n-card class="stat-card">
-          <n-statistic label="月成本" :value="summary?.overview.totalCost || 0" :precision="2">
-            <template #prefix>$</template>
-          </n-statistic>
-        </n-card>
+    <!-- 服务卡片网格 -->
+    <div class="services-grid">
+      <!-- 中间件管理 -->
+      <div class="service-card" @click="goToMiddleware">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number">5</div>
+            <div class="stat-number">4</div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg middleware-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">中间件管理</h3>
+          <p class="card-description">管理数据库、缓存、消息队列等中间件服务</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label">实例</span>
+          <span class="stat-label">运行中</span>
+        </div>
       </div>
-    </div>
 
-    <!-- 资源使用情况 -->
-    <div class="resources-section">
-      <n-card title="资源使用情况">
-        <div class="resources-grid">
-          <div class="resource-item">
-            <div class="resource-header">
-              <span class="resource-label">CPU</span>
-              <span class="resource-value">
-                {{ summary?.resources.cpu.used || 0 }} / {{ summary?.resources.cpu.total || 0 }} {{ summary?.resources.cpu.unit || 'Cores' }}
-              </span>
-            </div>
-            <n-progress 
-              type="line" 
-              :percentage="cpuUsagePercentage" 
-              :color="getProgressColor(cpuUsagePercentage)"
-            />
-          </div>
-          
-          <div class="resource-item">
-            <div class="resource-header">
-              <span class="resource-label">内存</span>
-              <span class="resource-value">
-                {{ summary?.resources.memory.used || 0 }} / {{ summary?.resources.memory.total || 0 }} {{ summary?.resources.memory.unit || 'Gi' }}
-              </span>
-            </div>
-            <n-progress 
-              type="line" 
-              :percentage="memoryUsagePercentage" 
-              :color="getProgressColor(memoryUsagePercentage)"
-            />
-          </div>
-          
-          <div class="resource-item">
-            <div class="resource-header">
-              <span class="resource-label">存储</span>
-              <span class="resource-value">
-                {{ summary?.resources.storage.used || 0 }} / {{ summary?.resources.storage.total || 0 }} {{ summary?.resources.storage.unit || 'Gi' }}
-              </span>
-            </div>
-            <n-progress 
-              type="line" 
-              :percentage="storageUsagePercentage" 
-              :color="getProgressColor(storageUsagePercentage)"
-            />
+      <!-- 应用管理 -->
+      <div class="service-card" @click="goToApplication">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number">12</div>
+            <div class="stat-number">8</div>
           </div>
         </div>
-      </n-card>
-    </div>
+        <div class="card-icon">
+          <div class="icon-bg application-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">应用管理</h3>
+          <p class="card-description">部署和管理容器化应用程序</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label">应用</span>
+          <span class="stat-label">运行中</span>
+        </div>
+      </div>
 
-    <!-- 最近活动 -->
-    <div class="activities-section">
-      <n-card title="最近活动">
-        <n-empty v-if="!summary?.recentActivities?.length" description="暂无活动记录" />
-        <div v-else class="activities-list">
-          <div 
-            v-for="activity in summary.recentActivities" 
-            :key="activity.id"
-            class="activity-item"
-          >
-            <div class="activity-icon">
-              <n-icon :color="getActivityColor(activity.status)">
-                <component :is="getActivityIcon(activity.type)" />
-              </n-icon>
-            </div>
-            <div class="activity-content">
-              <div class="activity-title">{{ activity.message }}</div>
-              <div class="activity-meta">
-                <span>{{ activity.user }}</span>
-                <span>{{ formatTime(activity.timestamp) }}</span>
-              </div>
-            </div>
-            <div class="activity-status">
-              <n-tag :type="getStatusTagType(activity.status)" size="small">
-                {{ getStatusText(activity.status) }}
-              </n-tag>
-            </div>
+      <!-- 远程部署 -->
+      <div class="service-card" @click="goToRemoteDeploy">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number">3</div>
+            <div class="stat-number">2</div>
           </div>
         </div>
-      </n-card>
-    </div>
+        <div class="card-icon">
+          <div class="icon-bg remote-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">远程部署</h3>
+          <p class="card-description">远程执行devops命令，管理多服务器部署</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label">服务器</span>
+          <span class="stat-label">在线</span>
+        </div>
+      </div>
 
-    <!-- 快速操作 -->
-    <div class="quick-actions-section">
-      <n-card title="快速操作">
-        <n-space>
-          <n-button type="primary" @click="goToMiddleware">
-            <template #icon>
-              <n-icon><Rocket /></n-icon>
-            </template>
-            部署中间件
-          </n-button>
-          <n-button @click="goToTemplates">
-            <template #icon>
-              <n-icon><Document /></n-icon>
-            </template>
-            管理模板
-          </n-button>
-          <n-button @click="viewInstances">
-            <template #icon>
-              <n-icon><List /></n-icon>
-            </template>
-            查看实例
-          </n-button>
-        </n-space>
-      </n-card>
+      <!-- 数据库 -->
+      <div class="service-card" @click="goToDatabase">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number">3</div>
+            <div class="stat-number">45</div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg database-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">数据库</h3>
+          <p class="card-description">MySQL、PostgreSQL、MongoDB 等数据库服务</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label">实例</span>
+          <span class="stat-label">连接数</span>
+        </div>
+      </div>
+
+      <!-- 监控告警 -->
+      <div class="service-card" @click="goToMonitoring">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number">3</div>
+            <div class="stat-number">45</div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg monitoring-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">监控告警</h3>
+          <p class="card-description">系统监控、性能分析和告警通知</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label">实例</span>
+          <span class="stat-label">连接数</span>
+        </div>
+      </div>
+
+      <!-- CI/CD -->
+      <div class="service-card" @click="goToCI">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number"></div>
+            <div class="stat-number"></div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg cicd-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">CI/CD</h3>
+          <p class="card-description">持续集成和持续部署流水线</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label"></span>
+          <span class="stat-label"></span>
+        </div>
+      </div>
+
+      <!-- 存储管理 -->
+      <div class="service-card" @click="goToStorage">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number"></div>
+            <div class="stat-number"></div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg storage-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">存储管理</h3>
+          <p class="card-description">对象存储、文件系统和数据备份</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label"></span>
+          <span class="stat-label"></span>
+        </div>
+      </div>
+
+      <!-- 网络服务 -->
+      <div class="service-card" @click="goToNetwork">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number"></div>
+            <div class="stat-number"></div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg network-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">网络服务</h3>
+          <p class="card-description">负载均衡、域名解析和网络安全</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label"></span>
+          <span class="stat-label"></span>
+        </div>
+      </div>
+
+      <!-- 安全管理 -->
+      <div class="service-card" @click="goToSecurity">
+        <div class="card-header">
+          <div class="card-stats">
+            <div class="stat-number"></div>
+            <div class="stat-number"></div>
+          </div>
+        </div>
+        <div class="card-icon">
+          <div class="icon-bg security-icon"></div>
+        </div>
+        <div class="card-content">
+          <h3 class="card-title">安全管理</h3>
+          <p class="card-description">访问控制、证书管理和安全审计</p>
+        </div>
+        <div class="card-stats-labels">
+          <span class="stat-label"></span>
+          <span class="stat-label"></span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
-import { Refresh, Rocket, Document, List, CheckmarkCircle, CloseCircle, Time } from '@vicons/ionicons5'
-import { useWorkspaceStore } from '@/stores/workspace'
-import type { WorkspaceSummary } from '@/types/workspace'
 
 const route = useRoute()
 const router = useRouter()
-const message = useMessage()
-const workspaceStore = useWorkspaceStore()
-
-const loading = ref(false)
-const summary = ref<WorkspaceSummary | null>(null)
 
 const workspaceName = computed(() => route.params.workspaceName as string)
 
-// 计算资源使用百分比
-const cpuUsagePercentage = computed(() => {
-  if (!summary.value?.resources.cpu) return 0
-  const { used, total } = summary.value.resources.cpu
-  return total > 0 ? Math.round((used / total) * 100) : 0
-})
-
-const memoryUsagePercentage = computed(() => {
-  if (!summary.value?.resources.memory) return 0
-  const { used, total } = summary.value.resources.memory
-  return total > 0 ? Math.round((used / total) * 100) : 0
-})
-
-const storageUsagePercentage = computed(() => {
-  if (!summary.value?.resources.storage) return 0
-  const { used, total } = summary.value.resources.storage
-  return total > 0 ? Math.round((used / total) * 100) : 0
-})
-
-const getProgressColor = (percentage: number) => {
-  if (percentage < 60) return '#52c41a'
-  if (percentage < 80) return '#faad14'
-  return '#ff4d4f'
-}
-
-const getActivityIcon = (type: string) => {
-  switch (type) {
-    case 'deploy': return Rocket
-    case 'scale': return List
-    case 'delete': return CloseCircle
-    case 'backup': return Document
-    default: return CheckmarkCircle
-  }
-}
-
-const getActivityColor = (status: string) => {
-  switch (status) {
-    case 'success': return '#52c41a'
-    case 'failed': return '#ff4d4f'
-    case 'running': return '#1890ff'
-    default: return '#666'
-  }
-}
-
-const getStatusTagType = (status: string) => {
-  switch (status) {
-    case 'success': return 'success'
-    case 'failed': return 'error'
-    case 'running': return 'info'
-    default: return 'default'
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'success': return '成功'
-    case 'failed': return '失败'
-    case 'running': return '运行中'
-    default: return '未知'
-  }
-}
-
-const formatTime = (timestamp: string) => {
-  return new Date(timestamp).toLocaleString('zh-CN')
-}
-
-const refreshData = async () => {
-  loading.value = true
-  try {
-    summary.value = await workspaceStore.getWorkspaceSummary(workspaceName.value)
-  } catch (error: any) {
-    message.error(error.message || '获取工作空间概览失败')
-  } finally {
-    loading.value = false
-  }
-}
-
+// 导航函数
 const goToMiddleware = () => {
   router.push(`/workspace/${workspaceName.value}/middleware`)
 }
 
-const goToTemplates = () => {
-  router.push(`/workspace/${workspaceName.value}/template`)
+const goToApplication = () => {
+  router.push(`/workspace/${workspaceName.value}/application`)
 }
 
-const viewInstances = () => {
+const goToRemoteDeploy = () => {
+  router.push(`/workspace/${workspaceName.value}/deploy`)
+}
+
+const goToDatabase = () => {
+  // 跳转到中间件管理的数据库分类
   router.push(`/workspace/${workspaceName.value}/middleware`)
 }
 
-onMounted(() => {
-  refreshData()
-})
+const goToMonitoring = () => {
+  // 跳转到中间件管理的监控分类
+  router.push(`/workspace/${workspaceName.value}/middleware`)
+}
+
+const goToCI = () => {
+  // 预留CI/CD功能入口
+  console.log('CI/CD功能开发中...')
+}
+
+const goToStorage = () => {
+  // 预留存储管理功能入口
+  console.log('存储管理功能开发中...')
+}
+
+const goToNetwork = () => {
+  // 预留网络服务功能入口
+  console.log('网络服务功能开发中...')
+}
+
+const goToSecurity = () => {
+  // 预留安全管理功能入口
+  console.log('安全管理功能开发中...')
+}
 </script>
 
 <style scoped>
-.workspace-dashboard {
+.control-panel {
   padding: 24px;
+  background: #f6f8fa;
+  min-height: 100vh;
+}
+
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #6e7781;
+  margin: 0;
+  font-weight: 400;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.dashboard-header {
+.service-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e1e4e8;
+  transition: all 0.2s ease;
+  position: relative;
+  min-height: 140px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  flex-direction: column;
 }
 
-.dashboard-header h2 {
-  margin: 0;
-  color: #333;
+.service-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-.stats-section {
-  margin-bottom: 24px;
+.card-header {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+.card-stats {
+  display: flex;
+  gap: 8px;
 }
 
-.stat-card {
+.stat-number {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+  min-width: 20px;
   text-align: center;
 }
 
-.resources-section,
-.activities-section,
-.quick-actions-section {
-  margin-bottom: 24px;
-}
-
-.resources-grid {
-  display: grid;
-  gap: 16px;
-}
-
-.resource-item {
-  margin-bottom: 16px;
-}
-
-.resource-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.resource-label {
-  font-weight: 500;
-  color: #333;
-}
-
-.resource-value {
-  color: #666;
-  font-size: 14px;
-}
-
-.activities-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.activity-item {
+.card-icon {
+  margin: 8px 0 12px 0;
   display: flex;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  justify-content: flex-start;
 }
 
-.activity-item:last-child {
-  border-bottom: none;
+.icon-bg {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+  position: relative;
 }
 
-.activity-icon {
-  margin-right: 12px;
+/* 不同服务的图标颜色 */
+.middleware-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
 }
 
-.activity-content {
+.application-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+}
+
+.remote-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+}
+
+.database-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+}
+
+.monitoring-icon {
+  background: linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%);
+}
+
+.cicd-icon {
+  background: linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%);
+}
+
+.storage-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+}
+
+.network-icon {
+  background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 100%);
+}
+
+.security-icon {
+  background: linear-gradient(135deg, #5AC8FA 0%, #007AFF 100%);
+}
+
+.card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.card-description {
+  font-size: 12px;
+  color: #6e7781;
+  line-height: 1.4;
+  margin: 0;
   flex: 1;
 }
 
-.activity-title {
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.activity-meta {
-  font-size: 12px;
-  color: #666;
+.card-stats-labels {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
-.activity-status {
-  margin-left: 12px;
+.stat-label {
+  font-size: 10px;
+  color: #8c959f;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
-  .workspace-dashboard {
+  .control-panel {
+    padding: 24px;
+  }
+  
+  .page-title {
+    font-size: 28px;
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .service-card {
+    padding: 20px;
+    min-height: 160px;
+  }
+  
+  .card-title {
+    font-size: 18px;
+  }
+  
+  .card-description {
+    font-size: 13px;
+  }
+  
+  .icon-bg {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .stat-number {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .control-panel {
     padding: 16px;
   }
   
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .page-header {
+    margin-bottom: 32px;
   }
   
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .service-card {
+    padding: 16px;
   }
 }
 </style>
