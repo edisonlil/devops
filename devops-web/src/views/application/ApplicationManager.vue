@@ -498,7 +498,7 @@ const handleSort = (field: string) => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 180px 80px 180px 180px 150px 120px;
+  grid-template-columns: 180px 80px 200px 200px 150px 120px;
   gap: 32px;
   padding: 16px 0 16px 24px;
   background: #FFFFFF;
@@ -544,7 +544,7 @@ const handleSort = (field: string) => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 180px 80px 180px 180px 150px 120px;
+  grid-template-columns: 180px 80px 200px 200px 150px 120px;
   gap: 32px;
   padding: 16px 0 16px 24px;
   transition: all 0.2s ease;
@@ -818,7 +818,7 @@ const handleSort = (field: string) => {
   }
 
   .table-row {
-    grid-template-columns: 120px 60px 100px 100px 110px 70px;
+    grid-template-columns: 120px 60px 110px 110px 110px 70px;
     gap: 24px;
     padding: 16px 20px 16px 32px;
     font-size: 12px;
