@@ -224,8 +224,12 @@ const functions = ref([
     title: 'CI/CD',
     description: '持续集成和持续部署流水线',
     icon: 'cicd',
-    enabled: false,
-    status: { type: 'info', text: '规划中' }
+    enabled: true,
+    status: { type: 'success', text: '可用' },
+    stats: [
+      { label: '流水线', value: 0 },
+      { label: '部署次数', value: 0 }
+    ]
   },
   {
     id: 'storage',
@@ -309,6 +313,9 @@ const handleFunctionClick = (func: any) => {
     case 'database':
       // 跳转到中间件管理页面，数据库属于中间件的一部分
       router.push(`/workspace/${currentWorkspaceName}/manage/middleware`)
+      break
+    case 'cicd':
+      router.push(`/workspace/${currentWorkspaceName}/manage/cicd`)
       break
     default:
       message.info(`${func.title} 功能开发中...`)

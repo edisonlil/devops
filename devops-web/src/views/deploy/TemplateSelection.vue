@@ -12,16 +12,12 @@
       </div>
       <div class="header-right">
         <n-input
-          v-model:value="searchQuery"
+          v-model="searchQuery"
           placeholder="搜索模板"
           clearable
           size="medium"
           style="width: 300px;"
-        >
-          <template #prefix>
-            <n-icon size="14"><Search /></n-icon>
-          </template>
-        </n-input>
+        />
       </div>
     </div>
 
@@ -51,124 +47,143 @@
         </div>
 
         <!-- 模板网格 -->
-        <div class="templates-grid">
-          <div
-            v-for="template in filteredTemplates"
-            :key="template.id"
-            class="template-card"
-            @click="selectTemplate(template)"
-          >
-            <div class="template-info">
-              <h3 class="template-name">{{ template.name }}</h3>
-              <p class="template-desc">{{ template.description }}</p>
-              <div class="template-tags">
-                <span
-                  v-for="tag in template.tags"
-                  :key="tag"
-                  class="tag"
+        <n-spin :show="loading">
+          <div v-if="!loading && filteredTemplates.length === 0" class="empty-state">
+            <n-empty description="没有找到匹配的模板" />
+          </div>
+
+          <div v-else class="templates-grid">
+            <div
+              v-for="template in filteredTemplates"
+              :key="template.name"
+              class="template-card"
+              @click="selectTemplate(template)"
+            >
+              <div class="template-info">
+                <div class="template-header">
+                  <div class="template-meta">
+                    <h3 class="template-name">{{ template.displayName || template.name }}</h3>
+                  </div>
+                </div>
+                <p class="template-desc">{{ template.description || '暂无描述' }}</p>
+                <div v-if="template.tags && template.tags.length > 0" class="template-tags">
+                  <span
+                    v-for="tag in template.tags"
+                    :key="tag"
+                    class="tag"
+                  >
+                    {{ tag }}
+                  </span>
+                </div>
+                <div class="template-metadata-section">
+                  <span class="template-source" :class="`source-${template.source}`">
+                    {{ template.source === 'global' ? '全局' : '工作空间' }}
+                  </span>
+                  <span v-if="template.type" class="template-type">{{ template.type }}</span>
+                  <span class="template-metadata" :class="{ 'has-metadata': template.hasMetadata }">
+                    {{ template.hasMetadata ? '完整配置' : '基础模板' }}
+                  </span>
+                </div>
+                <div v-if="template.author" class="template-footer">
+                  <span class="template-author">{{ template.author }}</span>
+                </div>
+              </div>
+              <div class="template-divider"></div>
+              <div class="template-actions">
+                <n-button
+                  type="primary"
+                  size="small"
+                  @click.stop="selectTemplate(template)"
+                  style="border: none !important; border-width: 0 !important; outline: none !important;"
                 >
-                  {{ tag }}
-                </span>
+                  选择模板
+                </n-button>
               </div>
             </div>
-            <div class="template-divider"></div>
-            <div class="template-actions">
-              <n-button
-                type="primary"
-                size="small"
-                @click.stop="selectTemplate(template)"
-                style="border: none !important; border-width: 0 !important; outline: none !important;"
-              >
-                选择模板
-              </n-button>
-            </div>
           </div>
-        </div>
+        </n-spin>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowBack, Search } from '@vicons/ionicons5'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useMessage } from 'naive-ui'
+import { ArrowBack } from '@vicons/ionicons5'
+import { appTemplateApi, type AppTemplate } from '@/api/template'
 
 console.log('TemplateSelection component loaded')
 
 const router = useRouter()
+const route = useRoute()
+const message = useMessage()
 
 // 搜索查询
 const searchQuery = ref('')
 
+// 加载状态
+const loading = ref(false)
+
+// 当前工作空间
+const workspaceName = computed(() => route.params.workspaceName as string)
+
 // 当前选中的分类
-const selectedCategory = ref('global')
+const selectedCategory = ref('all')
 
 // 分类数据
 const categories = ref([
-  { key: 'global', label: '所有模板' },
-  { key: 'workspace', label: '我的模板' }
+  { key: 'all', label: '所有模板' },
+  { key: 'global', label: '全局模板' },
+  { key: 'workspace', label: '工作空间模板' }
 ])
 
 // 模板数据
-const templates = ref([
-  {
-    id: 'spring-boot',
-    name: 'Spring Boot',
-    description: 'Java Spring Boot 微服务应用模板',
-    type: 'java',
-    category: 'global',
-    tags: ['微服务', 'Java'],
-    version: '2.7.0'
-  },
-  {
-    id: 'vue-nginx',
-    name: 'Vue + Nginx',
-    description: 'Vue.js 前端应用，使用 Nginx 作为 Web 服务器',
-    type: 'vue',
-    category: 'global',
-    tags: ['前端', 'Vue'],
-    version: '3.0.0'
-  },
-  {
-    id: 'golang-gin',
-    name: 'Go + Gin',
-    description: 'Go 语言 Gin 框架 Web 应用',
-    type: 'golang',
-    category: 'global',
-    tags: ['微服务', 'Go'],
-    version: '1.19.0'
-  },
-  {
-    id: 'my-spring-boot',
-    name: 'My Spring Boot',
-    description: '我的自定义 Spring Boot 模板',
-    type: 'java',
-    category: 'workspace',
-    tags: ['自定义', 'Java'],
-    version: '1.0.0'
-  }
-])
+const templates = ref<AppTemplate[]>([])
+
+// 所有可用的分类
+const availableCategories = ref<string[]>([])
+
+// 所有可用的平台
+const availablePlatforms = ref<string[]>([])
+
+// 默认配置
+const templateDefaults = ref<Record<string, any>>({})
 
 // 过滤后的模板
 const filteredTemplates = computed(() => {
   let filtered = templates.value
 
+  console.log('过滤前模板数量:', templates.value.length)
+  console.log('当前选中分类:', selectedCategory.value)
+
   // 按分类过滤
-  if (selectedCategory.value !== 'global') {
-    filtered = filtered.filter(t => t.category === selectedCategory.value)
+  if (selectedCategory.value && selectedCategory.value !== 'all') {
+    if (selectedCategory.value === 'global') {
+      filtered = filtered.filter(t => t.source === 'global')
+      console.log('过滤全局模板后数量:', filtered.length)
+    } else if (selectedCategory.value === 'workspace') {
+      filtered = filtered.filter(t => t.source === 'workspace')
+      console.log('过滤工作空间模板后数量:', filtered.length)
+    } else {
+      filtered = filtered.filter(t => t.category === selectedCategory.value)
+      console.log('按分类过滤后数量:', filtered.length)
+    }
   }
 
   // 按搜索关键词过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(t =>
-      t.name.toLowerCase().includes(query) ||
-      t.description.toLowerCase().includes(query) ||
-      t.tags.some(tag => tag.toLowerCase().includes(query))
+      (t.displayName || t.name).toLowerCase().includes(query) ||
+      (t.description || '').toLowerCase().includes(query) ||
+      (t.tags || []).some((tag: string) => tag.toLowerCase().includes(query))
     )
+    console.log('搜索过滤后数量:', filtered.length)
   }
 
+  console.log('最终过滤结果数量:', filtered.length)
   return filtered
 })
 
@@ -180,13 +195,109 @@ const getCurrentCategoryLabel = () => {
 
 
 
+
+// 加载模板数据
+const loadTemplates = async () => {
+  loading.value = true
+  try {
+    const response = await appTemplateApi.getAllAppTemplates(workspaceName.value) as any
+
+    // 合并全局模板和工作空间模板，并标识来源
+    const allTemplates: AppTemplate[] = [
+      ...(response.data?.templates?.global || []).map((t: any) => ({
+        ...t,
+        source: 'global' as const,
+        category: t.category || inferCategoryFromName(t.name)
+      })),
+      ...(response.data?.templates?.workspace || []).map((t: any) => ({
+        ...t,
+        source: 'workspace' as const,
+        category: t.category || inferCategoryFromName(t.name)
+      }))
+    ]
+
+    templates.value = allTemplates
+    availableCategories.value = response.data?.categories || []
+    availablePlatforms.value = response.data?.platforms || []
+    templateDefaults.value = response.data?.defaults || {}
+
+    console.log('App模板加载成功:', allTemplates.length, '个模板')
+  } catch (error: any) {
+    console.error('加载App模板失败:', error)
+    message.error(error.message || '获取App模板列表失败')
+
+    // 如果API调用失败，使用默认模板数据
+    templates.value = getDefaultTemplates()
+  } finally {
+    loading.value = false
+  }
+}
+
+// 从模板名称推断分类
+const inferCategoryFromName = (name: string): string => {
+  if (name.includes('spring') || name.includes('java')) return 'java'
+  if (name.includes('vue') || name.includes('react') || name.includes('angular')) return 'vue'
+  if (name.includes('python') || name.includes('django') || name.includes('flask')) return 'python'
+  if (name.includes('golang') || name.includes('gin') || name.includes('go')) return 'golang'
+  if (name.includes('nginx')) return 'nginx'
+  return 'other'
+}
+
+// 获取默认模板数据（作为fallback）
+const getDefaultTemplates = (): AppTemplate[] => {
+  return [
+    {
+      name: 'spring-boot',
+      displayName: 'Spring Boot',
+      description: 'Java Spring Boot 微服务应用模板',
+      type: 'java',
+      category: 'java',
+      tags: ['微服务', 'Java', 'Spring'],
+      author: 'DevOps Team',
+      source: 'global',
+      platform: 'kubernetes',
+      hasMetadata: false
+    },
+    {
+      name: 'vue-nginx',
+      displayName: 'Vue + Nginx',
+      description: 'Vue.js 前端应用，使用 Nginx 作为 Web 服务器',
+      type: 'vue',
+      category: 'vue',
+      tags: ['前端', 'Vue', 'SPA'],
+      author: 'DevOps Team',
+      source: 'global',
+      platform: 'kubernetes',
+      hasMetadata: false
+    },
+    {
+      name: 'python',
+      displayName: 'Python App',
+      description: 'Python Web 应用模板',
+      type: 'python',
+      category: 'python',
+      tags: ['Python', 'Web'],
+      author: 'DevOps Team',
+      source: 'global',
+      platform: 'kubernetes',
+      hasMetadata: false
+    }
+  ]
+}
+
 // 选择模板
-const selectTemplate = (template: any) => {
+const selectTemplate = (template: AppTemplate) => {
+  console.log('选择模板:', template)
+
+  // 跳转到部署配置页面，传递模板信息
   router.push({
     name: 'DeployConfig',
+    params: {
+      workspaceName: workspaceName.value
+    },
     query: {
-      template: template.id,
-      type: template.type
+      template: template.name,
+      type: template.type || template.category
     }
   })
 }
@@ -195,6 +306,11 @@ const selectTemplate = (template: any) => {
 const goBack = () => {
   router.push({ name: 'ApplicationManager' })
 }
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadTemplates()
+})
 </script>
 
 <style scoped>
@@ -316,39 +432,136 @@ const goBack = () => {
 
 .template-info {
   flex: 1;
+  padding: 12px;
+}
+
+.template-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.template-icon {
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-meta {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .template-name {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: var(--font-size-h4);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   font-family: var(--font-display);
+  line-height: 1.5;
+}
+
+.template-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.template-source {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.source-global {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.source-workspace {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.template-type {
+  font-size: 11px;
+  color: #6B7280;
+  background: #F3F4F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.template-metadata {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.template-metadata.has-metadata {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.template-metadata:not(.has-metadata) {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.template-metadata-section {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .template-desc {
-  margin: 0 0 16px 0;
+  margin: 0 0 6px 0;
   font-size: var(--font-size-body);
   color: var(--text-secondary);
-  line-height: var(--line-height-relaxed);
+  line-height: 1.6;
   font-family: var(--font-text);
+}
+
+.template-footer {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.template-author {
+  color: #6B7280;
+  line-height: 1.5;
 }
 
 .template-tags {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
 .tag {
   background: #f0f0f0;
   color: var(--text-secondary);
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-regular);
   font-family: var(--font-text);
+  line-height: 1.5;
 }
 
 .template-divider {

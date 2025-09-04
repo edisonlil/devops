@@ -177,27 +177,18 @@ export class AuthService {
    * 读取远程文件
    */
   async readRemoteFile(sessionId: string, filePath: string): Promise<string> {
-    const session = this.getSession(sessionId);
-    if (!session || !session.connected) {
-      throw new Error('会话不存在或已断开');
+    try {
+      // 使用SSH命令而不是SFTP来读取文件
+      const result = await this.executeCommand(sessionId, `cat "${filePath}" 2>/dev/null || echo ""`);
+
+      if (result.exitCode !== 0) {
+        throw new Error(`文件不存在或无法读取: ${filePath}`);
+      }
+
+      return result.stdout;
+    } catch (error: any) {
+      throw new Error(`读取远程文件失败: ${error.message}`);
     }
-
-    return new Promise((resolve, reject) => {
-      session.client.sftp((err, sftp) => {
-        if (err) {
-          reject(new Error(`SFTP连接失败: ${err.message}`));
-          return;
-        }
-
-        sftp.readFile(filePath, 'utf8', (err, data) => {
-          if (err) {
-            reject(new Error(`读取文件失败: ${err.message}`));
-            return;
-          }
-          resolve(data.toString());
-        });
-      });
-    });
   }
 
   /**
@@ -231,33 +222,30 @@ export class AuthService {
    * 列出远程目录内容
    */
   async listRemoteDirectory(sessionId: string, dirPath: string): Promise<string[]> {
-    const session = this.getSession(sessionId);
-    if (!session || !session.connected) {
-      throw new Error('会话不存在或已断开');
+    try {
+      // 使用一条命令同时列出目录并过滤出子目录
+      const command = `find "${dirPath}" -maxdepth 1 -type d -not -path "${dirPath}" -printf "%f\\n" 2>/dev/null | grep -v "^\\." | sort`;
+      const result = await this.executeCommand(sessionId, command);
+
+      if (result.exitCode !== 0) {
+        console.warn(`目录不存在或无法访问: ${dirPath}`);
+        return [];
+      }
+
+      const output = result.stdout.trim();
+      if (!output) {
+        return [];
+      }
+
+      // 分割输出并过滤空行
+      return output.split('\n')
+        .map(item => item.trim())
+        .filter(item => item);
+
+    } catch (error: any) {
+      console.error(`列出远程目录失败: ${dirPath}`, error);
+      return [];
     }
-
-    return new Promise((resolve, reject) => {
-      session.client.sftp((err, sftp) => {
-        if (err) {
-          reject(new Error(`SFTP连接失败: ${err.message}`));
-          return;
-        }
-
-        sftp.readdir(dirPath, (err, list) => {
-          if (err) {
-            reject(new Error(`读取目录失败: ${err.message}`));
-            return;
-          }
-
-          const directories = list
-            .filter(item => item.attrs.isDirectory())
-            .map(item => item.filename)
-            .filter(name => !name.startsWith('.')); // 过滤隐藏目录
-
-          resolve(directories);
-        });
-      });
-    });
   }
 
   /**

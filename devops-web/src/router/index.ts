@@ -106,6 +106,18 @@ const routes: RouteRecordRaw[] = [
         name: 'ApplicationDeploy',
         component: () => import('@/views/deploy/ApplicationDeploy.vue'),
         meta: { title: '应用部署' }
+      },
+      {
+        path: 'cicd',
+        name: 'CICDManager',
+        component: () => import('@/views/cicd/PipelineManager.vue'),
+        meta: { title: 'CI/CD 流水线管理' }
+      },
+      {
+        path: 'cicd/execution/:pipelineId',
+        name: 'PipelineExecution',
+        component: () => import('@/views/cicd/PipelineExecution.vue'),
+        meta: { title: '流水线执行' }
       }
     ]
   }

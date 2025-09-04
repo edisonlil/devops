@@ -9,10 +9,12 @@
       <div class="header-actions">
         <div class="action-row">
           <n-button size="medium" @click="goBack">
-            <template #icon>
-              <n-icon><ArrowBack /></n-icon>
-            </template>
             返回
+          </n-button>
+        </div>
+        <div class="action-row">
+          <n-button size="medium" @click="savePipeline" :loading="saving">
+            保存为流水线
           </n-button>
         </div>
         <div class="action-row deploy-row">
@@ -53,9 +55,6 @@
             </div>
             <div class="command-actions">
               <n-button size="small" @click="copyCommand">
-                <template #icon>
-                  <n-icon><Copy /></n-icon>
-                </template>
                 复制命令
               </n-button>
             </div>
@@ -65,7 +64,6 @@
           <n-card title="部署提示" class="info-card">
             <div class="tips-content">
               <div class="tip-item">
-                <n-icon class="tip-icon"><InformationCircle /></n-icon>
                 <span>确保Git仓库地址可访问</span>
               </div>
               <div class="tip-item">
@@ -216,13 +214,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { ArrowBack, Copy, InformationCircle } from '@vicons/ionicons5'
+import { usePipelineStore } from '@/stores/pipeline'
+// 移除图标导入，保持简洁设计
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const pipelineStore = usePipelineStore()
 
 const deploying = ref(false)
+const saving = ref(false)
 const errors = ref<Record<string, string>>({})
 
 // 配置数据
@@ -270,8 +271,8 @@ const currentWorkspace = computed(() => {
 
 // 生成的命令
 const generatedCommand = computed(() => {
-  const parts = ['devops', 'run', config.value.type, config.value.name]
-  
+  const parts = ['devops', 'run', config.value.type]
+
   if (config.value.gitUrl) {
     parts.push('--git-url', `"${config.value.gitUrl}"`)
   }
@@ -308,7 +309,12 @@ const generatedCommand = computed(() => {
   if (config.value.buildCmds) {
     parts.push('--build-cmds', `"${config.value.buildCmds}"`)
   }
-  
+
+  // 应用名称放在最后
+  if (config.value.name) {
+    parts.push(config.value.name)
+  }
+
   return parts.join(' ')
 })
 
@@ -356,6 +362,53 @@ const handleDeploy = async () => {
   }
 }
 
+// 保存为流水线
+const savePipeline = async () => {
+  if (!validateForm()) {
+    message.error('请填写必填项')
+    return
+  }
+
+  saving.value = true
+  try {
+    // 检查是否已存在同名流水线
+    const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
+
+    if (existingPipeline) {
+      // 更新现有流水线
+      await pipelineStore.updatePipeline(existingPipeline.id, {
+        type: config.value.type,
+        template: selectedTemplate.value?.name || '',
+        config: { ...config.value },
+        command: generatedCommand.value
+      })
+      message.success(`流水线 "${config.value.name}" 已更新`)
+    } else {
+      // 创建新流水线
+      await pipelineStore.createPipeline({
+        name: config.value.name,
+        type: config.value.type,
+        template: selectedTemplate.value?.name || '',
+        config: { ...config.value },
+        command: generatedCommand.value
+      })
+      message.success(`流水线 "${config.value.name}" 已保存`)
+    }
+
+    // 跳转到CI/CD管理页面
+    setTimeout(() => {
+      const workspaceName = route.params.workspaceName
+      router.push(`/workspace/${workspaceName}/manage/cicd`)
+    }, 1500)
+
+  } catch (error) {
+    console.error('保存流水线失败:', error)
+    message.error('保存流水线失败')
+  } finally {
+    saving.value = false
+  }
+}
+
 // 返回模板选择页面
 const goBack = () => {
   router.push({ name: 'TemplateSelection' })
@@ -392,7 +445,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: flex-end;
   margin-bottom: 32px;
-  padding: 0 4px;
+  padding: 0;
 }
 
 .header-actions {
@@ -428,7 +481,7 @@ onMounted(() => {
 
 /* 配置区域 */
 .config-section {
-  max-width: 1400px;
+  width: 100%;
 }
 
 .config-layout {
@@ -436,6 +489,15 @@ onMounted(() => {
   grid-template-columns: 380px 1fr;
   gap: 32px;
   align-items: start;
+  width: 100%;
+}
+
+/* 在超大屏幕上调整比例 */
+@media (min-width: 1600px) {
+  .config-layout {
+    grid-template-columns: 420px 1fr;
+    gap: 48px;
+  }
 }
 
 .config-form {
@@ -444,6 +506,8 @@ onMounted(() => {
   border: 1px solid #E5E7EB;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: none;
 }
 
 .form-section {
@@ -453,6 +517,13 @@ onMounted(() => {
 
 .form-section:last-child {
   border-bottom: none;
+}
+
+/* 在大屏幕上增加内边距 */
+@media (min-width: 1400px) {
+  .form-section {
+    padding: 32px;
+  }
 }
 
 .section-title {
@@ -468,17 +539,48 @@ onMounted(() => {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* 在大屏幕上优化布局 */
+@media (min-width: 1200px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 28px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 32px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+  }
 }
 
 .form-item {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 .form-item.full-width {
   grid-column: 1 / -1;
+}
+
+/* 在大屏幕上增加表单项间距 */
+@media (min-width: 1400px) {
+  .form-item {
+    gap: 12px;
+  }
 }
 
 .form-label {
@@ -499,13 +601,25 @@ onMounted(() => {
 .info-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  min-width: 0; /* 防止内容溢出 */
 }
 
 .info-card {
   border-radius: 12px;
   border: 1px solid #E5E7EB;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 在大屏幕上增加信息卡片的内边距 */
+@media (min-width: 1400px) {
+  .info-card :deep(.n-card-header) {
+    padding: 20px 24px 16px 24px;
+  }
+
+  .info-card :deep(.n-card__content) {
+    padding: 0 24px 20px 24px;
+  }
 }
 
 .info-card :deep(.n-card-header__main) {

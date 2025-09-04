@@ -12,6 +12,7 @@ import remoteRoutes from './routes/remote';
 import workspaceRoutes from './routes/workspace';
 import middlewareRoutes from './routes/middleware';
 import templateRoutes from './routes/template';
+import appRoutes from './routes/app';
 import deployRoutes from './routes/deploy';
 
 // 导入中间件
@@ -61,6 +62,7 @@ app.use('/api/remote', remoteRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/workspaces/:workspace/middleware', middlewareRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/app', appRoutes);
 app.use('/api/workspaces/:workspace/deploy', deployRoutes);
 
 // 错误处理中间件
