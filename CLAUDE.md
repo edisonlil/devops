@@ -406,3 +406,193 @@ const api = axios.create({
 - [ ] 行高是否合适且一致
 
 **重要提醒**：遵循字体规范可确保整个应用的视觉一致性和用户体验的统一性。
+
+## devops-web 按钮样式规范
+
+**注意：以下规范仅适用于 devops-web 前端项目，解决 Naive UI 按钮绿色边框问题并建立统一的按钮样式**
+
+### 1. 问题背景
+
+在使用 Naive UI 的 `n-button` 组件时，主要按钮 (`type="primary"`) 会出现不期望的绿色边框，影响整体设计的一致性。
+
+### 2. 解决方案
+
+#### 全局样式配置 (`src/styles/main.css`)
+
+```css
+/* 全局组件样式覆盖 */
+.n-button {
+  font-weight: 400 !important;
+  border-radius: 8px !important;
+}
+
+/* 移除所有按钮的默认边框和轮廓 */
+.n-button,
+.n-button:hover,
+.n-button:focus,
+.n-button:active,
+.n-button:focus-visible {
+  outline: none !important;
+}
+
+/* 只移除边框，保持其他样式 */
+.n-button .n-button__border,
+.n-button .n-button__state-border {
+  display: none !important;
+}
+
+/* 按钮样式 - 保持样式但去除边框 */
+.n-button--primary-type {
+  background: #007AFF !important;
+  color: white !important;
+  border-radius: 8px !important;
+}
+
+.n-button--primary-type:hover {
+  background: #0056CC !important;
+  color: white !important;
+}
+
+.n-button--primary-type:focus {
+  background: #007AFF !important;
+  color: white !important;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2) !important;
+}
+
+.n-button--primary-type:active {
+  background: #0056CC !important;
+  color: white !important;
+}
+```
+
+#### 主题配置 (`src/App.vue`)
+
+```vue
+<template>
+  <n-config-provider
+    :theme="theme"
+    :theme-overrides="themeOverrides"
+    :locale="zhCN"
+    :date-locale="dateZhCN"
+  >
+    <!-- 应用内容 -->
+  </n-config-provider>
+</template>
+
+<script setup lang="ts">
+// 主题覆盖配置 - 确保按钮无边框
+const themeOverrides = {
+  Button: {
+    border: 'none',
+    borderHover: 'none',
+    borderPressed: 'none',
+    borderFocus: 'none',
+    borderDisabled: 'none',
+    colorPrimary: '#007AFF',
+    colorHoverPrimary: '#0056CC',
+    colorPressedPrimary: '#0056CC',
+    colorFocusPrimary: '#007AFF',
+    borderPrimary: 'none',
+    borderHoverPrimary: 'none',
+    borderPressedPrimary: 'none',
+    borderFocusPrimary: 'none',
+    borderDisabledPrimary: 'none'
+  }
+}
+</script>
+```
+
+### 3. 颜色规范
+
+#### 主要按钮颜色
+- **默认状态**: `#007AFF` (iOS蓝色)
+- **悬停状态**: `#0056CC` (深蓝色)
+- **按下状态**: `#0056CC` (深蓝色)
+- **聚焦状态**: `#007AFF` + 阴影 `0 0 0 2px rgba(0, 122, 255, 0.2)`
+
+#### 文字颜色
+- **所有状态**: `white` (白色文字)
+
+### 4. 使用示例
+
+#### 基础用法
+```vue
+<template>
+  <n-button type="primary" @click="handleClick">
+    部署应用
+  </n-button>
+</template>
+```
+
+#### 带图标的按钮
+```vue
+<template>
+  <n-button type="primary" @click="handleDeploy">
+    <template #icon>
+      <n-icon><Add /></n-icon>
+    </template>
+    部署应用
+  </n-button>
+</template>
+```
+
+### 5. 其他按钮类型
+
+```css
+/* 小按钮样式 */
+.n-button--small-size {
+  border-radius: 6px !important;
+}
+
+/* 次要按钮样式 */
+.n-button--quaternary-type {
+  border-radius: 6px !important;
+}
+```
+
+### 6. 页面级样式补充
+
+在特定页面中，如果需要额外确保按钮无边框：
+
+```css
+/* 确保按钮无边框 */
+.n-button--primary-type .n-button__border,
+.n-button--primary-type .n-button__state-border {
+  display: none !important;
+}
+```
+
+### 7. 最佳实践
+
+1. **样式优先级**：使用 `!important` 确保样式优先级
+2. **边框处理**：通过 `display: none` 隐藏 Naive UI 的边框元素
+3. **主题配置**：使用主题覆盖配置从源头解决边框问题
+4. **响应式**：按钮样式在所有屏幕尺寸下保持一致
+5. **可访问性**：保持聚焦状态的视觉反馈（阴影）
+
+### 8. 故障排除
+
+#### 问题：按钮仍然有绿色边框
+**解决方案**：
+1. 检查是否正确导入了 `main.css`
+2. 确认主题覆盖配置是否生效
+3. 使用浏览器开发者工具检查CSS优先级
+
+#### 问题：按钮样式完全消失
+**解决方案**：
+1. 检查是否过度使用了 `display: none`
+2. 确保只隐藏边框元素，不隐藏按钮本身
+3. 恢复基础的背景色和文字颜色
+
+### 9. 维护说明
+
+#### 更新颜色
+如需更改按钮颜色，需要同时更新：
+1. `main.css` 中的CSS样式
+2. `App.vue` 中的主题覆盖配置
+
+#### 版本兼容性
+- 当前配置适用于 Naive UI v2.x
+- 升级 Naive UI 版本时需要重新测试按钮样式
+
+**重要提醒**：通过多层防护（CSS样式 + 主题配置 + 页面级补充），成功解决了 Naive UI 按钮的绿色边框问题，确保了按钮在整个应用中的视觉一致性。

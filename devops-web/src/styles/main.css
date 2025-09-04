@@ -56,6 +56,21 @@ html, body {
   border-radius: 8px !important;
 }
 
+/* 移除所有按钮的默认边框和轮廓 */
+.n-button,
+.n-button:hover,
+.n-button:focus,
+.n-button:active,
+.n-button:focus-visible {
+  outline: none !important;
+}
+
+/* 只移除边框，保持其他样式 */
+.n-button .n-button__border,
+.n-button .n-button__state-border {
+  display: none !important;
+}
+
 .n-select {
   font-weight: 400 !important;
 }
@@ -67,22 +82,27 @@ html, body {
   border: 1px solid #f0f0f0 !important;
 }
 
-/* 按钮样式 */
+/* 按钮样式 - 保持样式但去除边框 */
 .n-button--primary-type {
   background: #007AFF !important;
-  border-color: #007AFF !important;
+  color: white !important;
   border-radius: 8px !important;
 }
 
 .n-button--primary-type:hover {
   background: #0056CC !important;
-  border-color: #0056CC !important;
+  color: white !important;
 }
 
 .n-button--primary-type:focus {
   background: #007AFF !important;
-  border-color: #007AFF !important;
+  color: white !important;
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2) !important;
+}
+
+.n-button--primary-type:active {
+  background: #0056CC !important;
+  color: white !important;
 }
 
 /* 小按钮样式 */
@@ -168,10 +188,7 @@ html, body {
   color: var(--text-secondary);
 }
 
-.n-button--primary-type:hover {
-  background: #40a9ff !important;
-  border-color: #40a9ff !important;
-}
+
 
 /* 输入框样式 */
 .n-input {

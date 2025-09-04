@@ -458,24 +458,10 @@ const goToDeployPage = () => {
   align-items: center;
 }
 
-/* 按钮样式覆盖 */
-.search-section .n-button--primary-type,
-.n-button--primary-type {
-  border: none !important;
-  border-color: transparent !important;
-}
-
-.search-section .n-button--primary-type:hover,
-.n-button--primary-type:hover {
-  border: none !important;
-  border-color: transparent !important;
-}
-
-.search-section .n-button--primary-type:focus,
-.n-button--primary-type:focus {
-  border: none !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
+/* 确保按钮无边框 */
+.n-button--primary-type .n-button__border,
+.n-button--primary-type .n-button__state-border {
+  display: none !important;
 }
 
 
