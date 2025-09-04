@@ -250,9 +250,17 @@ const getTagType = (tag: string) => {
 }
 
 .card-footer {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  background: rgba(248, 249, 250, 0.5);
+  margin-left: -24px;
+  margin-right: -24px;
+  margin-bottom: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 24px;
+  border-radius: 0 0 8px 8px;
 }
 
 @media (max-width: 768px) {
@@ -280,6 +288,15 @@ const getTagType = (tag: string) => {
   .template-platforms {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .card-footer {
+    margin-left: -16px;
+    margin-right: -16px;
+    margin-bottom: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 16px;
   }
 }
 </style>
