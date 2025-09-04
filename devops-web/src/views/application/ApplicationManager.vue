@@ -26,7 +26,7 @@
           </template>
         </n-input>
 
-        <n-button type="primary" @click="showDeployDialog = true">
+        <n-button type="primary" @click="goToDeployPage">
           <template #icon>
             <n-icon><Add /></n-icon>
           </template>
@@ -84,7 +84,7 @@
 
           <div class="table-body">
           
-          <div v-if="filteredApplications.length === 0" class="empty-state">
+          <div v-if="paginatedApplications.length === 0" class="empty-state">
             <div class="empty-content">
               <div class="empty-icon">📦</div>
               <div class="empty-title">暂无应用</div>
@@ -92,8 +92,8 @@
             </div>
           </div>
           
-          <div 
-            v-for="app in filteredApplications" 
+          <div
+            v-for="app in paginatedApplications"
             :key="app.id"
             class="table-row"
           >
@@ -177,76 +177,41 @@
             </div>
           </div>
           </div>
+
+          <!-- 分页组件 -->
+          <div class="pagination-section" v-if="totalCount > pageSize">
+            <n-pagination
+              v-model:page="currentPage"
+              :page-count="Math.ceil(totalCount / pageSize)"
+              :page-size="pageSize"
+              :show-size-picker="true"
+              :page-sizes="[10, 20, 50]"
+              :show-quick-jumper="true"
+              @update:page-size="pageSize = $event"
+            />
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 部署应用对话框 -->
-    <n-modal v-model:show="showDeployDialog" style="width: 600px;">
-      <n-card title="部署新应用" :bordered="false" size="huge">
-        <template #header-extra>
-          <n-button quaternary circle @click="showDeployDialog = false">
-            <template #icon>
-              <n-icon><Close /></n-icon>
-            </template>
-          </n-button>
-        </template>
-        
-        <div class="deploy-options">
-          <div class="deploy-methods">
-            <div class="method-card" @click="deployMethod = 'docker'">
-              <div class="method-icon">🐳</div>
-              <div class="method-content">
-                <div class="method-title">Docker 镜像</div>
-                <div class="method-description">从 Docker Hub 或私有仓库部署</div>
-              </div>
-            </div>
-            
-            <div class="method-card" @click="deployMethod = 'git'">
-              <div class="method-icon">📦</div>
-              <div class="method-content">
-                <div class="method-title">Git 仓库</div>
-                <div class="method-description">从源码构建并部署</div>
-              </div>
-            </div>
-            
-            <div class="method-card" @click="deployMethod = 'yaml'">
-              <div class="method-icon">📄</div>
-              <div class="method-content">
-                <div class="method-title">YAML 配置</div>
-                <div class="method-description">上传 Kubernetes YAML 文件</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <template #footer>
-          <div style="display: flex; justify-content: flex-end; gap: 12px;">
-            <n-button @click="showDeployDialog = false">取消</n-button>
-            <n-button type="primary" @click="proceedToDeploy" :disabled="!deployMethod">
-              继续
-            </n-button>
-          </div>
-        </template>
-      </n-card>
-    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { Add, Search, Close, EllipsisHorizontal } from '@vicons/ionicons5'
+import { Add, Search, EllipsisHorizontal } from '@vicons/ionicons5'
 
 const router = useRouter()
 const message = useMessage()
 
-const showDeployDialog = ref(false)
 const searchQuery = ref('')
-const deployMethod = ref('')
 const sortField = ref('')
 const sortOrder = ref('asc')
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 // 模拟应用数据
 const applications = ref([
@@ -282,8 +247,8 @@ const applications = ref([
   }
 ])
 
-// 过滤后的应用列表
-const filteredApplications = computed(() => {
+// 过滤和排序后的应用列表
+const filteredAndSortedApplications = computed(() => {
   let filtered = applications.value.filter(app => {
     const matchesSearch = !searchQuery.value ||
       app.name.toLowerCase().includes(searchQuery.value.toLowerCase())
@@ -317,6 +282,16 @@ const filteredApplications = computed(() => {
 
   return filtered
 })
+
+// 分页后的应用列表
+const paginatedApplications = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredAndSortedApplications.value.slice(start, end)
+})
+
+// 总数据量
+const totalCount = computed(() => filteredAndSortedApplications.value.length)
 
 
 
@@ -404,12 +379,7 @@ const handleMoreAction = (key: string) => {
   message.info(`${key} 功能开发中...`)
 }
 
-// 继续部署流程
-const proceedToDeploy = () => {
-  showDeployDialog.value = false
-  message.info(`${deployMethod.value} 部署功能开发中...`)
-  deployMethod.value = ''
-}
+
 
 // 处理排序
 const handleSort = (field: string) => {
@@ -419,6 +389,18 @@ const handleSort = (field: string) => {
     sortField.value = field
     sortOrder.value = 'asc'
   }
+  // 排序后重置到第一页
+  currentPage.value = 1
+}
+
+// 监听搜索查询变化，重置到第一页
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+// 跳转到部署页面
+const goToDeployPage = () => {
+  router.push({ name: 'TemplateSelection' })
 }
 
 
@@ -465,6 +447,14 @@ const handleSort = (field: string) => {
   margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+/* 分页区域样式 */
+.pagination-section {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
   align-items: center;
 }
 
@@ -737,58 +727,7 @@ const handleSort = (field: string) => {
   line-height: 1.5;
 }
 
-/* 部署方式选择 */
-.deploy-options {
-  width: 100%;
-}
 
-.deploy-methods {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.method-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.method-card:hover {
-  border-color: #007AFF;
-  background: rgba(0, 122, 255, 0.05);
-}
-
-.method-card.selected {
-  border-color: #007AFF;
-  background: rgba(0, 122, 255, 0.1);
-}
-
-.method-icon {
-  font-size: 24px;
-  margin-right: 16px;
-  flex-shrink: 0;
-}
-
-.method-content {
-  flex: 1;
-}
-
-.method-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1d1d1f;
-  margin-bottom: 4px;
-}
-
-.method-description {
-  font-size: 14px;
-  color: #86868b;
-}
 
 /* 响应式设计 */
 @media (max-width: 768px) {
@@ -810,6 +749,10 @@ const handleSort = (field: string) => {
 
   .search-section .n-input {
     width: 100% !important;
+  }
+
+  .pagination-section {
+    margin-top: 16px;
   }
   
   .table-header {

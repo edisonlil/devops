@@ -74,6 +74,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '应用管理' }
       },
       {
+        path: 'application/deploy',
+        name: 'TemplateSelection',
+        component: () => import('@/views/deploy/TemplateSelection.vue'),
+        meta: { title: '选择部署模板' }
+      },
+      {
+        path: 'application/deploy/config',
+        name: 'DeployConfig',
+        component: () => import('@/views/deploy/DeployConfig.vue'),
+        meta: { title: '配置部署' }
+      },
+      {
         path: 'template',
         name: 'GlobalTemplateManager',
         component: () => import('@/views/template/GlobalTemplateManager.vue'),
@@ -82,8 +94,9 @@ const routes: RouteRecordRaw[] = [
           requiresPermission: 'admin' 
         }
       },
+
       {
-        path: 'deploy',
+        path: 'deploy/remote',
         name: 'RemoteDeployManager',
         component: () => import('@/views/deploy/RemoteDeployManager.vue'),
         meta: { title: '远程部署管理' }
