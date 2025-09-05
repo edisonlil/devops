@@ -81,11 +81,51 @@ export const usePipelineStore = defineStore('pipeline', () => {
     try {
       const pipelinesData = localStorage.getItem(STORAGE_KEY)
       const historyData = localStorage.getItem(HISTORY_KEY)
-      
+
       if (pipelinesData) {
         pipelines.value = JSON.parse(pipelinesData)
+      } else {
+        // 如果没有数据，添加一些示例数据
+        pipelines.value = [
+          {
+            id: '1',
+            name: 'wukong-crm-frontend',
+            type: 'Frontend',
+            template: 'Vue.js',
+            config: {},
+            command: 'npm run build && docker build -t wukong-crm-frontend .',
+            createdAt: '2024-01-15T10:30:00Z',
+            lastDeployAt: '2024-01-20T14:22:00Z',
+            deployCount: 5,
+            status: 'success'
+          },
+          {
+            id: '2',
+            name: 'wukong-crm-backend',
+            type: 'Backend',
+            template: 'Python',
+            config: {},
+            command: 'pip install -r requirements.txt && python manage.py migrate',
+            createdAt: '2024-01-10T09:15:00Z',
+            lastDeployAt: '2024-01-19T16:45:00Z',
+            deployCount: 8,
+            status: 'success'
+          },
+          {
+            id: '3',
+            name: 'wukong-crm-api',
+            type: 'API',
+            template: 'Node.js',
+            config: {},
+            command: 'npm install && npm run build && pm2 restart api',
+            createdAt: '2024-01-12T11:20:00Z',
+            deployCount: 0,
+            status: 'never'
+          }
+        ]
+        saveToStorage()
       }
-      
+
       if (historyData) {
         deployHistory.value = JSON.parse(historyData)
       }
