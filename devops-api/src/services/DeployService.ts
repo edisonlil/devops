@@ -481,17 +481,11 @@ export class DeployService {
       .map(path => ({
         name: path.split('/').pop(),
         path: path.trim(),
-        type: this.detectTemplateType(path)
+        type: '' // 移除类型推断
       }));
   }
 
-  // 检测模板类型
-  private detectTemplateType(path: string): string {
-    if (path.includes('/k8s/')) return 'k8s';
-    if (path.includes('/compose/')) return 'compose';
-    if (path.includes('/swarm/')) return 'swarm';
-    return 'unknown';
-  }
+
 
   // 获取远程部署状态
   async getRemoteDeployments(serverId: string, workspace?: string) {

@@ -5,7 +5,6 @@ import { ref, computed } from 'vue'
 export interface Pipeline {
   id: string
   name: string
-  type: string
   template: string
   config: any
   command: string
@@ -237,11 +236,10 @@ export const usePipelineStore = defineStore('pipeline', () => {
 
   const searchPipelines = (query: string): Pipeline[] => {
     if (!query.trim()) return pipelines.value
-    
+
     const lowerQuery = query.toLowerCase()
     return pipelines.value.filter(pipeline =>
       pipeline.name.toLowerCase().includes(lowerQuery) ||
-      pipeline.type.toLowerCase().includes(lowerQuery) ||
       pipeline.template.toLowerCase().includes(lowerQuery)
     )
   }

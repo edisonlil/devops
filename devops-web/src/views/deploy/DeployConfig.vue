@@ -35,10 +35,7 @@
                 <span class="info-label">模板名称:</span>
                 <span class="info-value">{{ selectedTemplate?.name || '未选择' }}</span>
               </div>
-              <div class="info-item">
-                <span class="info-label">应用类型:</span>
-                <span class="info-value">{{ config.type || '未指定' }}</span>
-              </div>
+
               <div class="info-item">
                 <span class="info-label">当前工作空间:</span>
                 <span class="info-value">{{ currentWorkspace }}</span>
@@ -382,7 +379,6 @@ const savePipeline = async () => {
     if (existingPipeline) {
       // 更新现有流水线
       await pipelineStore.updatePipeline(existingPipeline.id, {
-        type: config.value.type,
         template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
@@ -392,7 +388,6 @@ const savePipeline = async () => {
       // 创建新流水线
       await pipelineStore.createPipeline({
         name: config.value.name,
-        type: config.value.type,
         template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
@@ -472,20 +467,16 @@ const loadWorkspaceDefaults = async () => {
 // 初始化
 onMounted(async () => {
   const templateId = route.query.template as string
-  const type = route.query.type as string
 
   // 设置当前工作空间
   config.value.workspace = currentWorkspace.value
 
-  if (templateId && type) {
-    config.value.type = type
-
+  if (templateId) {
     // 这里可以根据模板ID获取模板详细信息
     selectedTemplate.value = {
       id: templateId,
       name: templateId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()), // 显示名称
-      originalName: templateId, // 保留原始名称用于命令生成
-      type: type
+      originalName: templateId // 保留原始名称用于命令生成
     }
   }
 

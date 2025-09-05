@@ -19,13 +19,11 @@ export interface AppTemplate {
   name: string              // 目录名，如 'spring-boot'
   displayName?: string      // metadata.yaml中的name或displayName
   description?: string      // metadata.yaml中的description
-  type?: string            // metadata.yaml中的type
   platform?: string       // metadata.yaml中的platform，如 'kubernetes'
   author?: string          // metadata.yaml中的author
   version?: string         // metadata.yaml中的version
   hasMetadata: boolean     // 是否有metadata.yaml文件
   source: 'global' | 'workspace'
-  category: string         // 从目录结构推断，如'java', 'vue', 'python', 'nginx'
   tags?: string[]          // 可选的标签
   variables?: Array<{      // metadata.yaml中的variables
     name: string

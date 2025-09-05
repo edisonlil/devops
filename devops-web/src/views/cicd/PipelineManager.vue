@@ -83,14 +83,7 @@
                 </svg>
               </n-icon>
             </div>
-            <div class="col-type" @click="handleSort('type')">
-              <span>类型</span>
-              <n-icon class="sort-icon" :class="{ active: sortField === 'type' }">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7 10l5 5 5-5z"/>
-                </svg>
-              </n-icon>
-            </div>
+
             <div class="col-actions">
               <span>操作</span>
             </div>
@@ -127,9 +120,7 @@
               </span>
             </div>
 
-            <div class="col-type">
-              <span class="type-text">{{ pipeline.type }}</span>
-            </div>
+
 
             <div class="col-actions">
               <div class="action-buttons">
@@ -204,7 +195,6 @@ const filteredPipelines = computed(() => {
     const query = searchQuery.value.toLowerCase()
     pipelines = pipelines.filter(pipeline =>
       pipeline.name.toLowerCase().includes(query) ||
-      pipeline.type.toLowerCase().includes(query) ||
       pipeline.template.toLowerCase().includes(query)
     )
   }
@@ -439,7 +429,7 @@ const handlePipelineAction = async (key: string) => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 180px 90px 110px 130px 120px 120px;
+  grid-template-columns: 180px 180px 150px  150px 120px;
   gap: 56px;
   padding: 16px 0 16px 24px;
   background: #FFFFFF;
@@ -501,7 +491,7 @@ const handlePipelineAction = async (key: string) => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 180px 90px 110px 130px 120px 120px;
+  grid-template-columns: 180px 180px 150px 150px 120px;
   gap: 56px;
   padding: 16px 0 16px 24px;
   transition: all 0.2s ease;
@@ -523,11 +513,14 @@ const handlePipelineAction = async (key: string) => {
 .col-name,
 .col-status,
 .col-last-deploy,
-.col-type,
 .col-actions {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+}
+
+.table-header .col-actions {
+  justify-content: center;
 }
 
 /* 数字列居中对齐 */
@@ -642,9 +635,9 @@ const handlePipelineAction = async (key: string) => {
 @media (max-width: 1024px) {
   .table-header,
   .table-row {
-    grid-template-columns: 120px 60px 110px 110px 110px 70px;
+    grid-template-columns: 150px 90px 110px 1fr 110px;
     gap: 24px;
-    padding: 16px 20px 16px 32px;
+    padding: 16px 20px;
     font-size: 12px;
     min-height: 60px;
   }
@@ -657,15 +650,14 @@ const handlePipelineAction = async (key: string) => {
 @media (max-width: 480px) {
   .table-header,
   .table-row {
-    grid-template-columns: 1fr 60px 80px;
-    gap: 16px;
-    padding: 16px 12px 16px 20px;
+    grid-template-columns: 1fr 70px 110px;
+    gap: 20px;
+    padding: 16px 16px;
     min-height: 64px;
   }
 
   .col-deploy-count,
-  .col-last-deploy,
-  .col-type {
+  .col-last-deploy {
     display: none;
   }
 

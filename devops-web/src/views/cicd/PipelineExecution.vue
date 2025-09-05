@@ -20,10 +20,7 @@
           <span class="info-label">流水线名称</span>
           <span class="info-value">{{ pipeline.name }}</span>
         </div>
-        <div class="info-item">
-          <span class="info-label">应用类型</span>
-          <span class="info-value">{{ pipeline.type }}</span>
-        </div>
+
         <div class="info-item">
           <span class="info-label">模板</span>
           <span class="info-value">{{ pipeline.template }}</span>

@@ -107,15 +107,7 @@ export class AppTemplateService {
     );
   }
 
-  // 从模板名称推断分类
-  private inferCategoryFromName(name: string): string {
-    if (name.includes('spring') || name.includes('java')) return 'java';
-    if (name.includes('vue') || name.includes('react') || name.includes('angular')) return 'vue';
-    if (name.includes('python') || name.includes('django') || name.includes('flask')) return 'python';
-    if (name.includes('golang') || name.includes('gin') || name.includes('go')) return 'golang';
-    if (name.includes('nginx')) return 'nginx';
-    return 'other';
-  }
+
 
   // 读取远程模板的metadata.yaml文件
   private async readRemoteTemplateMetadata(sessionId: string, templatePath: string): Promise<AppTemplateMetadata | null> {
@@ -163,7 +155,7 @@ export class AppTemplateService {
           version: metadata?.version,
           hasMetadata: metadata !== null,
           source,
-          category: metadata?.type || this.inferCategoryFromName(templateName),
+          category: '', // 移除类型推断，后续实现
           tags: metadata?.tags,
           variables: metadata?.variables
         };

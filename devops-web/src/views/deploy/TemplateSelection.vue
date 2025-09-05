@@ -79,7 +79,6 @@
                   <span class="template-source" :class="`source-${template.source}`">
                     {{ template.source === 'global' ? '全局' : '工作空间' }}
                   </span>
-                  <span v-if="template.type" class="template-type">{{ template.type }}</span>
                   <span class="template-metadata" :class="{ 'has-metadata': template.hasMetadata }">
                     {{ template.hasMetadata ? '完整配置' : '基础模板' }}
                   </span>
@@ -158,7 +157,7 @@ const filteredTemplates = computed(() => {
   console.log('过滤前模板数量:', templates.value.length)
   console.log('当前选中分类:', selectedCategory.value)
 
-  // 按分类过滤
+  // 按来源过滤
   if (selectedCategory.value && selectedCategory.value !== 'all') {
     if (selectedCategory.value === 'global') {
       filtered = filtered.filter(t => t.source === 'global')
@@ -166,9 +165,6 @@ const filteredTemplates = computed(() => {
     } else if (selectedCategory.value === 'workspace') {
       filtered = filtered.filter(t => t.source === 'workspace')
       console.log('过滤工作空间模板后数量:', filtered.length)
-    } else {
-      filtered = filtered.filter(t => t.category === selectedCategory.value)
-      console.log('按分类过滤后数量:', filtered.length)
     }
   }
 
@@ -206,13 +202,11 @@ const loadTemplates = async () => {
     const allTemplates: AppTemplate[] = [
       ...(response.data?.templates?.global || []).map((t: any) => ({
         ...t,
-        source: 'global' as const,
-        category: t.category || inferCategoryFromName(t.name)
+        source: 'global' as const
       })),
       ...(response.data?.templates?.workspace || []).map((t: any) => ({
         ...t,
-        source: 'workspace' as const,
-        category: t.category || inferCategoryFromName(t.name)
+        source: 'workspace' as const
       }))
     ]
 
@@ -233,15 +227,7 @@ const loadTemplates = async () => {
   }
 }
 
-// 从模板名称推断分类
-const inferCategoryFromName = (name: string): string => {
-  if (name.includes('spring') || name.includes('java')) return 'java'
-  if (name.includes('vue') || name.includes('react') || name.includes('angular')) return 'vue'
-  if (name.includes('python') || name.includes('django') || name.includes('flask')) return 'python'
-  if (name.includes('golang') || name.includes('gin') || name.includes('go')) return 'golang'
-  if (name.includes('nginx')) return 'nginx'
-  return 'other'
-}
+
 
 // 获取默认模板数据（作为fallback）
 const getDefaultTemplates = (): AppTemplate[] => {
@@ -250,8 +236,6 @@ const getDefaultTemplates = (): AppTemplate[] => {
       name: 'spring-boot',
       displayName: 'Spring Boot',
       description: 'Java Spring Boot 微服务应用模板',
-      type: 'java',
-      category: 'java',
       tags: ['微服务', 'Java', 'Spring'],
       author: 'DevOps Team',
       source: 'global',
@@ -262,8 +246,6 @@ const getDefaultTemplates = (): AppTemplate[] => {
       name: 'vue-nginx',
       displayName: 'Vue + Nginx',
       description: 'Vue.js 前端应用，使用 Nginx 作为 Web 服务器',
-      type: 'vue',
-      category: 'vue',
       tags: ['前端', 'Vue', 'SPA'],
       author: 'DevOps Team',
       source: 'global',
@@ -274,8 +256,6 @@ const getDefaultTemplates = (): AppTemplate[] => {
       name: 'python',
       displayName: 'Python App',
       description: 'Python Web 应用模板',
-      type: 'python',
-      category: 'python',
       tags: ['Python', 'Web'],
       author: 'DevOps Team',
       source: 'global',
@@ -299,7 +279,6 @@ const selectTemplate = (template: AppTemplate) => {
     },
     query: {
       template: template.name,
-      type: template.type || template.category,
       ...(fromQuery && { from: fromQuery }) // 保持来源参数
     }
   })
@@ -525,14 +504,7 @@ onMounted(() => {
   color: #065F46;
 }
 
-.template-type {
-  font-size: 11px;
-  color: #6B7280;
-  background: #F3F4F6;
-  padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1.5;
-}
+
 
 .template-metadata {
   font-size: 11px;
