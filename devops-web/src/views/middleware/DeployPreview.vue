@@ -363,14 +363,20 @@ const startDeployment = async () => {
 }
 
 const goBack = () => {
-  router.push({
-    name: 'MiddlewareConfig',
-    params: {
-      workspaceName: workspaceName.value,
-      templateName: templateName.value,
-      instanceName: instanceName.value
-    }
-  })
+  // 检查是否有历史记录可以返回
+  if (window.history.length > 1) {
+    router.go(-1)
+  } else {
+    // 如果没有历史记录，默认返回配置页面
+    router.push({
+      name: 'MiddlewareConfig',
+      params: {
+        workspaceName: workspaceName.value,
+        templateName: templateName.value,
+        instanceName: instanceName.value
+      }
+    })
+  }
 }
 
 onMounted(() => {

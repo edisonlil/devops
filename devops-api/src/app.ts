@@ -56,6 +56,14 @@ app.get('/health', (req, res) => {
   });
 });
 
+// 调试中间件
+app.use('/api', (req, res, next) => {
+  console.log(`API请求: ${req.method} ${req.path}`);
+  console.log('请求参数:', req.params);
+  console.log('查询参数:', req.query);
+  next();
+});
+
 // API路由
 app.use('/api/auth', authRoutes);
 app.use('/api/remote', remoteRoutes);

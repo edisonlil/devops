@@ -239,7 +239,13 @@ const selectTemplate = (template: MiddlewareTemplate) => {
 }
 
 const goBack = () => {
-  router.push(`/workspace/${workspaceName.value}/middleware`)
+  // 检查是否有历史记录可以返回
+  if (window.history.length > 1) {
+    router.go(-1)
+  } else {
+    // 如果没有历史记录，默认返回中间件管理页面
+    router.push(`/workspace/${workspaceName.value}/middleware`)
+  }
 }
 
 onMounted(() => {

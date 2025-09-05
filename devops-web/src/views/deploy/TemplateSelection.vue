@@ -7,7 +7,7 @@
           <template #icon>
             <n-icon><ArrowBack /></n-icon>
           </template>
-          开发模板
+          {{ getBackButtonText() }}
         </n-button>
       </div>
       <div class="header-right">
@@ -289,7 +289,9 @@ const getDefaultTemplates = (): AppTemplate[] => {
 const selectTemplate = (template: AppTemplate) => {
   console.log('选择模板:', template)
 
-  // 跳转到部署配置页面，传递模板信息
+  const fromQuery = route.query.from as string
+
+  // 跳转到部署配置页面，传递模板信息和来源参数
   router.push({
     name: 'DeployConfig',
     params: {
@@ -297,14 +299,45 @@ const selectTemplate = (template: AppTemplate) => {
     },
     query: {
       template: template.name,
-      type: template.type || template.category
+      type: template.type || template.category,
+      ...(fromQuery && { from: fromQuery }) // 保持来源参数
     }
   })
 }
 
-// 返回应用管理页面
+// 获取返回按钮文本
+const getBackButtonText = () => {
+  const fromQuery = route.query.from as string
+
+  switch (fromQuery) {
+    case 'cicd':
+      return '流水线管理'
+    case 'middleware':
+      return '中间件管理'
+    default:
+      return '应用管理'
+  }
+}
+
+// 智能返回上一页
 const goBack = () => {
-  router.push({ name: 'ApplicationManager' })
+  const fromQuery = route.query.from as string
+  const workspaceName = route.params.workspaceName as string
+
+  // 始终根据来源参数决定返回位置，不依赖浏览器历史记录
+  switch (fromQuery) {
+    case 'cicd':
+      // 从CI/CD页面来的，返回CI/CD管理页面
+      router.push({ name: 'CICDManager', params: { workspaceName } })
+      break
+    case 'middleware':
+      // 从中间件页面来的，返回中间件管理页面
+      router.push({ name: 'MiddlewareManager', params: { workspaceName } })
+      break
+    default:
+      // 默认返回应用管理页面
+      router.push({ name: 'ApplicationManager', params: { workspaceName } })
+  }
 }
 
 // 组件挂载时加载数据

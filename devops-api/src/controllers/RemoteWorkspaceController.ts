@@ -223,6 +223,10 @@ ENABEL_WORKSPACE_PATH="${workspace}"
    */
   async updateRemoteWorkspaceConfig(req: Request, res: Response) {
     try {
+      console.log('收到更新工作空间配置请求:', req.method, req.path);
+      console.log('请求参数:', req.params);
+      console.log('请求体:', req.body);
+
       const sessionId = (req.session as any).sessionId;
       const { name } = req.params;
       const configData = req.body;

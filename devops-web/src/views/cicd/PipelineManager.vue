@@ -248,9 +248,14 @@ const handleSort = (field: string) => {
 }
 
 const createPipeline = () => {
-  // 跳转到应用部署页面来创建流水线
+  // 跳转到应用部署页面来创建流水线，并传递来源信息
   const workspaceName = route.params.workspaceName
-  router.push(`/workspace/${workspaceName}/manage/application/deploy`)
+  router.push({
+    path: `/workspace/${workspaceName}/manage/application/deploy`,
+    query: {
+      from: 'cicd' // 标识来源是CI/CD页面
+    }
+  })
 }
 
 const executePipeline = async (pipeline: Pipeline) => {

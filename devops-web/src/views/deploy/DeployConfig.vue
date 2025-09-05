@@ -410,9 +410,13 @@ const savePipeline = async () => {
   }
 }
 
-// 返回模板选择页面
+// 返回模板选择页面，保持来源参数
 const goBack = () => {
-  router.push({ name: 'TemplateSelection' })
+  const fromQuery = route.query.from as string
+  router.push({
+    name: 'TemplateSelection',
+    query: fromQuery ? { from: fromQuery } : {}
+  })
 }
 
 // 加载workspace配置并填充默认值
