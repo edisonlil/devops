@@ -151,13 +151,19 @@ const handleWorkspaceSelect = (key: string) => {
   if (key === 'create') {
     message.info('创建工作空间功能开发中...')
   } else if (key === 'manage') {
-    message.info('管理工作空间功能开发中...')
+    // 跳转到当前工作空间的设置页面
+    const currentWorkspaceName = route.params.workspaceName as string
+    if (currentWorkspaceName) {
+      router.push(`/workspace/${currentWorkspaceName}/settings`)
+    } else {
+      message.error('无法获取当前工作空间信息')
+    }
   } else {
     // 切换工作空间
     workspaceStore.switchWorkspace(key)
     const workspace = workspaceStore.workspaces.find(w => w.name === key)
     message.success(`已切换到工作空间: ${workspace?.displayName || key}`)
-    
+
     // 如果在工作空间页面，直接跳转到新工作空间
     if (route.path.includes('/workspace/')) {
       router.push(`/workspace/${key}`)

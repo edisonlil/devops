@@ -219,6 +219,64 @@ ENABEL_WORKSPACE_PATH="${workspace}"
   }
 
   /**
+   * 更新远程工作空间配置
+   */
+  async updateRemoteWorkspaceConfig(req: Request, res: Response) {
+    try {
+      const sessionId = (req.session as any).sessionId;
+      const { name } = req.params;
+      const configData = req.body;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录'
+        });
+        return;
+      }
+
+      const session = authService.getSession(sessionId);
+      if (!session) {
+        res.status(401).json({
+          success: false,
+          message: '会话已过期'
+        });
+        return;
+      }
+
+      if (!name) {
+        res.status(400).json({
+          success: false,
+          message: '工作空间名称不能为空'
+        });
+        return;
+      }
+
+      // 生成配置文件内容
+      const configContent = this.generateConfigContent(configData);
+
+      // 写入工作空间config文件
+      const configPath = `${this.rootPath}/workspace/${name}/config`;
+      await authService.writeRemoteFile(sessionId, configPath, configContent);
+
+      console.log(`用户 ${session.username}@${session.host} 更新工作空间配置: ${name}`);
+
+      res.json({
+        success: true,
+        message: `工作空间 ${name} 配置已更新`
+      });
+      return;
+    } catch (error: any) {
+      console.error('更新工作空间配置失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '更新工作空间配置失败: ' + error.message
+      });
+      return;
+    }
+  }
+
+  /**
    * 获取远程工作空间配置
    */
   async getRemoteWorkspaceConfig(req: Request, res: Response) {
@@ -354,5 +412,44 @@ ENABEL_WORKSPACE_PATH="${workspace}"
       });
       return;
     }
+  }
+
+  /**
+   * 生成配置文件内容
+   */
+  private generateConfigContent(configData: any): string {
+    const lines = [
+      '# 工作空间配置文件',
+      '# 此文件包含工作空间的基本配置信息',
+      '',
+      '# 基本信息',
+      `WORKSPACE_DISPLAY_NAME="${configData.displayName || ''}"`,
+      `WORKSPACE_DESCRIPTION="${configData.description || ''}"`,
+      '',
+      '# 部署配置',
+      `BUILD_PLATFORM="${configData.platform || 'KUBERNETES'}"`,
+      `BUILD_K8S_NAMESPACE="${configData.namespace || 'default'}"`,
+      `DEFAULT_ENVIRONMENT="${configData.environment || 'development'}"`,
+      '',
+      '# Git 配置',
+      `BUILD_GIT_URL="${configData.gitUrl || ''}"`,
+      `BUILD_GIT_BRANCH="${configData.gitBranch || 'main'}"`,
+      '',
+      '# Harbor 配置',
+      `BUILD_ENABEL_HARBOR="${configData.harborEnabled ? '1' : '0'}"`,
+      `BUILD_HARBOR_ADDRESS="${configData.harborAddress || ''}"`,
+      `BUILD_HARBOR_PROJECT="${configData.harborProject || ''}"`,
+      `BUILD_HARBOR_USERNAME="${configData.harborUsername || ''}"`,
+      `BUILD_HARBOR_PASSWORD="${configData.harborPassword || ''}"`,
+      '',
+      '# 构建配置',
+      `BUILD_VERSION="${configData.buildVersion || 'node:18.12'}"`,
+      `BUILD_COMMANDS="${configData.buildCommands || 'npm ci && npm run build'}"`,
+      `BUILD_MAVEN_SETTINGS="${configData.mavenSettings || '/root/settings.xml'}"`,
+      '',
+      `# 最后更新时间: ${new Date().toISOString()}`
+    ];
+
+    return lines.join('\n');
   }
 }

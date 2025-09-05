@@ -16,6 +16,9 @@ router.post('/workspace/enable', remoteWorkspaceController.createEnableFile.bind
 // 获取远程工作空间配置
 router.get('/workspace/:name/config', remoteWorkspaceController.getRemoteWorkspaceConfig.bind(remoteWorkspaceController));
 
+// 更新远程工作空间配置
+router.put('/workspace/:name/config', remoteWorkspaceController.updateRemoteWorkspaceConfig.bind(remoteWorkspaceController));
+
 // 检查远程连接状态
 router.get('/connection/check', remoteWorkspaceController.checkRemoteConnection.bind(remoteWorkspaceController));
 

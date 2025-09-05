@@ -3,7 +3,8 @@ import type { Workspace, WorkspaceSummary, WorkspaceDefaults } from '@/types/wor
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 10000
+  timeout: 10000,
+  withCredentials: true
 })
 
 // 远程工作空间相关类型定义
@@ -60,8 +61,12 @@ export const createEnableFile = (data: CreateEnableRequest): Promise<{ success: 
   return api.post('/remote/workspace/enable', data)
 }
 
-export const getRemoteWorkspaceConfig = (name: string): Promise<{ data: any }> => {
+export const getRemoteWorkspaceConfig = (name: string): Promise<any> => {
   return api.get(`/remote/workspace/${name}/config`)
+}
+
+export const updateRemoteWorkspaceConfig = (name: string, config: any): Promise<{ success: boolean; message: string }> => {
+  return api.put(`/remote/workspace/${name}/config`, config)
 }
 
 export const workspaceApi = {

@@ -74,7 +74,8 @@ const getIconPath = (iconName: string): string => {
     cicd: '<circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>',
     storage: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>',
     network: '<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>',
-    security: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><circle cx="12" cy="16" r="1"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'
+    security: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><circle cx="12" cy="16" r="1"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    workspace: '<path d="M3 3h18v18H3z"/><path d="M9 9h6v6H9z"/><path d="M6 6h2v2H6z"/><path d="M16 6h2v2h-2z"/><path d="M6 16h2v2H6z"/><path d="M16 16h2v2h-2z"/>'
   }
   return icons[iconName] || icons.application
 }

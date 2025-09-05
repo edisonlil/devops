@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: '控制台' }
   },
   {
+    path: '/workspace/:workspaceName/settings',
+    name: 'WorkspaceSettings',
+    component: () => import('@/views/workspace/WorkspaceSettings.vue'),
+    meta: { requiresAuth: true, title: '工作空间设置' }
+  },
+  {
     path: '/workspace/:workspaceName/manage',
     component: () => import('@/views/workspace/WorkspaceLayout.vue'),
     meta: { requiresAuth: true },
