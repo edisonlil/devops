@@ -40,6 +40,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
   const deployHistory = ref<DeployHistory[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const currentWorkspace = ref<string>('')
 
   // 计算属性
   const totalPipelines = computed(() => pipelines.value.length)
@@ -63,67 +64,40 @@ export const usePipelineStore = defineStore('pipeline', () => {
     pipelines.value.filter(p => p.status === 'running')
   )
 
-  // 本地存储键名
-  const STORAGE_KEY = 'devops_pipelines'
-  const HISTORY_KEY = 'devops_deploy_history'
+  // 本地存储键名（基于工作空间）
+  const getStorageKey = (workspace: string) => `devops_pipelines_${workspace}`
+  const getHistoryKey = (workspace: string) => `devops_deploy_history_${workspace}`
 
   // 私有方法：本地存储操作
   const saveToStorage = () => {
+    if (!currentWorkspace.value) {
+      console.warn('未设置当前工作空间，无法保存数据')
+      return
+    }
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pipelines.value))
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(deployHistory.value))
+      localStorage.setItem(getStorageKey(currentWorkspace.value), JSON.stringify(pipelines.value))
+      localStorage.setItem(getHistoryKey(currentWorkspace.value), JSON.stringify(deployHistory.value))
     } catch (error) {
       console.error('保存到本地存储失败:', error)
     }
   }
 
   const loadFromStorage = () => {
+    if (!currentWorkspace.value) {
+      console.warn('未设置当前工作空间，无法加载数据')
+      return
+    }
+
     try {
-      const pipelinesData = localStorage.getItem(STORAGE_KEY)
-      const historyData = localStorage.getItem(HISTORY_KEY)
+      const pipelinesData = localStorage.getItem(getStorageKey(currentWorkspace.value))
+      const historyData = localStorage.getItem(getHistoryKey(currentWorkspace.value))
 
       if (pipelinesData) {
         pipelines.value = JSON.parse(pipelinesData)
       } else {
-        // 如果没有数据，添加一些示例数据
-        pipelines.value = [
-          {
-            id: '1',
-            name: 'wukong-crm-frontend',
-            type: 'Frontend',
-            template: 'Vue.js',
-            config: {},
-            command: 'npm run build && docker build -t wukong-crm-frontend .',
-            createdAt: '2024-01-15T10:30:00Z',
-            lastDeployAt: '2024-01-20T14:22:00Z',
-            deployCount: 5,
-            status: 'success'
-          },
-          {
-            id: '2',
-            name: 'wukong-crm-backend',
-            type: 'Backend',
-            template: 'Python',
-            config: {},
-            command: 'pip install -r requirements.txt && python manage.py migrate',
-            createdAt: '2024-01-10T09:15:00Z',
-            lastDeployAt: '2024-01-19T16:45:00Z',
-            deployCount: 8,
-            status: 'success'
-          },
-          {
-            id: '3',
-            name: 'wukong-crm-api',
-            type: 'API',
-            template: 'Node.js',
-            config: {},
-            command: 'npm install && npm run build && pm2 restart api',
-            createdAt: '2024-01-12T11:20:00Z',
-            deployCount: 0,
-            status: 'never'
-          }
-        ]
-        saveToStorage()
+        // 如果没有数据，初始化为空数组
+        pipelines.value = []
       }
 
       if (historyData) {
@@ -135,8 +109,16 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
+  // 设置当前工作空间
+  const setCurrentWorkspace = (workspace: string) => {
+    currentWorkspace.value = workspace
+  }
+
   // 公共方法：流水线管理
-  const loadPipelines = async () => {
+  const loadPipelines = async (workspace?: string) => {
+    if (workspace) {
+      setCurrentWorkspace(workspace)
+    }
     loading.value = true
     error.value = null
     
@@ -155,7 +137,10 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
-  const createPipeline = async (pipelineData: Omit<Pipeline, 'id' | 'createdAt' | 'deployCount' | 'status'>) => {
+  const createPipeline = async (pipelineData: Omit<Pipeline, 'id' | 'createdAt' | 'deployCount' | 'status'>, workspace?: string) => {
+    if (workspace) {
+      setCurrentWorkspace(workspace)
+    }
     loading.value = true
     error.value = null
     
@@ -186,7 +171,10 @@ export const usePipelineStore = defineStore('pipeline', () => {
     }
   }
 
-  const updatePipeline = async (id: string, updates: Partial<Pipeline>) => {
+  const updatePipeline = async (id: string, updates: Partial<Pipeline>, workspace?: string) => {
+    if (workspace) {
+      setCurrentWorkspace(workspace)
+    }
     loading.value = true
     error.value = null
     
@@ -353,6 +341,20 @@ export const usePipelineStore = defineStore('pipeline', () => {
     loading.value = false
   }
 
+  // 清除特定工作空间的数据
+  const clearWorkspaceData = (workspace: string) => {
+    try {
+      localStorage.removeItem(getStorageKey(workspace))
+      localStorage.removeItem(getHistoryKey(workspace))
+      if (currentWorkspace.value === workspace) {
+        pipelines.value = []
+        deployHistory.value = []
+      }
+    } catch (error) {
+      console.error('清除工作空间数据失败:', error)
+    }
+  }
+
   return {
     // 状态
     pipelines,
@@ -368,6 +370,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     runningPipelines,
     
     // 方法
+    setCurrentWorkspace,
     loadPipelines,
     createPipeline,
     updatePipeline,
@@ -386,6 +389,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     
     // 工具方法
     clearError,
-    reset
+    reset,
+    clearWorkspaceData
   }
 })

@@ -286,7 +286,13 @@ const viewPipeline = (pipeline: any) => {
 
 // 初始化数据
 onMounted(() => {
-  pipelineStore.loadPipelines()
+  const workspaceName = route.params.workspaceName as string
+
+  // 临时清理：清除旧的假数据（可以在后续版本中移除）
+  localStorage.removeItem('devops_pipelines')
+  localStorage.removeItem('devops_deploy_history')
+
+  pipelineStore.loadPipelines(workspaceName)
 })
 
 

@@ -370,8 +370,12 @@ const savePipeline = async () => {
     return
   }
 
+  const workspaceName = route.params.workspaceName as string
   saving.value = true
   try {
+    // 设置当前工作空间
+    pipelineStore.setCurrentWorkspace(workspaceName)
+
     // 检查是否已存在同名流水线
     const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
 
@@ -382,7 +386,7 @@ const savePipeline = async () => {
         template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
-      })
+      }, workspaceName)
       message.success(`流水线 "${config.value.name}" 已更新`)
     } else {
       // 创建新流水线
@@ -392,7 +396,7 @@ const savePipeline = async () => {
         template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
-      })
+      }, workspaceName)
       message.success(`流水线 "${config.value.name}" 已保存`)
     }
 
