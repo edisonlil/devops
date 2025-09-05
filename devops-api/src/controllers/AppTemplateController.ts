@@ -352,7 +352,7 @@ export class AppTemplateController {
       }
 
       // 清除缓存
-      this.appTemplateService.clearCache(sessionId);
+      this.appTemplateService.clearAllCache();
 
       res.json({
         success: true,
@@ -366,6 +366,99 @@ export class AppTemplateController {
         message: error.message || '刷新模板缓存失败'
       });
       return;
+    }
+  };
+
+  // 清除所有缓存
+  clearAllCache = async (req: Request, res: Response) => {
+    try {
+      const sessionId = (req.session as any).sessionId;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录'
+        });
+        return;
+      }
+
+      this.appTemplateService.clearAllCache();
+
+      res.json({
+        success: true,
+        message: '所有模板缓存已清除'
+      });
+    } catch (error: any) {
+      console.error('清除缓存失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '清除缓存失败: ' + error.message
+      });
+    }
+  };
+
+  // 清除工作空间缓存
+  clearWorkspaceCache = async (req: Request, res: Response) => {
+    try {
+      const sessionId = (req.session as any).sessionId;
+      const { workspace } = req.params;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录'
+        });
+        return;
+      }
+
+      if (!workspace) {
+        res.status(400).json({
+          success: false,
+          message: '工作空间名称不能为空'
+        });
+        return;
+      }
+
+      this.appTemplateService.clearWorkspaceCache(workspace);
+
+      res.json({
+        success: true,
+        message: `工作空间 ${workspace} 的缓存已清除`
+      });
+    } catch (error: any) {
+      console.error('清除工作空间缓存失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '清除工作空间缓存失败: ' + error.message
+      });
+    }
+  };
+
+  // 获取缓存状态
+  getCacheStatus = async (req: Request, res: Response) => {
+    try {
+      const sessionId = (req.session as any).sessionId;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录'
+        });
+        return;
+      }
+
+      const status = this.appTemplateService.getCacheStatus();
+
+      res.json({
+        success: true,
+        data: status
+      });
+    } catch (error: any) {
+      console.error('获取缓存状态失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取缓存状态失败: ' + error.message
+      });
     }
   };
 }

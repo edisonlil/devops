@@ -13,5 +13,8 @@ router.get('/templates/:templateName/variables', appTemplateController.getAppTem
 
 // 缓存管理
 router.post('/templates/refresh-cache', appTemplateController.refreshCache);
+router.delete('/templates/cache/all', appTemplateController.clearAllCache);
+router.delete('/templates/cache/workspace/:workspace', appTemplateController.clearWorkspaceCache);
+router.get('/templates/cache/status', appTemplateController.getCacheStatus);
 
 export default router;

@@ -12,12 +12,10 @@
             返回
           </n-button>
         </div>
-        <div class="action-row">
+        <div class="action-row deploy-row">
           <n-button size="medium" @click="savePipeline" :loading="saving">
             保存为流水线
           </n-button>
-        </div>
-        <div class="action-row deploy-row">
           <n-button type="primary" size="medium" @click="handleDeploy" :loading="deploying">
             开始部署
           </n-button>
@@ -67,11 +65,9 @@
                 <span>确保Git仓库地址可访问</span>
               </div>
               <div class="tip-item">
-                <n-icon class="tip-icon"><InformationCircle /></n-icon>
                 <span>端口范围：30000-32767</span>
               </div>
               <div class="tip-item">
-                <n-icon class="tip-icon"><InformationCircle /></n-icon>
                 <span>部署过程可能需要几分钟</span>
               </div>
             </div>
@@ -110,8 +106,8 @@
           <div class="form-grid">
             <div class="form-item full-width">
               <label class="form-label">Git 仓库地址 *</label>
-              <n-input 
-                v-model:value="config.gitUrl" 
+              <n-input
+                v-model:value="config.gitUrl"
                 placeholder="https://github.com/user/repo.git"
                 :status="errors.gitUrl ? 'error' : undefined"
               />
@@ -120,10 +116,11 @@
             
             <div class="form-item">
               <label class="form-label">分支</label>
-              <n-input 
-                v-model:value="config.branch" 
+              <n-input
+                v-model:value="config.branch"
                 placeholder="main"
               />
+
             </div>
             
             <div class="form-item" v-if="showBuildTool">
@@ -215,6 +212,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { usePipelineStore } from '@/stores/pipeline'
+import * as workspaceApi from '@/api/workspace'
 // 移除图标导入，保持简洁设计
 
 const router = useRouter()
@@ -266,7 +264,8 @@ const showBuildTool = computed(() => {
 
 // 当前工作空间
 const currentWorkspace = computed(() => {
-  return route.params.workspaceName || 'default'
+  const workspaceName = route.params.workspaceName
+  return Array.isArray(workspaceName) ? workspaceName[0] : workspaceName || 'default'
 })
 
 // 生成的命令
@@ -282,11 +281,13 @@ const generatedCommand = computed(() => {
   if (config.value.buildTool) {
     parts.push('--build-tool', config.value.buildTool)
   }
-  if (selectedTemplate.value?.name) {
-    parts.push('--template', selectedTemplate.value.name)
+  if (selectedTemplate.value?.originalName || selectedTemplate.value?.name) {
+    parts.push('--template', selectedTemplate.value.originalName || selectedTemplate.value.name)
   }
-  if (config.value.workspace) {
-    parts.push('--workspace', config.value.workspace)
+  // 使用当前工作空间，优先使用URL中的工作空间参数
+  const workspace = currentWorkspace.value || config.value.workspace
+  if (workspace) {
+    parts.push('--workspace', workspace)
   }
   if (config.value.namespace) {
     parts.push('--namespace', config.value.namespace)
@@ -378,7 +379,7 @@ const savePipeline = async () => {
       // 更新现有流水线
       await pipelineStore.updatePipeline(existingPipeline.id, {
         type: config.value.type,
-        template: selectedTemplate.value?.name || '',
+        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
       })
@@ -388,7 +389,7 @@ const savePipeline = async () => {
       await pipelineStore.createPipeline({
         name: config.value.name,
         type: config.value.type,
-        template: selectedTemplate.value?.name || '',
+        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
       })
@@ -414,21 +415,74 @@ const goBack = () => {
   router.push({ name: 'TemplateSelection' })
 }
 
+// 加载workspace配置并填充默认值
+const loadWorkspaceDefaults = async () => {
+  try {
+    const response = await workspaceApi.getRemoteWorkspaceConfig(currentWorkspace.value)
+
+    // 由于axios响应拦截器，response已经是response.data
+    if (response.data?.exists && response.data?.config) {
+      const workspaceConfig = response.data.config
+
+      // 填充默认值到表单（只在字段为空时填充）
+      if (workspaceConfig.BUILD_GIT_BRANCH && (!config.value.branch || config.value.branch === 'main')) {
+        config.value.branch = workspaceConfig.BUILD_GIT_BRANCH
+      }
+
+      if (workspaceConfig.BUILD_GIT_URL && !config.value.gitUrl) {
+        config.value.gitUrl = workspaceConfig.BUILD_GIT_URL
+      }
+
+      if (workspaceConfig.BUILD_K8S_NAMESPACE && !config.value.namespace) {
+        config.value.namespace = workspaceConfig.BUILD_K8S_NAMESPACE
+      }
+
+      if (workspaceConfig.BUILD_JAVA_OPTS && !config.value.javaOpts) {
+        config.value.javaOpts = workspaceConfig.BUILD_JAVA_OPTS
+      }
+
+      // 根据BUILD_PLATFORM和项目类型设置默认构建工具
+      if (!config.value.buildTool) {
+        if (config.value.type === 'java' || config.value.type === 'tomcat') {
+          // Java项目默认使用Maven，除非workspace配置了其他工具
+          config.value.buildTool = 'maven'
+        }
+      }
+
+      // 设置默认构建环境为生产环境
+      if (!config.value.buildEnv) {
+        config.value.buildEnv = 'prod'
+      }
+
+    }
+  } catch (error) {
+    console.warn('加载workspace配置失败:', error)
+    // 不显示错误消息，因为这不是关键功能
+  }
+}
+
 // 初始化
-onMounted(() => {
+onMounted(async () => {
   const templateId = route.query.template as string
   const type = route.query.type as string
-  
+
+  // 设置当前工作空间
+  config.value.workspace = currentWorkspace.value
+
   if (templateId && type) {
     config.value.type = type
 
     // 这里可以根据模板ID获取模板详细信息
     selectedTemplate.value = {
       id: templateId,
-      name: templateId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      name: templateId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()), // 显示名称
+      originalName: templateId, // 保留原始名称用于命令生成
       type: type
     }
   }
+
+  // 加载workspace默认配置
+  await loadWorkspaceDefaults()
 })
 </script>
 
@@ -458,6 +512,7 @@ onMounted(() => {
 .action-row {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
 }
 
 .deploy-row {
