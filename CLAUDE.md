@@ -596,3 +596,125 @@ const themeOverrides = {
 - 升级 Naive UI 版本时需要重新测试按钮样式
 
 **重要提醒**：通过多层防护（CSS样式 + 主题配置 + 页面级补充），成功解决了 Naive UI 按钮的绿色边框问题，确保了按钮在整个应用中的视觉一致性。
+
+## 开发实践要点总结
+
+### 模板系统开发规范
+
+#### 路径优先级处理
+在实现多层级模板系统时，**必须确保优先级逻辑正确**：
+
+```bash
+# ❌ 错误：后续检查会覆盖前面的设置
+if [ -d "$path1" ]; then TEMPLATE_PATH="$path1"; fi
+if [ -d "$path2" ]; then TEMPLATE_PATH="$path2"; fi  # 会覆盖path1！
+
+# ✅ 正确：使用条件判断确保优先级
+if [ -z "$TEMPLATE_PATH" ] && [ -d "$path1" ]; then TEMPLATE_PATH="$path1"; fi
+if [ -z "$TEMPLATE_PATH" ] && [ -d "$path2" ]; then TEMPLATE_PATH="$path2"; fi
+```
+
+**经验教训**：Shell脚本的路径查找逻辑容易出错，务必用 `[ -z "$VAR" ]` 确保只在变量为空时设置。
+
+#### 字符串处理陷阱
+Python脚本输出解析时的常见错误：
+
+```typescript
+// ❌ 错误：双反斜线会导致分割失败
+const lines = output.split('\\n')
+files[filename] = content.join('\\n')
+
+// ✅ 正确：使用单反斜线
+const lines = output.split('\n') 
+files[filename] = content.join('\n')
+```
+
+### 异步执行模式设计
+
+#### 长时间任务的处理策略
+对于部署等长时间任务，采用**异步+轮询**模式：
+
+1. **立即返回执行ID**：避免HTTP超时，提升响应性
+2. **状态轮询**：前端定期查询执行状态
+3. **合理超时**：根据业务场景设定（部署通常需要30-60分钟）
+
+```typescript
+// 后端：异步执行，立即返回
+res.json({ executionId, status: 'running' })
+this.executeCommandAsync(executionId, command)  // 不等待结果
+
+// 前端：轮询监控
+const pollInterval = 3000  // 避免过于频繁
+const maxPolls = 1200     // 60分钟超时
+```
+
+#### 用户体验优化
+- **阶段性提示**：根据执行时长给出不同的状态说明
+- **避免日志噪音**：只在关键时间点输出状态更新
+- **人性化时间显示**：`15m30s` 比 `930s` 更易理解
+
+### Vue.js 开发实践
+
+#### 条件渲染的性能考虑
+对于复杂的条件显示，使用 `v-show` 而不是 `v-if`：
+
+```vue
+<!-- ✅ 适用于频繁切换的场景 -->
+<div v-show="currentView === 'config'">...</div>
+<div v-show="currentView === 'preview'">...</div>
+
+<!-- ❌ 每次切换都会重新渲染 -->
+<div v-if="currentView === 'config'">...</div>
+```
+
+#### 计算属性的合理使用
+对于依赖多个响应式数据的逻辑，使用计算属性：
+
+```typescript
+// ✅ 自动响应依赖变化
+const showBuildTool = computed(() => {
+  return config.value.type === 'java' || config.value.type === 'tomcat'
+})
+```
+
+### API设计最佳实践
+
+#### 会话验证的统一处理
+所有需要SSH执行的接口都应验证会话：
+
+```typescript
+const sessionId = (req.session as any).sessionId;
+if (!sessionId) {
+  res.status(401).json({ success: false, message: '会话无效' });
+  return;
+}
+```
+
+#### 错误信息的层级设计
+API错误信息应该有清晰的层级：
+
+```typescript
+// 系统级错误
+{ success: false, message: '会话无效' }
+
+// 业务级错误  
+{ success: false, message: '模板目录不存在', details: ['path1', 'path2'] }
+
+// 执行级错误
+{ success: false, message: '命令执行失败', stderr: '具体错误输出' }
+```
+
+### 调试和故障排除
+
+#### 分层调试策略
+1. **后端日志**：记录关键执行节点和参数
+2. **前端控制台**：显示API调用和状态变化  
+3. **Shell脚本输出**：保留详细的执行日志
+
+#### 常见问题模式识别
+- **解析失败** → 检查字符串分割和拼接逻辑
+- **路径错误** → 验证优先级条件判断
+- **超时问题** → 评估任务复杂度，调整轮询策略
+- **状态不一致** → 检查异步操作的状态同步
+
+这些经验教训可以避免在后续开发中重复遇到相同的技术陷阱。

@@ -1,7 +1,22 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
 
+interface CommandExecution {
+  id: string;
+  command: string;
+  workingDir?: string;
+  status: 'running' | 'completed' | 'failed';
+  startTime: Date;
+  endTime?: Date;
+  exitCode?: number;
+  stdout: string;
+  stderr: string;
+  logs: string[];
+}
+
 export class DeployController {
+  private executions: Map<string, CommandExecution> = new Map();
+
   constructor() {
     // 初始化
   }
@@ -36,11 +51,38 @@ export class DeployController {
   // 执行远程命令
   executeDevopsCommand = async (req: Request, res: Response) => {
     try {
-      const { serverId, command, args } = req.body;
+      const sessionId = (req.session as any).sessionId;
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '会话无效'
+        });
+        return;
+      }
+
+      const { command, workingDir } = req.body;
       
-      // 模拟执行
+      if (!command) {
+        res.status(400).json({
+          success: false,
+          message: '命令不能为空'
+        });
+        return;
+      }
+
+      console.log(`开始执行远程命令: ${command}`);
+      console.log(`工作目录: ${workingDir || '默认'}`);
+      
+      // 创建执行ID
       const executionId = 'exec-' + Date.now();
       
+      // 异步执行命令，不等待结果
+      this.executeCommandAsync(sessionId, executionId, command, workingDir)
+        .catch(error => {
+          console.error(`异步执行命令失败 [${executionId}]:`, error);
+        });
+
+      // 立即返回执行ID
       res.json({
         success: true,
         data: {
@@ -49,11 +91,14 @@ export class DeployController {
           message: '命令开始执行'
         }
       });
+      return;
     } catch (error: any) {
+      console.error('执行远程命令失败:', error);
       res.status(500).json({
         success: false,
         message: error.message || '命令执行失败'
       });
+      return;
     }
   };
 
@@ -83,11 +128,73 @@ export class DeployController {
   };
 
   getExecutionDetails = async (req: Request, res: Response) => {
-    res.json({ success: true, data: {} });
+    try {
+      const { executionId } = req.params;
+      
+      const execution = this.executions.get(executionId);
+      if (!execution) {
+        res.status(404).json({
+          success: false,
+          message: '执行记录不存在'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          id: execution.id,
+          command: execution.command,
+          workingDir: execution.workingDir,
+          status: execution.status,
+          startTime: execution.startTime,
+          endTime: execution.endTime,
+          exitCode: execution.exitCode,
+          duration: execution.endTime 
+            ? execution.endTime.getTime() - execution.startTime.getTime()
+            : Date.now() - execution.startTime.getTime()
+        }
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取执行详情失败'
+      });
+      return;
+    }
   };
 
   getExecutionLogs = async (req: Request, res: Response) => {
-    res.json({ success: true, data: { output: [], error: [] } });
+    try {
+      const { executionId } = req.params;
+      
+      const execution = this.executions.get(executionId);
+      if (!execution) {
+        res.status(404).json({
+          success: false,
+          message: '执行记录不存在'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          logs: execution.logs,
+          stdout: execution.stdout,
+          stderr: execution.stderr,
+          status: execution.status
+        }
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取执行日志失败'
+      });
+      return;
+    }
   };
 
   cancelExecution = async (req: Request, res: Response) => {
@@ -256,10 +363,10 @@ set -e
 echo "=== 开始模板渲染 ==="
 echo "查找模板目录中..."
 
-# 检查多个可能的模板路径
+# 检查多个可能的模板路径（按优先级顺序：工作空间 > 全局）
 TEMPLATE_PATH=""
 ${possiblePaths.map(path => `
-if [ -d "${path}" ]; then
+if [ -z "$TEMPLATE_PATH" ] && [ -d "${path}" ]; then
   echo "找到模板目录: ${path}"
   TEMPLATE_PATH="${path}"
 fi`).join('')}
@@ -392,5 +499,67 @@ rm -rf "${outputDir}"
     console.log(`解析完成，共找到 ${Object.keys(files).length} 个文件:`, Object.keys(files));
 
     return { files };
+  }
+
+  // 异步执行命令
+  private async executeCommandAsync(
+    sessionId: string, 
+    executionId: string, 
+    command: string, 
+    workingDir?: string
+  ): Promise<void> {
+    const execution: CommandExecution = {
+      id: executionId,
+      command,
+      workingDir,
+      status: 'running',
+      startTime: new Date(),
+      stdout: '',
+      stderr: '',
+      logs: []
+    };
+
+    this.executions.set(executionId, execution);
+    
+    try {
+      console.log(`执行命令 [${executionId}]: ${command}`);
+      
+      // 构建完整的命令，如果指定了工作目录
+      let fullCommand = command;
+      if (workingDir) {
+        fullCommand = `cd "${workingDir}" && ${command}`;
+      }
+      
+      execution.logs.push(`[${new Date().toISOString()}] INFO: 开始执行命令: ${command}`);
+      if (workingDir) {
+        execution.logs.push(`[${new Date().toISOString()}] INFO: 工作目录: ${workingDir}`);
+      }
+      
+      // 执行命令
+      const result = await authService.executeCommand(sessionId, fullCommand);
+      
+      // 更新执行结果
+      execution.status = result.exitCode === 0 ? 'completed' : 'failed';
+      execution.endTime = new Date();
+      execution.exitCode = result.exitCode;
+      execution.stdout = result.stdout;
+      execution.stderr = result.stderr;
+      
+      if (result.exitCode === 0) {
+        execution.logs.push(`[${new Date().toISOString()}] SUCCESS: 命令执行成功 (退出码: ${result.exitCode})`);
+      } else {
+        execution.logs.push(`[${new Date().toISOString()}] ERROR: 命令执行失败 (退出码: ${result.exitCode})`);
+      }
+      
+      console.log(`命令执行完成 [${executionId}]: 状态=${execution.status}, 退出码=${result.exitCode}`);
+      
+    } catch (error: any) {
+      execution.status = 'failed';
+      execution.endTime = new Date();
+      execution.stderr = error.message || '未知错误';
+      execution.logs.push(`[${new Date().toISOString()}] ERROR: 执行异常: ${error.message}`);
+      
+      console.error(`命令执行异常 [${executionId}]:`, error);
+    }
   }
 }

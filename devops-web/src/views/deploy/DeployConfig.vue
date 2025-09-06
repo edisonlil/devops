@@ -151,6 +151,17 @@
                 </div>
 
                 <div class="form-item">
+                  <label class="form-label">部署类型 *</label>
+                  <n-select
+                    v-model:value="config.type"
+                    :options="deployTypeOptions"
+                    placeholder="选择部署类型"
+                    :status="errors.type ? 'error' : undefined"
+                  />
+                  <span v-if="errors.type" class="error-text">{{ errors.type }}</span>
+                </div>
+
+                <div class="form-item">
                   <label class="form-label">命名空间</label>
                   <n-input
                     v-model:value="config.namespace"
@@ -243,12 +254,13 @@
             <div class="form-section">
               <h3 class="section-title">高级配置</h3>
               <div class="form-grid">
-                <div class="form-item full-width" v-if="config.type === 'java'">
+                <div class="form-item full-width" v-if="config.type === 'java' || config.type === 'tomcat'">
                   <label class="form-label">Java 选项</label>
                   <n-input 
                     v-model:value="config.javaOpts" 
                     placeholder="-Xmx512m -Xms256m"
                   />
+                  <span class="form-help">示例: -Xmx512m -Xms256m -server</span>
                 </div>
                 
                 <div class="form-item full-width">
@@ -352,6 +364,15 @@ const config = ref({
 const selectedTemplate = ref<any>(null)
 
 // 选项数据
+const deployTypeOptions = [
+  { label: 'Java 应用', value: 'java' },
+  { label: 'Vue 应用', value: 'vue' },
+  { label: 'Go 应用', value: 'go' },
+  { label: 'Python 应用', value: 'python' },
+  { label: 'Nginx 静态站点', value: 'nginx' },
+  { label: 'Tomcat 应用', value: 'tomcat' }
+]
+
 const buildToolOptions = [
   { label: 'Maven', value: 'maven' },
   { label: 'Gradle', value: 'gradle' }
@@ -432,6 +453,10 @@ const validateForm = () => {
   
   if (!config.value.name) {
     errors.value.name = '应用名称不能为空'
+  }
+  
+  if (!config.value.type) {
+    errors.value.type = '部署类型不能为空'
   }
   
   if (!config.value.gitUrl) {
@@ -655,6 +680,29 @@ const getFileSize = (filename: string) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
+// 根据模板ID推断部署类型
+const inferDeployTypeFromTemplate = (templateId: string): string => {
+  const template = templateId.toLowerCase()
+  
+  // 根据模板名称推断类型
+  if (template.includes('java') || template.includes('spring') || template.includes('jar')) {
+    return 'java'
+  } else if (template.includes('vue') || template.includes('react') || template.includes('angular')) {
+    return 'vue'
+  } else if (template.includes('go') || template.includes('golang')) {
+    return 'go'
+  } else if (template.includes('python') || template.includes('django') || template.includes('flask')) {
+    return 'python'
+  } else if (template.includes('nginx') || template.includes('static')) {
+    return 'nginx'
+  } else if (template.includes('tomcat')) {
+    return 'tomcat'
+  }
+  
+  // 默认返回java类型
+  return 'java'
+}
+
 // 加载workspace配置并填充默认值
 const loadWorkspaceDefaults = async () => {
   try {
@@ -709,7 +757,11 @@ onMounted(async () => {
   config.value.workspace = currentWorkspace.value
 
   if (templateId) {
-    // 这里可以根据模板ID获取模板详细信息
+    // 根据模板ID设置部署类型
+    const deployType = inferDeployTypeFromTemplate(templateId)
+    config.value.type = deployType
+    
+    // 设置模板信息
     selectedTemplate.value = {
       id: templateId,
       name: templateId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()), // 显示名称
@@ -909,6 +961,13 @@ onMounted(async () => {
   font-size: 12px;
   color: #EF4444;
   margin-top: 4px;
+}
+
+.form-help {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 /* 右侧信息面板 */

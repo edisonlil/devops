@@ -89,6 +89,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { usePipelineStore, type Pipeline } from '@/stores/pipeline'
+import { deployApi } from '@/api/deploy'
 
 interface LogEntry {
   time: Date
@@ -166,8 +167,8 @@ const startExecution = async () => {
     addLog('info', `开始执行流水线: ${pipeline.value.name}`)
     addLog('info', `执行命令: ${pipeline.value.command}`)
 
-    // 模拟执行过程
-    await simulateExecution()
+    // 执行真实的远程命令
+    await executeRealCommand()
 
   } catch (error) {
     addLog('error', `执行失败: ${error}`)
@@ -212,6 +213,131 @@ const simulateExecution = async () => {
       executionStatus.value = 'failed'
       await finishExecution('failed')
     }
+  }
+}
+
+// 执行真实的远程命令
+const executeRealCommand = async () => {
+  if (!pipeline.value?.command) {
+    throw new Error('流水线命令为空')
+  }
+
+  try {
+    // 获取当前工作空间
+    const workspace = route.params.workspaceName as string
+    
+    // 发送执行命令请求
+    addLog('info', '向远程服务器发送执行请求...')
+    const response = await deployApi.executeDevopsCommand(workspace, {
+      command: pipeline.value.command,
+      workingDir: '/root/devops'
+    })
+
+    if (!response.success) {
+      throw new Error(response.message || '执行请求失败')
+    }
+
+    const executionId = response.data.executionId
+    addLog('info', `获得执行ID: ${executionId}`)
+    
+    // 轮询检查执行状态
+    await pollExecutionStatus(workspace, executionId)
+    
+  } catch (error: any) {
+    throw new Error(error.message || '远程执行失败')
+  }
+}
+
+// 轮询执行状态
+const pollExecutionStatus = async (workspace: string, executionId: string) => {
+  const pollInterval = 3000 // 3秒轮询一次
+  const maxPolls = 1200 // 最多轮询60分钟（1小时）
+  let pollCount = 0
+  let lastMinutes = -1 // 记录上次输出的分钟数，避免重复输出
+
+  while (pollCount < maxPolls && isExecuting.value) {
+    try {
+      // 获取执行详情
+      const detailsResponse = await deployApi.getExecutionDetails(workspace, executionId)
+      
+      if (detailsResponse.success) {
+        const execution = detailsResponse.data
+        
+        if (execution.status === 'completed') {
+          addLog('success', '部署命令执行成功！')
+          executionStatus.value = 'success'
+          await finishExecution('success')
+          
+          // 获取执行日志
+          const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
+          if (logsResponse.success && logsResponse.data.logs) {
+            logsResponse.data.logs.forEach((logLine: string) => {
+              addLog('info', logLine)
+            })
+          }
+          
+          return
+        } else if (execution.status === 'failed') {
+          addLog('error', '部署命令执行失败！')
+          executionStatus.value = 'failed'
+          await finishExecution('failed')
+          
+          // 获取错误日志
+          const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
+          if (logsResponse.success) {
+            if (logsResponse.data.logs) {
+              logsResponse.data.logs.forEach((logLine: string) => {
+                addLog('error', logLine)
+              })
+            }
+            if (logsResponse.data.stderr) {
+              addLog('error', `错误输出: ${logsResponse.data.stderr}`)
+            }
+          }
+          
+          return
+        } else {
+          // 仍在运行中
+          const duration = Math.round(execution.duration / 1000)
+          const minutes = Math.floor(duration / 60)
+          const seconds = duration % 60
+          const timeStr = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`
+          
+          // 只在分钟数变化或特定时间点输出状态
+          if (minutes !== lastMinutes && (minutes % 1 === 0 || minutes === 0)) {
+            let statusMessage = `执行中... (${timeStr})`
+            if (minutes >= 30) {
+              statusMessage += ' - 长时间部署通常包括镜像构建和推送'
+            } else if (minutes >= 10) {
+              statusMessage += ' - 正在构建应用镜像或部署到集群'
+            } else if (minutes >= 5) {
+              statusMessage += ' - 正在拉取代码和准备构建环境'
+            } else if (minutes >= 2) {
+              statusMessage += ' - 正在检查配置和连接部署环境'
+            }
+            
+            addLog('info', statusMessage)
+            lastMinutes = minutes
+          }
+        }
+      }
+      
+      // 等待下次轮询
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      pollCount++
+      
+    } catch (error: any) {
+      addLog('warn', `轮询状态失败: ${error.message}`)
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      pollCount++
+    }
+  }
+  
+  if (pollCount >= maxPolls) {
+    addLog('error', '执行超时 (60分钟)')
+    addLog('warn', '部署可能仍在进行中，请稍后手动检查部署状态')
+    executionStatus.value = 'failed'
+    await finishExecution('failed')
   }
 }
 
