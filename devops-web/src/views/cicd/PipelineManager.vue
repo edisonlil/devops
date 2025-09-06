@@ -282,6 +282,22 @@ const viewPipeline = (pipeline: Pipeline) => {
   })
 }
 
+const editPipeline = (pipeline: Pipeline) => {
+  // 跳转到部署配置页面进行编辑
+  const workspaceName = route.params.workspaceName
+  router.push({
+    name: 'DeployConfig',
+    params: {
+      workspaceName
+    },
+    query: {
+      edit: 'true', // 标识这是编辑模式
+      pipelineId: pipeline.id,
+      from: 'cicd' // 标识来源是CI/CD页面
+    }
+  })
+}
+
 
 
 // 初始化数据
@@ -342,7 +358,9 @@ const handlePipelineAction = async (key: string) => {
 
   switch (action) {
     case 'edit':
-      message.info(`编辑流水线: ${pipeline?.name}`)
+      if (pipeline) {
+        editPipeline(pipeline)
+      }
       break
     case 'copy':
       if (pipeline) {

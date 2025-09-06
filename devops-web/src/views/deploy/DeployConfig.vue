@@ -3,8 +3,8 @@
     <!-- 页面标题区域 -->
     <div class="page-header">
       <div class="header-content">
-        <h1 class="page-title text-h1">配置部署</h1>
-        <p class="page-subtitle text-subtitle">配置 {{ selectedTemplate?.name }} 的部署参数</p>
+        <h1 class="page-title text-h1">{{ isEditMode ? '编辑流水线' : '配置部署' }}</h1>
+        <p class="page-subtitle text-subtitle">{{ isEditMode ? '修改流水线配置和部署参数' : `配置 ${selectedTemplate?.name} 的部署参数` }}</p>
       </div>
       <div class="header-actions">
         <div class="action-row">
@@ -14,7 +14,7 @@
         </div>
         <div class="action-row deploy-row">
           <n-button size="medium" @click="savePipeline" :loading="saving">
-            保存为流水线
+            {{ isEditMode ? '更新流水线' : '保存为流水线' }}
           </n-button>
           <n-button type="primary" size="medium" @click="handleDeploy" :loading="deploying">
             开始部署
@@ -396,6 +396,11 @@ const currentWorkspace = computed(() => {
   return Array.isArray(workspaceName) ? workspaceName[0] : workspaceName || 'default'
 })
 
+// 是否为编辑模式
+const isEditMode = computed(() => {
+  return route.query.edit === 'true'
+})
+
 // 生成的命令
 const generatedCommand = computed(() => {
   const parts = ['devops', 'run', config.value.type]
@@ -504,30 +509,48 @@ const savePipeline = async () => {
 
   const workspaceName = route.params.workspaceName as string
   saving.value = true
+  
   try {
     // 设置当前工作空间
     pipelineStore.setCurrentWorkspace(workspaceName)
-
-    // 检查是否已存在同名流水线
-    const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
-
-    if (existingPipeline) {
-      // 更新现有流水线
-      await pipelineStore.updatePipeline(existingPipeline.id, {
+    
+    if (isEditMode.value) {
+      // 编辑模式：更新特定的流水线
+      const pipelineId = route.query.pipelineId as string
+      if (!pipelineId) {
+        message.error('无效的流水线ID')
+        return
+      }
+      
+      await pipelineStore.updatePipeline(pipelineId, {
+        name: config.value.name,
         template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
         config: { ...config.value },
         command: generatedCommand.value
       }, workspaceName)
       message.success(`流水线 "${config.value.name}" 已更新`)
     } else {
-      // 创建新流水线
-      await pipelineStore.createPipeline({
-        name: config.value.name,
-        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
-        config: { ...config.value },
-        command: generatedCommand.value
-      }, workspaceName)
-      message.success(`流水线 "${config.value.name}" 已保存`)
+      // 新建模式：检查是否已存在同名流水线
+      const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
+      
+      if (existingPipeline) {
+        // 更新现有流水线
+        await pipelineStore.updatePipeline(existingPipeline.id, {
+          template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
+          config: { ...config.value },
+          command: generatedCommand.value
+        }, workspaceName)
+        message.success(`流水线 "${config.value.name}" 已更新`)
+      } else {
+        // 创建新流水线
+        await pipelineStore.createPipeline({
+          name: config.value.name,
+          template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
+          config: { ...config.value },
+          command: generatedCommand.value
+        }, workspaceName)
+        message.success(`流水线 "${config.value.name}" 已保存`)
+      }
     }
 
     // 跳转到CI/CD管理页面
@@ -749,15 +772,54 @@ const loadWorkspaceDefaults = async () => {
   }
 }
 
+// 编辑模式：从流水线配置加载数据
+const loadPipelineForEdit = async () => {
+  const pipelineId = route.query.pipelineId as string
+  if (!pipelineId) return
+  
+  const pipeline = pipelineStore.getPipelineById(pipelineId)
+  if (!pipeline) {
+    message.error('流水线不存在')
+    goBack()
+    return
+  }
+  
+  // 从流水线配置恢复表单数据
+  if (pipeline.config) {
+    config.value = {
+      ...config.value,
+      ...pipeline.config,
+      workspace: currentWorkspace.value // 确保工作空间正确
+    }
+  }
+  
+  // 设置模板信息
+  selectedTemplate.value = {
+    id: pipeline.template,
+    name: pipeline.template.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    originalName: pipeline.template
+  }
+  
+  // 根据模板设置部署类型
+  const deployType = inferDeployTypeFromTemplate(pipeline.template)
+  config.value.type = deployType
+  
+  console.log('编辑模式：已加载流水线配置', pipeline)
+}
+
 // 初始化
 onMounted(async () => {
   const templateId = route.query.template as string
+  const isEditMode = route.query.edit === 'true'
 
   // 设置当前工作空间
   config.value.workspace = currentWorkspace.value
 
-  if (templateId) {
-    // 根据模板ID设置部署类型
+  if (isEditMode) {
+    // 编辑模式：从流水线加载配置
+    await loadPipelineForEdit()
+  } else if (templateId) {
+    // 新建模式：从模板参数设置基础配置
     const deployType = inferDeployTypeFromTemplate(templateId)
     config.value.type = deployType
     
