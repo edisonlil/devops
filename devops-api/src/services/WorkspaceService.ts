@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { authService } from './AuthService';
 
 export interface Workspace {
   name: string;
@@ -55,6 +56,8 @@ export interface WorkspaceActivity {
 }
 
 export class WorkspaceService {
+  private readonly rootPath = '/root/devops';
+  
   private workspaces: Workspace[] = [
     {
       name: 'production',
@@ -168,14 +171,24 @@ export class WorkspaceService {
     };
   }
 
-  async createWorkspace(workspaceData: Partial<Workspace>): Promise<Workspace> {
+  async createWorkspace(workspaceData: Partial<Workspace>, sessionId?: string): Promise<Workspace> {
     if (!workspaceData.name || !workspaceData.displayName) {
       throw new Error('工作空间名称和显示名称不能为空');
+    }
+
+    // 验证工作空间名称格式
+    if (!/^[a-z0-9-]+$/.test(workspaceData.name)) {
+      throw new Error('工作空间名称只能包含小写字母、数字和连字符');
     }
 
     const existingWorkspace = this.workspaces.find(w => w.name === workspaceData.name);
     if (existingWorkspace) {
       throw new Error(`工作空间 ${workspaceData.name} 已存在`);
+    }
+
+    // 如果有 sessionId，在远程主机上创建工作空间目录结构
+    if (sessionId) {
+      await this.createRemoteWorkspaceStructure(sessionId, workspaceData.name, workspaceData);
     }
 
     const newWorkspace: Workspace = {
@@ -239,5 +252,155 @@ export class WorkspaceService {
     }
 
     this.workspaces.splice(workspaceIndex, 1);
+  }
+
+  /**
+   * 在远程主机上创建工作空间目录结构
+   */
+  private async createRemoteWorkspaceStructure(sessionId: string, workspaceName: string, workspaceData: Partial<Workspace>): Promise<void> {
+    const session = authService.getSession(sessionId);
+    if (!session) {
+      throw new Error('会话已过期，请重新登录');
+    }
+
+    const workspacePath = `${this.rootPath}/workspace/${workspaceName}`;
+
+    try {
+      // 1. 生成配置文件内容
+      const configContent = this.generateWorkspaceConfigContent(workspaceData);
+      const readmeContent = this.generateWorkspaceReadme(workspaceName, workspaceData);
+
+      // 2. 创建一个批量脚本，一次性执行所有操作
+      const batchScript = `#!/bin/bash
+set -e  # 遇到错误立即退出
+
+# 创建工作空间目录结构
+mkdir -p "${workspacePath}"/{deploy,templates/{k8s,compose,swarm}}
+
+# 创建配置文件
+cat > "${workspacePath}/config" << 'EOF'
+${configContent}
+EOF
+
+# 创建README文件
+cat > "${workspacePath}/README.md" << 'EOF'
+${readmeContent}
+EOF
+
+echo "工作空间 ${workspaceName} 创建完成"
+`;
+
+      // 3. 执行批量脚本
+      const result = await authService.executeCommand(sessionId, batchScript);
+      
+      if (result.exitCode !== 0) {
+        throw new Error(`批量创建脚本执行失败: ${result.stderr}`);
+      }
+
+      console.log(`成功在远程主机创建工作空间目录结构: ${workspaceName}`);
+      console.log('脚本执行输出:', result.stdout);
+
+    } catch (error: any) {
+      console.error(`创建远程工作空间目录结构失败: ${workspaceName}`, error);
+      // 如果创建失败，尝试清理
+      try {
+        await authService.executeCommand(sessionId, `rm -rf "${workspacePath}"`);
+        console.log(`已清理失败的工作空间目录: ${workspacePath}`);
+      } catch (cleanupError) {
+        console.error('清理失败的工作空间目录时出错:', cleanupError);
+      }
+      throw new Error(`在远程主机创建工作空间失败: ${error.message}`);
+    }
+  }
+
+  /**
+   * 生成工作空间配置文件内容
+   */
+  private generateWorkspaceConfigContent(workspaceData: Partial<Workspace>): string {
+    const lines = [
+      '# 工作空间配置文件',
+      `# 工作空间: ${workspaceData.name}`,
+      `# 创建时间: ${new Date().toISOString()}`,
+      '',
+      '# 基本信息',
+      `WORKSPACE_NAME="${workspaceData.name || ''}"`,
+      `WORKSPACE_DISPLAY_NAME="${workspaceData.displayName || ''}"`,
+      `WORKSPACE_DESCRIPTION="${workspaceData.description || ''}"`,
+      '',
+      '# 部署平台配置',
+      'BUILD_PLATFORM="KUBERNETES"',
+      'BUILD_K8S_NAMESPACE="default"',
+      'DEFAULT_ENVIRONMENT="development"',
+      '',
+      '# Git 配置',
+      'BUILD_GIT_URL=""',
+      'BUILD_GIT_BRANCH="main"',
+      '',
+      '# Harbor 配置',
+      'BUILD_ENABEL_HARBOR="0"',
+      'BUILD_HARBOR_ADDRESS=""',
+      'BUILD_HARBOR_PROJECT=""',
+      'BUILD_HARBOR_USERNAME=""',
+      'BUILD_HARBOR_PASSWORD=""',
+      '',
+      '# 构建配置',
+      'BUILD_VERSION="node:18.12"',
+      'BUILD_COMMANDS="npm ci && npm run build"',
+      'BUILD_MAVEN_SETTINGS="/root/settings.xml"',
+      '',
+      '# 资源配置',
+      'DEFAULT_MEMORY_LIMIT="2Gi"',
+      'DEFAULT_STORAGE_SIZE="10Gi"',
+      'DEFAULT_STORAGE_CLASS="standard"',
+      '',
+      `# 最后更新时间: ${new Date().toISOString()}`
+    ];
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 生成工作空间README文件
+   */
+  private generateWorkspaceReadme(workspaceName: string, workspaceData: Partial<Workspace>): string {
+    return `# ${workspaceData.displayName || workspaceName}
+
+${workspaceData.description || ''}
+
+## 工作空间信息
+
+- **名称**: ${workspaceName}
+- **显示名称**: ${workspaceData.displayName || ''}
+- **创建时间**: ${new Date().toLocaleString('zh-CN')}
+
+## 目录结构
+
+\`\`\`
+${workspaceName}/
+├── config              # 工作空间配置文件
+├── deploy/             # 部署文件目录
+├── templates/          # 模板目录
+│   ├── k8s/           # Kubernetes 模板
+│   ├── compose/       # Docker Compose 模板
+│   └── swarm/         # Docker Swarm 模板
+└── README.md          # 说明文档
+\`\`\`
+
+## 使用说明
+
+1. 在 \`deploy/\` 目录中放置应用部署配置文件
+2. 在 \`templates/\` 目录中自定义模板文件
+3. 修改 \`config\` 文件来配置工作空间参数
+
+## 部署命令
+
+\`\`\`bash
+# 使用该工作空间进行部署
+devops run --workspace ${workspaceName} <type> <project-name>
+\`\`\`
+
+---
+*此文档由 DevOps 平台自动生成*
+`;
   }
 }

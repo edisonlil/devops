@@ -121,10 +121,9 @@ export class AuthController {
         return;
       }
       
-      // 重新获取工作空间信息
+      // 使用批量优化方法获取工作空间信息
       try {
-        const availableWorkspaces = await authService.getAvailableWorkspaces(session);
-        const defaultWorkspace = await authService.getDefaultWorkspace(session);
+        const workspaceInfo = await authService.getWorkspaceInfo(session);
         
         res.json({
           success: true,
@@ -133,13 +132,14 @@ export class AuthController {
             username: session.username,
             connected: session.connected,
             connectedAt: session.connectedAt,
-            defaultWorkspace,
-            availableWorkspaces
+            defaultWorkspace: workspaceInfo.defaultWorkspace,
+            availableWorkspaces: workspaceInfo.availableWorkspaces
           }
         });
         return;
       } catch (error) {
         // 如果获取工作空间信息失败，返回基本信息
+        console.error('获取工作空间信息失败:', error);
         res.json({
           success: true,
           data: {

@@ -47,16 +47,21 @@ export class WorkspaceController {
   createWorkspace = async (req: Request, res: Response) => {
     try {
       const workspaceData = req.body;
-      const workspace = await this.workspaceService.createWorkspace(workspaceData);
+      const sessionId = (req.session as any).sessionId;
+      
+      const workspace = await this.workspaceService.createWorkspace(workspaceData, sessionId);
       res.status(201).json({
         success: true,
-        data: workspace
+        data: workspace,
+        message: '工作空间创建成功'
       });
+      return;
     } catch (error: any) {
       res.status(400).json({
         success: false,
         message: error.message || '创建工作空间失败'
       });
+      return;
     }
   };
 

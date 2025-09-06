@@ -58,7 +58,8 @@ export class AppTemplateService {
   private remoteBasePath: string;
   private globalTemplatesCache: Map<string, CacheEntry> = new Map();
   private workspaceTemplatesCache: Map<string, CacheEntry> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5分钟缓存
+  private readonly GLOBAL_CACHE_TTL = 30 * 60 * 1000; // 全局模板30分钟缓存
+  private readonly WORKSPACE_CACHE_TTL = 10 * 60 * 1000; // 工作空间模板10分钟缓存
 
   constructor() {
     // 远程主机的devops根目录
@@ -74,17 +75,17 @@ export class AppTemplateService {
   private cleanExpiredCache(): void {
     const now = Date.now();
 
-    // 清理全局模板缓存
+    // 清理全局模板缓存（较长TTL）
     for (const [key, entry] of this.globalTemplatesCache.entries()) {
-      if (now - entry.timestamp > this.CACHE_TTL) {
+      if (now - entry.timestamp > this.GLOBAL_CACHE_TTL) {
         this.globalTemplatesCache.delete(key);
         console.log(`清理过期的全局模板缓存: ${key}`);
       }
     }
 
-    // 清理工作空间模板缓存
+    // 清理工作空间模板缓存（较短TTL）
     for (const [key, entry] of this.workspaceTemplatesCache.entries()) {
-      if (now - entry.timestamp > this.CACHE_TTL) {
+      if (now - entry.timestamp > this.WORKSPACE_CACHE_TTL) {
         this.workspaceTemplatesCache.delete(key);
         console.log(`清理过期的工作空间模板缓存: ${key}`);
       }
@@ -98,12 +99,21 @@ export class AppTemplateService {
     return `${session.host}:${session.username}${path ? ':' + path : ''}`;
   }
 
-  // 检查缓存是否有效
-  private isCacheValid(entry: CacheEntry, sessionId: string): boolean {
+  // 检查全局缓存是否有效
+  private isGlobalCacheValid(entry: CacheEntry, sessionId: string): boolean {
     const now = Date.now();
     return (
       entry.sessionId === sessionId &&
-      (now - entry.timestamp) < this.CACHE_TTL
+      (now - entry.timestamp) < this.GLOBAL_CACHE_TTL
+    );
+  }
+
+  // 检查工作空间缓存是否有效
+  private isWorkspaceCacheValid(entry: CacheEntry, sessionId: string): boolean {
+    const now = Date.now();
+    return (
+      entry.sessionId === sessionId &&
+      (now - entry.timestamp) < this.WORKSPACE_CACHE_TTL
     );
   }
 
@@ -125,26 +135,132 @@ export class AppTemplateService {
     return null;
   }
 
-  // 扫描远程指定目录下的模板
+  // 扫描远程指定目录下的模板（优化版本）
   private async scanRemoteTemplates(sessionId: string, templatesPath: string, source: 'global' | 'workspace'): Promise<AppTemplate[]> {
     const templates: AppTemplate[] = [];
 
     try {
       console.log(`正在扫描远程模板目录: ${templatesPath}`);
 
-      const templateDirs = await authService.listRemoteDirectory(sessionId, templatesPath);
-      console.log(`找到模板目录: ${templateDirs.length} 个`, templateDirs);
+      // 创建批量脚本，一次性获取所有模板信息
+      const batchScript = `#!/bin/bash
+# 检查目录是否存在
+if [ ! -d "${templatesPath}" ]; then
+  echo "DIRECTORY_NOT_EXISTS"
+  exit 0
+fi
 
-      if (!templateDirs || templateDirs.length === 0) {
-        console.warn(`No templates found in remote directory: ${templatesPath}`);
+# 获取所有模板目录
+echo "=== TEMPLATE_DIRS ==="
+ls -1 "${templatesPath}" 2>/dev/null | head -20 || echo "NO_TEMPLATES"
+
+echo "=== TEMPLATE_METADATA ==="
+# 遍历每个模板目录，读取metadata.yaml
+for dir in "${templatesPath}"/*; do
+  if [ -d "$dir" ]; then
+    template_name=$(basename "$dir")
+    metadata_file="$dir/metadata.yaml"
+    echo "--- TEMPLATE: $template_name ---"
+    if [ -f "$metadata_file" ]; then
+      echo "HAS_METADATA: true"
+      cat "$metadata_file" 2>/dev/null || echo "METADATA_READ_ERROR"
+    else
+      echo "HAS_METADATA: false"
+    fi
+    echo "--- END: $template_name ---"
+  fi
+done
+
+echo "=== SCAN_COMPLETE ==="
+`;
+
+      const result = await authService.executeCommand(sessionId, batchScript);
+      
+      if (result.exitCode !== 0) {
+        console.warn(`批量扫描模板脚本警告: ${result.stderr}`);
         return templates;
       }
 
-      for (const templateName of templateDirs) {
-        console.log(`处理模板: ${templateName}`);
-        const templatePath = `${templatesPath}/${templateName}`;
-        const metadata = await this.readRemoteTemplateMetadata(sessionId, templatePath);
+      const output = result.stdout;
+      if (output.includes('DIRECTORY_NOT_EXISTS')) {
+        console.warn(`模板目录不存在: ${templatesPath}`);
+        return templates;
+      }
 
+      // 解析输出
+      const lines = output.split('\n');
+      const templateDirs: string[] = [];
+      const templateMetadata: Map<string, AppTemplateMetadata | null> = new Map();
+
+      let currentSection = '';
+      let currentTemplate = '';
+      let currentMetadataLines: string[] = [];
+      let hasMetadata = false;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        if (trimmedLine === '=== TEMPLATE_DIRS ===') {
+          currentSection = 'dirs';
+        } else if (trimmedLine === '=== TEMPLATE_METADATA ===') {
+          currentSection = 'metadata';
+        } else if (trimmedLine === '=== SCAN_COMPLETE ===') {
+          // 处理最后一个模板的metadata
+          if (currentTemplate && hasMetadata && currentMetadataLines.length > 0) {
+            try {
+              const metadataYaml = currentMetadataLines.join('\n');
+              const metadata = yaml.load(metadataYaml) as AppTemplateMetadata;
+              templateMetadata.set(currentTemplate, metadata);
+            } catch (error) {
+              console.warn(`解析模板metadata失败: ${currentTemplate}`, error);
+              templateMetadata.set(currentTemplate, null);
+            }
+          }
+          break;
+        } else if (currentSection === 'dirs' && trimmedLine !== 'NO_TEMPLATES' && trimmedLine) {
+          templateDirs.push(trimmedLine);
+        } else if (currentSection === 'metadata') {
+          if (trimmedLine.startsWith('--- TEMPLATE:') && trimmedLine.endsWith('---')) {
+            // 处理上一个模板的metadata
+            if (currentTemplate && hasMetadata && currentMetadataLines.length > 0) {
+              try {
+                const metadataYaml = currentMetadataLines.join('\n');
+                const metadata = yaml.load(metadataYaml) as AppTemplateMetadata;
+                templateMetadata.set(currentTemplate, metadata);
+              } catch (error) {
+                console.warn(`解析模板metadata失败: ${currentTemplate}`, error);
+                templateMetadata.set(currentTemplate, null);
+              }
+            } else if (currentTemplate) {
+              templateMetadata.set(currentTemplate, null);
+            }
+
+            // 开始新模板
+            currentTemplate = trimmedLine.replace('--- TEMPLATE:', '').replace('---', '').trim();
+            currentMetadataLines = [];
+            hasMetadata = false;
+          } else if (trimmedLine.startsWith('HAS_METADATA:')) {
+            hasMetadata = trimmedLine.includes('true');
+            if (!hasMetadata) {
+              templateMetadata.set(currentTemplate, null);
+            }
+          } else if (trimmedLine.startsWith('--- END:')) {
+            // 模板结束标记，不需要特殊处理
+          } else if (hasMetadata && currentTemplate && 
+                    !trimmedLine.startsWith('METADATA_READ_ERROR') && 
+                    trimmedLine) {
+            currentMetadataLines.push(line); // 保持原始缩进
+          }
+        }
+      }
+
+      console.log(`找到模板目录: ${templateDirs.length} 个`, templateDirs);
+      console.log(`解析metadata: ${templateMetadata.size} 个`);
+
+      // 构建模板对象
+      for (const templateName of templateDirs) {
+        const metadata = templateMetadata.get(templateName);
+        
         const template: AppTemplate = {
           name: templateName,
           displayName: metadata?.displayName || metadata?.name || templateName,
@@ -155,16 +271,17 @@ export class AppTemplateService {
           version: metadata?.version,
           hasMetadata: metadata !== null,
           source,
-          category: '', // 移除类型推断，后续实现
+          category: '', // 不推断分类
           tags: metadata?.tags,
           variables: metadata?.variables
         };
 
         templates.push(template);
-        console.log(`成功添加模板: ${templateName}`);
+        console.log(`成功添加模板: ${templateName} (${template.hasMetadata ? '有metadata' : '无metadata'})`);
       }
+
     } catch (error) {
-      console.error(`Error scanning remote templates in ${templatesPath}:`, error);
+      console.error(`批量扫描远程模板失败: ${templatesPath}`, error);
     }
 
     console.log(`扫描完成，共找到 ${templates.length} 个模板`);
@@ -178,7 +295,7 @@ export class AppTemplateService {
 
     // 检查缓存
     const cached = this.globalTemplatesCache.get(cacheKey);
-    if (cached && this.isCacheValid(cached, sessionId)) {
+    if (cached && this.isGlobalCacheValid(cached, sessionId)) {
       console.log(`使用缓存的全局App模板数据 (${platformDir})`);
       return cached.data;
     }
@@ -204,7 +321,7 @@ export class AppTemplateService {
 
     // 检查缓存
     const cached = this.workspaceTemplatesCache.get(cacheKey);
-    if (cached && this.isCacheValid(cached, sessionId)) {
+    if (cached && this.isWorkspaceCacheValid(cached, sessionId)) {
       console.log(`使用缓存的工作空间App模板数据: ${workspace} (${platformDir})`);
       return cached.data;
     }

@@ -50,17 +50,14 @@ export class AuthService {
         this.sessions.set(sessionId, sessionInfo);
         
         try {
-          // 读取workspace/enable文件，获取默认工作空间
-          const defaultWorkspace = await this.getDefaultWorkspace(sessionInfo);
-          
-          // 获取所有可用工作空间
-          const availableWorkspaces = await this.getAvailableWorkspaces(sessionInfo);
+          // 使用批量优化方法获取工作空间信息
+          const workspaceInfo = await this.getWorkspaceInfo(sessionInfo);
           
           console.log(`用户 ${credentials.username}@${credentials.host} 登录成功`);
           resolve({
             sessionId,
-            defaultWorkspace,
-            availableWorkspaces
+            defaultWorkspace: workspaceInfo.defaultWorkspace,
+            availableWorkspaces: workspaceInfo.availableWorkspaces
           });
         } catch (error) {
           console.error('获取工作空间信息失败:', error);
@@ -265,13 +262,7 @@ export class AuthService {
    */
   async getDefaultWorkspace(session: SessionInfo): Promise<string | undefined> {
     try {
-      // 检查workspace/enable文件是否存在
-      const enableExists = await this.remoteFileExists(session.sessionId, `${this.rootPath}/workspace/enable`);
-      if (!enableExists) {
-        return undefined;
-      }
-
-      // 读取enable文件内容
+      // 直接尝试读取enable文件，如果不存在会抛出异常
       const content = await this.readRemoteFile(session.sessionId, `${this.rootPath}/workspace/enable`);
       
       // 解析enable文件，查找ENABEL_WORKSPACE_PATH
@@ -286,7 +277,7 @@ export class AuthService {
       
       return undefined;
     } catch (error) {
-      console.error('获取默认工作空间失败:', error);
+      // 文件不存在或读取失败时返回undefined
       return undefined;
     }
   }
@@ -297,10 +288,77 @@ export class AuthService {
   async getAvailableWorkspaces(session: SessionInfo): Promise<string[]> {
     try {
       const workspaces = await this.listRemoteDirectory(session.sessionId, `${this.rootPath}/workspace`);
-      return workspaces.filter(name => name !== '.devops-web'); // 过滤掉系统目录
+      return workspaces.filter(name => 
+        !name.startsWith('.') &&
+        name !== 'enable' &&
+        name !== '.devops-web'
+      ); // 过滤掉系统目录和隐藏文件
     } catch (error) {
       console.error('获取可用工作空间失败:', error);
       return [];
+    }
+  }
+
+  /**
+   * 批量获取工作空间信息（优化版本）
+   * 一次SSH调用获取工作空间列表和默认工作空间
+   */
+  async getWorkspaceInfo(session: SessionInfo): Promise<{
+    availableWorkspaces: string[];
+    defaultWorkspace: string | undefined;
+  }> {
+    try {
+      // 创建一个批量脚本，一次性获取所有信息
+      const batchScript = `#!/bin/bash
+# 列出工作空间目录
+echo "=== WORKSPACES ==="
+ls -1 "${this.rootPath}/workspace" 2>/dev/null | grep -v '^\\.\\|^enable$' || echo "NO_WORKSPACES"
+
+echo "=== DEFAULT_WORKSPACE ==="
+# 读取默认工作空间配置（如果存在）
+if [ -f "${this.rootPath}/workspace/enable" ]; then
+  grep "^ENABEL_WORKSPACE_PATH=" "${this.rootPath}/workspace/enable" 2>/dev/null || echo "NO_DEFAULT"
+else
+  echo "NO_DEFAULT"
+fi
+`;
+
+      const result = await this.executeCommand(session.sessionId, batchScript);
+      
+      if (result.exitCode !== 0) {
+        console.warn('批量获取工作空间信息警告:', result.stderr);
+        return { availableWorkspaces: [], defaultWorkspace: undefined };
+      }
+
+      const output = result.stdout;
+      const lines = output.split('\n').map(line => line.trim()).filter(Boolean);
+      
+      let availableWorkspaces: string[] = [];
+      let defaultWorkspace: string | undefined;
+      
+      let currentSection = '';
+      for (const line of lines) {
+        if (line === '=== WORKSPACES ===') {
+          currentSection = 'workspaces';
+        } else if (line === '=== DEFAULT_WORKSPACE ===') {
+          currentSection = 'default';
+        } else if (currentSection === 'workspaces' && line !== 'NO_WORKSPACES') {
+          availableWorkspaces.push(line);
+        } else if (currentSection === 'default' && line !== 'NO_DEFAULT') {
+          // 解析 ENABEL_WORKSPACE_PATH=value
+          if (line.startsWith('ENABEL_WORKSPACE_PATH=')) {
+            const value = line.split('=')[1];
+            defaultWorkspace = value?.replace(/"/g, '').trim();
+          }
+        }
+      }
+
+      console.log(`批量获取工作空间信息成功: ${availableWorkspaces.length}个工作空间, 默认: ${defaultWorkspace}`);
+      return { availableWorkspaces, defaultWorkspace };
+
+    } catch (error) {
+      console.error('批量获取工作空间信息失败:', error);
+      return { availableWorkspaces: [], defaultWorkspace: undefined };
     }
   }
 

@@ -67,6 +67,53 @@
       </div>
       <n-avatar size="small" :src="userAvatar" />
     </div>
+
+    <!-- 创建工作空间对话框 -->
+    <n-modal v-model:show="showCreateDialog">
+      <n-card title="创建工作空间" style="width: 500px">
+        <n-form ref="createFormRef" :model="createForm" :rules="createRules" label-placement="top">
+          <n-form-item label="工作空间名称" path="name">
+            <n-input 
+              v-model:value="createForm.name" 
+              placeholder="例如：production, staging, dev-team1"
+              :input-props="{ style: 'font-family: monospace' }"
+            />
+            <template #feedback>
+              <div class="form-hint">
+                只能包含小写字母、数字和连字符，将用作目录名和标识符
+              </div>
+            </template>
+          </n-form-item>
+          
+          <n-form-item label="显示名称" path="displayName">
+            <n-input v-model:value="createForm.displayName" placeholder="例如：生产环境, 测试环境" />
+            <template #feedback>
+              <div class="form-hint">
+                用于界面显示的友好名称
+              </div>
+            </template>
+          </n-form-item>
+          
+          <n-form-item label="描述" path="description">
+            <n-input
+              v-model:value="createForm.description"
+              type="textarea"
+              placeholder="工作空间的用途和说明..."
+              :rows="3"
+            />
+          </n-form-item>
+        </n-form>
+
+        <template #footer>
+          <div class="dialog-footer">
+            <n-button @click="showCreateDialog = false">取消</n-button>
+            <n-button type="primary" @click="createWorkspace" :loading="creating">
+              {{ creating ? '创建中...' : '创建工作空间' }}
+            </n-button>
+          </div>
+        </template>
+      </n-card>
+    </n-modal>
   </div>
 </template>
 
@@ -147,9 +194,32 @@ const workspaceDropdownOptions = computed(() => [
   }
 ])
 
+// 创建工作空间对话框状态
+const showCreateDialog = ref(false)
+const creating = ref(false)
+const createForm = ref({
+  name: '',
+  displayName: '',
+  description: ''
+})
+
+const createRules = {
+  name: [
+    { required: true, message: '请输入工作空间名称' },
+    { 
+      pattern: /^[a-z0-9-]+$/, 
+      message: '工作空间名称只能包含小写字母、数字和连字符' 
+    },
+    { min: 3, max: 30, message: '工作空间名称长度应在3-30个字符之间' }
+  ],
+  displayName: [
+    { required: true, message: '请输入显示名称' }
+  ]
+}
+
 const handleWorkspaceSelect = (key: string) => {
   if (key === 'create') {
-    message.info('创建工作空间功能开发中...')
+    showCreateDialog.value = true
   } else if (key === 'manage') {
     // 跳转到当前工作空间的设置页面
     const currentWorkspaceName = route.params.workspaceName as string
@@ -177,6 +247,24 @@ const showDocs = () => {
 
 const showNotifications = () => {
   message.info('通知功能开发中...')
+}
+
+// 创建工作空间
+const createWorkspace = async () => {
+  creating.value = true
+  try {
+    await workspaceStore.createWorkspace(createForm.value)
+    showCreateDialog.value = false
+    createForm.value = { name: '', displayName: '', description: '' }
+    message.success('工作空间创建成功')
+    
+    // 刷新会话信息以获取最新的工作空间列表
+    await loadSessionInfo()
+  } catch (error: any) {
+    message.error(error.message || '创建工作空间失败')
+  } finally {
+    creating.value = false
+  }
 }
 
 const handleLogout = async () => {
@@ -428,5 +516,19 @@ onMounted(async () => {
     height: 26px;
     font-size: 11px;
   }
+}
+
+/* 创建工作空间对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #86868b;
+  line-height: 1.4;
+  margin-top: 4px;
 }
 </style>
