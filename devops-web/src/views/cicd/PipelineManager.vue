@@ -267,9 +267,19 @@ const executePipeline = async (pipeline: Pipeline) => {
   }
 }
 
-const viewPipeline = (pipeline: any) => {
-  message.info(`查看流水线: ${pipeline.name}`)
-  // 这里可以跳转到流水线详情页面
+const viewPipeline = (pipeline: Pipeline) => {
+  // 跳转到执行页面查看流水线状态和日志
+  const workspaceName = route.params.workspaceName
+  router.push({
+    name: 'PipelineExecution',
+    params: {
+      workspaceName,
+      pipelineId: pipeline.id
+    },
+    query: {
+      view: 'true' // 标识这是查看模式，不是新执行
+    }
+  })
 }
 
 

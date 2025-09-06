@@ -24,6 +24,7 @@ export interface DeployHistory {
   endTime?: string
   logs: string[]
   command: string
+  executionId?: string // 执行ID，用于恢复执行状态
 }
 
 // API响应类型
@@ -264,6 +265,20 @@ export const usePipelineStore = defineStore('pipeline', () => {
     return deployHistory.value
   }
 
+  // 获取流水线的最新执行历史
+  const getLatestExecutionHistory = (pipelineId: string): DeployHistory | undefined => {
+    const pipelineHistories = deployHistory.value
+      .filter(h => h.pipelineId === pipelineId)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+    
+    return pipelineHistories[0]
+  }
+
+  // 根据ID获取执行历史
+  const getExecutionHistoryById = (historyId: string): DeployHistory | undefined => {
+    return deployHistory.value.find(h => h.id === historyId)
+  }
+
   const updateDeployHistory = async (id: string, updates: Partial<DeployHistory>) => {
     const index = deployHistory.value.findIndex(h => h.id === id)
     if (index !== -1) {
@@ -379,6 +394,8 @@ export const usePipelineStore = defineStore('pipeline', () => {
     // 部署历史
     addDeployHistory,
     getDeployHistory,
+    getLatestExecutionHistory,
+    getExecutionHistoryById,
     updateDeployHistory,
     
     // 执行管理

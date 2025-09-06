@@ -535,23 +535,8 @@ rm -rf "${outputDir}"
         execution.logs.push(`[${new Date().toISOString()}] INFO: 工作目录: ${workingDir}`);
       }
       
-      // 执行命令
-      const result = await authService.executeCommand(sessionId, fullCommand);
-      
-      // 更新执行结果
-      execution.status = result.exitCode === 0 ? 'completed' : 'failed';
-      execution.endTime = new Date();
-      execution.exitCode = result.exitCode;
-      execution.stdout = result.stdout;
-      execution.stderr = result.stderr;
-      
-      if (result.exitCode === 0) {
-        execution.logs.push(`[${new Date().toISOString()}] SUCCESS: 命令执行成功 (退出码: ${result.exitCode})`);
-      } else {
-        execution.logs.push(`[${new Date().toISOString()}] ERROR: 命令执行失败 (退出码: ${result.exitCode})`);
-      }
-      
-      console.log(`命令执行完成 [${executionId}]: 状态=${execution.status}, 退出码=${result.exitCode}`);
+      // 使用流式执行命令，实时更新输出
+      await this.executeCommandWithStreaming(sessionId, executionId, fullCommand);
       
     } catch (error: any) {
       execution.status = 'failed';
@@ -561,5 +546,92 @@ rm -rf "${outputDir}"
       
       console.error(`命令执行异常 [${executionId}]:`, error);
     }
+  }
+
+  // 支持流式输出的命令执行
+  private async executeCommandWithStreaming(
+    sessionId: string,
+    executionId: string,
+    command: string
+  ): Promise<void> {
+    const session = authService.getSession(sessionId);
+    const execution = this.executions.get(executionId);
+    
+    if (!session || !session.connected || !execution) {
+      throw new Error('会话不存在或已断开');
+    }
+
+    return new Promise((resolve, reject) => {
+      session.client.exec(command, (err, stream) => {
+        if (err) {
+          reject(new Error(`执行命令失败: ${err.message}`));
+          return;
+        }
+
+        let stdoutBuffer = '';
+        let stderrBuffer = '';
+
+        // 监听标准输出
+        stream.on('data', (data: Buffer) => {
+          const output = data.toString();
+          stdoutBuffer += output;
+          execution.stdout = stdoutBuffer;
+          
+          // 添加实时日志
+          const lines = output.split('\n');
+          lines.forEach(line => {
+            if (line.trim()) {
+              execution.logs.push(`[${new Date().toISOString()}] OUTPUT: ${line.trim()}`);
+            }
+          });
+          
+          console.log(`[${executionId}] STDOUT:`, output);
+        });
+
+        // 监听错误输出
+        stream.stderr.on('data', (data: Buffer) => {
+          const output = data.toString();
+          stderrBuffer += output;
+          execution.stderr = stderrBuffer;
+          
+          // 添加错误日志
+          const lines = output.split('\n');
+          lines.forEach(line => {
+            if (line.trim()) {
+              execution.logs.push(`[${new Date().toISOString()}] ERROR: ${line.trim()}`);
+            }
+          });
+          
+          console.log(`[${executionId}] STDERR:`, output);
+        });
+
+        // 监听命令结束
+        stream.on('close', (exitCode: number) => {
+          execution.status = exitCode === 0 ? 'completed' : 'failed';
+          execution.endTime = new Date();
+          execution.exitCode = exitCode;
+          
+          if (exitCode === 0) {
+            execution.logs.push(`[${new Date().toISOString()}] SUCCESS: 命令执行成功 (退出码: ${exitCode})`);
+          } else {
+            execution.logs.push(`[${new Date().toISOString()}] ERROR: 命令执行失败 (退出码: ${exitCode})`);
+          }
+          
+          console.log(`命令执行完成 [${executionId}]: 状态=${execution.status}, 退出码=${exitCode}`);
+          resolve();
+        });
+
+        // 监听错误
+        stream.on('error', (error: Error) => {
+          execution.status = 'failed';
+          execution.endTime = new Date();
+          execution.stderr += error.message;
+          execution.logs.push(`[${new Date().toISOString()}] ERROR: 流执行错误: ${error.message}`);
+          
+          console.error(`流执行错误 [${executionId}]:`, error);
+          reject(error);
+        });
+      });
+    });
   }
 }

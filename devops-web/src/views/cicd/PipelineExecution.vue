@@ -112,6 +112,8 @@ const currentHistoryId = ref<string | null>(null)
 
 // 模拟执行过程的定时器
 let executionTimer: any = null
+// 跟踪已处理的日志行数，避免重复显示
+let processedLogLines = 0
 
 // 计算属性
 const pipelineId = computed(() => route.params.pipelineId as string)
@@ -158,6 +160,7 @@ const startExecution = async () => {
   isExecuting.value = true
   executionStatus.value = 'running'
   logs.value = []
+  processedLogLines = 0 // 重置日志跟踪
 
   try {
     // 使用store开始执行
@@ -168,7 +171,7 @@ const startExecution = async () => {
     addLog('info', `执行命令: ${pipeline.value.command}`)
 
     // 执行真实的远程命令
-    await executeRealCommand()
+    await executeRealCommand(history.id)
 
   } catch (error) {
     addLog('error', `执行失败: ${error}`)
@@ -217,7 +220,7 @@ const simulateExecution = async () => {
 }
 
 // 执行真实的远程命令
-const executeRealCommand = async () => {
+const executeRealCommand = async (historyId: string) => {
   if (!pipeline.value?.command) {
     throw new Error('流水线命令为空')
   }
@@ -240,6 +243,11 @@ const executeRealCommand = async () => {
     const executionId = response.data.executionId
     addLog('info', `获得执行ID: ${executionId}`)
     
+    // 将executionId保存到历史记录中，以便后续恢复
+    await pipelineStore.updateDeployHistory(historyId, {
+      executionId: executionId
+    })
+    
     // 轮询检查执行状态
     await pollExecutionStatus(workspace, executionId)
     
@@ -255,46 +263,88 @@ const pollExecutionStatus = async (workspace: string, executionId: string) => {
   let pollCount = 0
   let lastMinutes = -1 // 记录上次输出的分钟数，避免重复输出
 
+  console.log('开始轮询执行状态，executionId:', executionId)
+  
   while (pollCount < maxPolls && isExecuting.value) {
     try {
       // 获取执行详情
       const detailsResponse = await deployApi.getExecutionDetails(workspace, executionId)
+      console.log('轮询详情响应:', detailsResponse)
       
       if (detailsResponse.success) {
         const execution = detailsResponse.data
+        
+        // 获取最新的日志并只显示新增内容
+        try {
+          const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
+          console.log('日志响应:', logsResponse)
+          
+          if (logsResponse.success) {
+            // 处理结构化日志 - 只显示新的日志条目
+            if (logsResponse.data.logs && logsResponse.data.logs.length > 0) {
+              const newLogs = logsResponse.data.logs.slice(processedLogLines)
+              newLogs.forEach((logLine: string) => {
+                if (logLine.trim()) {
+                  // 解析日志级别
+                  if (logLine.includes('ERROR:')) {
+                    addLog('error', logLine.replace(/.*ERROR:\s*/, ''))
+                  } else if (logLine.includes('OUTPUT:')) {
+                    addLog('info', logLine.replace(/.*OUTPUT:\s*/, ''))
+                  } else if (logLine.includes('SUCCESS:')) {
+                    addLog('success', logLine.replace(/.*SUCCESS:\s*/, ''))
+                  } else if (logLine.includes('INFO:')) {
+                    addLog('info', logLine.replace(/.*INFO:\s*/, ''))
+                  } else {
+                    addLog('info', logLine)
+                  }
+                }
+              })
+              processedLogLines = logsResponse.data.logs.length
+              
+              // 实时更新历史记录中的日志，这样重新进入页面时能看到最新日志
+              if (currentHistoryId.value && newLogs.length > 0) {
+                await pipelineStore.updateDeployHistory(currentHistoryId.value, {
+                  logs: logsResponse.data.logs // 使用完整的后端日志列表
+                })
+              }
+            }
+            
+            // 如果没有结构化日志，回退到处理标准输出
+            else if (logsResponse.data.stdout) {
+              const allStdoutLines = logsResponse.data.stdout.split('\n')
+              const newStdoutLines = allStdoutLines.slice(processedLogLines)
+              newStdoutLines.forEach((line: string) => {
+                if (line.trim()) {
+                  addLog('info', line.trim())
+                }
+              })
+              processedLogLines = allStdoutLines.length
+            }
+            
+            // 处理错误输出日志
+            if (logsResponse.data.stderr) {
+              const stderrLines = logsResponse.data.stderr.split('\n')
+              stderrLines.forEach((line: string) => {
+                if (line.trim()) {
+                  addLog('error', line.trim())
+                }
+              })
+            }
+          }
+        } catch (logError) {
+          console.warn('获取日志失败，但继续轮询:', logError)
+          // 不影响主流程，继续轮询
+        }
         
         if (execution.status === 'completed') {
           addLog('success', '部署命令执行成功！')
           executionStatus.value = 'success'
           await finishExecution('success')
-          
-          // 获取执行日志
-          const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
-          if (logsResponse.success && logsResponse.data.logs) {
-            logsResponse.data.logs.forEach((logLine: string) => {
-              addLog('info', logLine)
-            })
-          }
-          
           return
         } else if (execution.status === 'failed') {
           addLog('error', '部署命令执行失败！')
           executionStatus.value = 'failed'
           await finishExecution('failed')
-          
-          // 获取错误日志
-          const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
-          if (logsResponse.success) {
-            if (logsResponse.data.logs) {
-              logsResponse.data.logs.forEach((logLine: string) => {
-                addLog('error', logLine)
-              })
-            }
-            if (logsResponse.data.stderr) {
-              addLog('error', `错误输出: ${logsResponse.data.stderr}`)
-            }
-          }
-          
           return
         } else {
           // 仍在运行中
@@ -380,6 +430,7 @@ const stopExecution = async () => {
 const restartExecution = () => {
   executionStatus.value = 'never'
   logs.value = []
+  processedLogLines = 0 // 重置日志跟踪
   startExecution()
 }
 
@@ -409,14 +460,147 @@ const formatTime = (time: Date) => {
   return time.toLocaleTimeString()
 }
 
+// 恢复执行状态
+const restoreExecutionState = async () => {
+  if (!pipeline.value) return
+  
+  try {
+    console.log('开始恢复执行状态，流水线ID:', pipeline.value.id)
+    
+    // 获取流水线的最新执行历史
+    const history = pipelineStore.getLatestExecutionHistory(pipeline.value.id)
+    console.log('获取到的执行历史:', history)
+    
+    if (!history) {
+      console.log('没有找到执行历史')
+      return
+    }
+    
+    // 设置当前执行ID
+    currentHistoryId.value = history.id
+    
+    // 根据历史记录恢复状态
+    if (history.status === 'running') {
+      console.log('恢复运行中的流水线')
+      
+      // 如果还在运行中，恢复执行状态并继续轮询
+      executionStatus.value = 'running'
+      isExecuting.value = true
+      
+      // 恢复日志
+      logs.value = [] // 清空当前日志
+      if (history.logs && history.logs.length > 0) {
+        console.log('恢复历史日志，共', history.logs.length, '条')
+        
+        history.logs.forEach(logLine => {
+          // 解析时间戳和级别
+          if (logLine.includes('ERROR:')) {
+            addLog('error', logLine.replace(/.*ERROR:\s*/, ''))
+          } else if (logLine.includes('OUTPUT:')) {
+            addLog('info', logLine.replace(/.*OUTPUT:\s*/, ''))
+          } else if (logLine.includes('SUCCESS:')) {
+            addLog('success', logLine.replace(/.*SUCCESS:\s*/, ''))
+          } else if (logLine.includes('INFO:')) {
+            addLog('info', logLine.replace(/.*INFO:\s*/, ''))
+          } else {
+            addLog('info', logLine)
+          }
+        })
+        
+        // 设置已处理的日志行数，这样轮询时只获取新的日志
+        processedLogLines = history.logs.length
+      } else {
+        processedLogLines = 0
+      }
+      
+      addLog('info', '恢复执行状态，继续监控部署进度...')
+      
+      // 继续执行轮询
+      await continueExecution()
+    } else {
+      // 如果已完成，显示最终状态和日志
+      executionStatus.value = history.status
+      
+      if (history.logs && history.logs.length > 0) {
+        logs.value = []
+        history.logs.forEach(logLine => {
+          if (logLine.includes('ERROR:')) {
+            addLog('error', logLine.replace(/.*ERROR:\s*/, ''))
+          } else if (logLine.includes('OUTPUT:')) {
+            addLog('info', logLine.replace(/.*OUTPUT:\s*/, ''))
+          } else if (logLine.includes('SUCCESS:')) {
+            addLog('success', logLine.replace(/.*SUCCESS:\s*/, ''))
+          } else if (logLine.includes('INFO:')) {
+            addLog('info', logLine.replace(/.*INFO:\s*/, ''))
+          } else {
+            addLog('info', logLine)
+          }
+        })
+      }
+      
+      addLog('info', `流水线执行已完成，状态: ${history.status}`)
+    }
+  } catch (error) {
+    console.error('恢复执行状态失败:', error)
+    addLog('error', '恢复执行状态失败')
+  }
+}
+
+// 继续执行轮询（用于恢复运行中的流水线）
+const continueExecution = async () => {
+  if (!pipeline.value || !currentHistoryId.value) return
+  
+  try {
+    console.log('尝试继续执行，historyId:', currentHistoryId.value)
+    
+    // 从pipeline store中获取execution ID
+    const history = pipelineStore.getExecutionHistoryById(currentHistoryId.value)
+    console.log('获取到的历史记录:', history)
+    
+    if (!history || !history.executionId) {
+      console.error('无法获取执行ID:', history)
+      addLog('error', '无法获取执行ID，无法继续监控')
+      addLog('warn', '这可能是因为流水线是在老版本中执行的，缺少executionId信息')
+      executionStatus.value = 'failed'
+      await finishExecution('failed')
+      return
+    }
+    
+    console.log('恢复监控执行ID:', history.executionId)
+    addLog('info', `恢复监控执行ID: ${history.executionId}`)
+    
+    // 获取当前工作空间
+    const workspace = route.params.workspaceName as string
+    
+    // 继续轮询执行状态
+    await pollExecutionStatus(workspace, history.executionId)
+    
+  } catch (error: any) {
+    console.error('恢复执行失败:', error)
+    addLog('error', `恢复执行失败: ${error.message}`)
+    executionStatus.value = 'failed'
+    await finishExecution('failed')
+  }
+}
+
 const goBack = () => {
   const workspaceName = route.params.workspaceName
   router.push(`/workspace/${workspaceName}/manage/cicd`)
 }
 
 // 生命周期
-onMounted(() => {
-  loadPipeline()
+onMounted(async () => {
+  console.log('PipelineExecution页面挂载，路由查询参数:', route.query)
+  
+  await loadPipeline()
+  
+  // 检查是否是查看模式，如果是则恢复执行状态
+  if (route.query.view === 'true') {
+    console.log('检测到查看模式，开始恢复执行状态')
+    await restoreExecutionState()
+  } else {
+    console.log('非查看模式，跳过状态恢复')
+  }
 })
 
 onUnmounted(() => {
