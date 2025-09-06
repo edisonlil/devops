@@ -43,7 +43,7 @@
             </n-tabs>
           </div>
           <!-- 配置模式下的信息面板 -->
-          <div v-show="currentView === 'config'">
+          <div v-show="currentView === 'config'" class="config-info-panel">
             <!-- 模板信息 -->
             <n-card title="模板信息" class="info-card">
               <div class="template-info">
@@ -781,6 +781,7 @@ onMounted(async () => {
   gap: 32px;
   align-items: start;
   width: 100%;
+  min-height: calc(100vh - 200px); /* 确保左右面板高度一致 */
 }
 
 /* 在超大屏幕上调整比例 */
@@ -793,18 +794,19 @@ onMounted(async () => {
 
 /* 视图切换选项卡样式 */
 .view-tabs {
-  margin-bottom: 24px;
+  margin-bottom: 0px;
 }
 
 .view-tabs :deep(.n-tabs-nav) {
   background: #f8f9fa;
   border-radius: 8px;
-  padding: 4px;
+  padding: 2px;
 }
 
 .view-tabs :deep(.n-tabs-tab) {
   border-radius: 6px;
   font-weight: 500;
+  padding: 8px 16px !important;
 }
 
 /* 右侧内容区域 */
@@ -913,7 +915,7 @@ onMounted(async () => {
 .info-panel {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   min-width: 0; /* 防止内容溢出 */
 }
 
@@ -923,7 +925,15 @@ onMounted(async () => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* 在大屏幕上增加信息卡片的内边距 */
+.info-card :deep(.n-card-header) {
+  padding: 18px 20px 14px 20px;
+}
+
+.info-card :deep(.n-card__content) {
+  padding: 0 20px 18px 20px;
+}
+
+/* 在大屏幕上保持一致的卡片间距 */
 @media (min-width: 1400px) {
   .info-card :deep(.n-card-header) {
     padding: 20px 24px 16px 24px;
@@ -949,7 +959,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid #F3F4F6;
 }
 
@@ -980,6 +990,7 @@ onMounted(async () => {
   overflow-x: auto;
   margin-bottom: 12px;
   border: 1px solid #374151;
+  min-height: 60px;
 }
 
 .command-actions {
@@ -999,6 +1010,7 @@ onMounted(async () => {
   gap: 8px;
   font-size: 14px;
   color: #6B7280;
+  padding: 6px 0;
 }
 
 .tip-icon {
@@ -1225,5 +1237,19 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* 配置信息面板样式 */
+.config-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 预览文件面板样式 - 更紧凑的间距 */
+.info-panel > div[v-show] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 </style>
