@@ -184,5 +184,13 @@ export const deployApi = {
     return api.get('/workspaces/deploy/resources/system-info', {
       params: { serverId }
     })
+  },
+
+  // 模板预览
+  previewTemplate: (workspace: string, templateName: string, config: any) => {
+    return api.post<{ files: Record<string, string> }>(`/workspaces/${workspace}/deploy/template-preview`, {
+      templateName,
+      config
+    })
   }
 }

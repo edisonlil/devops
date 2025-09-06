@@ -15,9 +15,26 @@
 
     <div class="config-content">
       <n-spin :show="loading">
+        <!-- 视图切换选项卡 -->
+        <div class="view-tabs">
+          <n-tabs 
+            v-model:value="currentView" 
+            type="segment" 
+            size="large"
+            @update:value="handleViewChange"
+          >
+            <n-tab-pane name="config" tab="📝 配置参数">
+            </n-tab-pane>
+            <n-tab-pane name="preview" tab="👀 预览模板">
+            </n-tab-pane>
+          </n-tabs>
+        </div>
+
         <div class="config-layout">
           <!-- 左侧配置表单 -->
-          <div class="config-form">
+          <div class="config-form" v-show="currentView === 'config'">
+            <!-- 配置表单内容 -->
+            <div class="form-container">
             <n-card title="配置参数">
               <n-form
                 ref="formRef"
@@ -130,6 +147,66 @@
                 </div>
               </n-form>
             </n-card>
+            </div>
+          </div>
+
+          <!-- 模板预览视图 -->
+          <div class="template-preview" v-show="currentView === 'preview'">
+            <n-card title="模板预览" class="preview-card">
+              <template #header-extra>
+                <n-space>
+                  <n-tag type="info" size="small">只读</n-tag>
+                  <n-button size="small" quaternary @click="refreshPreview" :loading="renderingPreview">
+                    刷新预览
+                  </n-button>
+                </n-space>
+              </template>
+
+              <div class="preview-content">
+                <n-spin :show="renderingPreview">
+                  <div v-if="renderedTemplate" class="template-files">
+                    <!-- 文件选择器 -->
+                    <div class="file-selector">
+                      <n-select
+                        v-model:value="selectedFile"
+                        :options="templateFiles"
+                        placeholder="选择文件查看"
+                        size="small"
+                        style="width: 250px;"
+                      />
+                    </div>
+
+                    <!-- 文件内容显示 -->
+                    <div class="file-content">
+                      <div class="file-header">
+                        <span class="file-name">{{ selectedFile || '请选择文件' }}</span>
+                        <n-button-group size="small">
+                          <n-button @click="copyToClipboard">复制</n-button>
+                          <n-button @click="downloadFile">下载</n-button>
+                        </n-button-group>
+                      </div>
+                      
+                      <div class="code-viewer">
+                        <pre><code v-html="highlightedCode"></code></pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="empty-preview">
+                    <n-empty description="暂无预览内容">
+                      <template #icon>
+                        <n-icon size="48"><DocumentText /></n-icon>
+                      </template>
+                      <template #extra>
+                        <n-button size="small" @click="refreshPreview">
+                          生成预览
+                        </n-button>
+                      </template>
+                    </n-empty>
+                  </div>
+                </n-spin>
+              </div>
+            </n-card>
           </div>
 
           <!-- 右侧信息面板 -->
@@ -231,7 +308,8 @@ import {
   ArrowForward, 
   CheckmarkCircle, 
   Warning, 
-  InformationCircle 
+  InformationCircle,
+  DocumentText 
 } from '@vicons/ionicons5'
 import { middlewareApi } from '@/api/middleware'
 import type { 
@@ -248,9 +326,17 @@ const message = useMessage()
 
 const loading = ref(false)
 const validating = ref(false)
+const renderingPreview = ref(false)
 const templateInfo = ref<MiddlewareTemplate | null>(null)
 const templateForm = ref<TemplateFormDefinition | null>(null)
 const formRef = ref()
+
+// 视图切换相关
+const currentView = ref('config') // 'config' | 'preview'
+const renderedTemplate = ref<Record<string, string> | null>(null)
+const selectedFile = ref('')
+const templateFiles = ref<Array<{ label: string; value: string }>>([])
+const highlightedCode = ref('')
 
 const workspaceName = computed(() => route.params.workspaceName as string)
 const templateName = computed(() => route.params.templateName as string)
@@ -479,6 +565,103 @@ const previewConfig = async () => {
   }
 }
 
+// 视图切换处理
+const handleViewChange = (view: string) => {
+  if (view === 'preview' && !renderedTemplate.value) {
+    // 切换到预览时自动生成预览
+    refreshPreview()
+  }
+}
+
+// 刷新模板预览
+const refreshPreview = async () => {
+  renderingPreview.value = true
+  try {
+    // 调用API渲染模板
+    const response = await middlewareApi.renderTemplate(
+      workspaceName.value, 
+      templateName.value, 
+      formData.value
+    )
+    
+    renderedTemplate.value = response.files
+    
+    // 构建文件选项
+    templateFiles.value = Object.keys(response.files).map(filename => ({
+      label: filename,
+      value: filename
+    }))
+    
+    // 默认选择第一个文件
+    if (templateFiles.value.length > 0) {
+      selectedFile.value = templateFiles.value[0].value
+      updateHighlightedCode()
+    }
+    
+    message.success('模板预览生成成功')
+  } catch (error: any) {
+    message.error(error.message || '生成模板预览失败')
+    console.error('模板渲染失败:', error)
+  } finally {
+    renderingPreview.value = false
+  }
+}
+
+// 更新代码高亮
+const updateHighlightedCode = () => {
+  if (!renderedTemplate.value || !selectedFile.value) {
+    highlightedCode.value = ''
+    return
+  }
+  
+  const content = renderedTemplate.value[selectedFile.value] || ''
+  // 简单的代码高亮，可以后续集成更高级的高亮库
+  highlightedCode.value = escapeHtml(content)
+}
+
+// HTML转义
+const escapeHtml = (text: string) => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+// 复制到剪贴板
+const copyToClipboard = async () => {
+  if (!renderedTemplate.value || !selectedFile.value) return
+  
+  try {
+    const content = renderedTemplate.value[selectedFile.value]
+    await navigator.clipboard.writeText(content)
+    message.success('已复制到剪贴板')
+  } catch (error) {
+    message.error('复制失败')
+    console.error('复制失败:', error)
+  }
+}
+
+// 下载文件
+const downloadFile = () => {
+  if (!renderedTemplate.value || !selectedFile.value) return
+  
+  const content = renderedTemplate.value[selectedFile.value]
+  const blob = new Blob([content], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = selectedFile.value
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 监听选中文件变化
+watch(selectedFile, () => {
+  updateHighlightedCode()
+})
+
 const goBack = () => {
   // 检查是否有历史记录可以返回
   if (window.history.length > 1) {
@@ -607,6 +790,122 @@ onMounted(() => {
   position: sticky;
   bottom: 0;
   z-index: 10;
+}
+
+/* 视图切换选项卡样式 */
+.view-tabs {
+  margin-bottom: 24px;
+}
+
+.view-tabs :deep(.n-tabs-nav) {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.view-tabs :deep(.n-tabs-tab) {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* 模板预览样式 */
+.template-preview {
+  grid-column: 1 / -1; /* 占满整个宽度 */
+}
+
+.preview-card {
+  min-height: 600px;
+}
+
+.preview-content {
+  height: 100%;
+}
+
+.template-files {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-selector {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e8e9eb;
+}
+
+.file-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e8e9eb;
+  overflow: hidden;
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e8e9eb;
+}
+
+.file-name {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292f;
+}
+
+.code-viewer {
+  flex: 1;
+  padding: 16px;
+  background: #ffffff;
+  overflow: auto;
+  max-height: 500px;
+}
+
+.code-viewer pre {
+  margin: 0;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #24292f;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.code-viewer code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.empty-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+/* 配置表单容器样式调整 */
+.form-container {
+  width: 100%;
+}
+
+/* 预览时调整布局 */
+.config-layout:has(.template-preview[style*="display: block"]) {
+  grid-template-columns: 1fr;
+}
+
+.config-layout:has(.template-preview[style*="display: block"]) .info-panel {
+  display: none;
 }
 
 @media (max-width: 1200px) {

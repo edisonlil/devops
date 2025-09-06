@@ -28,189 +28,284 @@
       <div class="config-layout">
         <!-- 左侧信息面板 -->
         <div class="info-panel">
-          <!-- 模板信息 -->
-          <n-card title="模板信息" class="info-card">
-            <div class="template-info">
-              <div class="info-item">
-                <span class="info-label">模板名称:</span>
-                <span class="info-value">{{ selectedTemplate?.name || '未选择' }}</span>
-              </div>
+          <!-- 视图切换选项卡 -->
+          <div class="view-tabs">
+            <n-tabs 
+              v-model:value="currentView" 
+              type="segment" 
+              size="medium"
+              @update:value="handleViewChange"
+            >
+              <n-tab-pane name="config" tab="📝 配置参数">
+              </n-tab-pane>
+              <n-tab-pane name="preview" tab="👀 预览模板">
+              </n-tab-pane>
+            </n-tabs>
+          </div>
+          <!-- 配置模式下的信息面板 -->
+          <div v-show="currentView === 'config'">
+            <!-- 模板信息 -->
+            <n-card title="模板信息" class="info-card">
+              <div class="template-info">
+                <div class="info-item">
+                  <span class="info-label">模板名称:</span>
+                  <span class="info-value">{{ selectedTemplate?.name || '未选择' }}</span>
+                </div>
 
-              <div class="info-item">
-                <span class="info-label">当前工作空间:</span>
-                <span class="info-value">{{ currentWorkspace }}</span>
+                <div class="info-item">
+                  <span class="info-label">当前工作空间:</span>
+                  <span class="info-value">{{ currentWorkspace }}</span>
+                </div>
               </div>
-            </div>
-          </n-card>
+            </n-card>
 
-          <!-- 命令预览 -->
-          <n-card title="命令预览" class="info-card">
-            <div class="command-display">
-              <code>{{ generatedCommand }}</code>
-            </div>
-            <div class="command-actions">
-              <n-button size="small" @click="copyCommand">
-                复制命令
-              </n-button>
-            </div>
-          </n-card>
+            <!-- 命令预览 -->
+            <n-card title="命令预览" class="info-card">
+              <div class="command-display">
+                <code>{{ generatedCommand }}</code>
+              </div>
+              <div class="command-actions">
+                <n-button size="small" @click="copyCommand">
+                  复制命令
+                </n-button>
+              </div>
+            </n-card>
 
-          <!-- 部署提示 -->
-          <n-card title="部署提示" class="info-card">
-            <div class="tips-content">
-              <div class="tip-item">
-                <span>确保Git仓库地址可访问</span>
+            <!-- 部署提示 -->
+            <n-card title="部署提示" class="info-card">
+              <div class="tips-content">
+                <div class="tip-item">
+                  <span>确保Git仓库地址可访问</span>
+                </div>
+                <div class="tip-item">
+                  <span>端口范围：30000-32767</span>
+                </div>
+                <div class="tip-item">
+                  <span>部署过程可能需要几分钟</span>
+                </div>
               </div>
-              <div class="tip-item">
-                <span>端口范围：30000-32767</span>
-              </div>
-              <div class="tip-item">
-                <span>部署过程可能需要几分钟</span>
-              </div>
-            </div>
-          </n-card>
+            </n-card>
+          </div>
+
+          <!-- 预览模式下的文件列表 -->
+          <div v-show="currentView === 'preview'">
+            <n-card title="模板文件" class="info-card">
+              <template #header-extra>
+                <n-button size="small" quaternary @click="refreshPreview" :loading="renderingPreview">
+                  刷新预览
+                </n-button>
+              </template>
+
+              <n-spin :show="renderingPreview">
+                <div v-if="templateFiles.length > 0" class="file-list">
+                  <div 
+                    v-for="file in templateFiles" 
+                    :key="file.value"
+                    class="file-item"
+                    :class="{ active: selectedFile === file.value }"
+                    @click="selectedFile = file.value"
+                  >
+                    <div class="file-icon">
+                      <n-icon><DocumentText /></n-icon>
+                    </div>
+                    <div class="file-info">
+                      <div class="file-name">{{ file.label }}</div>
+                      <div class="file-size">{{ getFileSize(file.value) }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="empty-file-list">
+                  <n-empty description="暂无文件">
+                    <template #icon>
+                      <n-icon size="48"><DocumentText /></n-icon>
+                    </template>
+                    <template #extra>
+                      <n-button size="small" @click="refreshPreview">
+                        生成预览
+                      </n-button>
+                    </template>
+                  </n-empty>
+                </div>
+              </n-spin>
+            </n-card>
+          </div>
         </div>
 
-        <!-- 右侧表单 -->
-        <div class="config-form">
-          <!-- 基本信息 -->
-          <div class="form-section">
-            <h3 class="section-title">基本信息</h3>
-            <div class="form-grid">
-              <div class="form-item">
-                <label class="form-label">应用名称 *</label>
-                <n-input
-                  v-model:value="config.name"
-                  placeholder="请输入应用名称"
-                  :status="errors.name ? 'error' : undefined"
-                />
-                <span v-if="errors.name" class="error-text">{{ errors.name }}</span>
-              </div>
+        <!-- 右侧内容区域 -->
+        <div class="content-area">
+          <!-- 配置表单 -->
+          <div class="config-form" v-show="currentView === 'config'">
+            <!-- 基本信息 -->
+            <div class="form-section">
+              <h3 class="section-title">基本信息</h3>
+              <div class="form-grid">
+                <div class="form-item">
+                  <label class="form-label">应用名称 *</label>
+                  <n-input
+                    v-model:value="config.name"
+                    placeholder="请输入应用名称"
+                    :status="errors.name ? 'error' : undefined"
+                  />
+                  <span v-if="errors.name" class="error-text">{{ errors.name }}</span>
+                </div>
 
-              <div class="form-item">
-                <label class="form-label">命名空间</label>
-                <n-input
-                  v-model:value="config.namespace"
-                  placeholder="kubernetes 命名空间（可选）"
-                />
+                <div class="form-item">
+                  <label class="form-label">命名空间</label>
+                  <n-input
+                    v-model:value="config.namespace"
+                    placeholder="kubernetes 命名空间（可选）"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 代码源配置 -->
+            <div class="form-section">
+              <h3 class="section-title">代码源</h3>
+              <div class="form-grid">
+                <div class="form-item full-width">
+                  <label class="form-label">Git 仓库地址 *</label>
+                  <n-input
+                    v-model:value="config.gitUrl"
+                    placeholder="https://github.com/user/repo.git"
+                    :status="errors.gitUrl ? 'error' : undefined"
+                  />
+                  <span v-if="errors.gitUrl" class="error-text">{{ errors.gitUrl }}</span>
+                </div>
+                
+                <div class="form-item">
+                  <label class="form-label">分支</label>
+                  <n-input
+                    v-model:value="config.branch"
+                    placeholder="main"
+                  />
+                </div>
+                
+                <div class="form-item" v-if="showBuildTool">
+                  <label class="form-label">构建工具</label>
+                  <n-select 
+                    v-model:value="config.buildTool" 
+                    :options="buildToolOptions"
+                    placeholder="选择构建工具"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 构建配置 -->
+            <div class="form-section">
+              <h3 class="section-title">构建配置</h3>
+              <div class="form-grid">
+                <div class="form-item">
+                  <label class="form-label">构建环境</label>
+                  <n-select
+                    v-model:value="config.buildEnv"
+                    :options="buildEnvOptions"
+                    placeholder="选择构建环境"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 端口配置 -->
+            <div class="form-section">
+              <h3 class="section-title">端口配置</h3>
+              <div class="form-grid">
+                <div class="form-item">
+                  <label class="form-label">应用端口</label>
+                  <n-input-number 
+                    v-model:value="config.appPort" 
+                    placeholder="8080"
+                    :min="1"
+                    :max="65535"
+                  />
+                </div>
+                
+                <div class="form-item">
+                  <label class="form-label">暴露端口</label>
+                  <n-input-number 
+                    v-model:value="config.exposePort" 
+                    placeholder="30000-32767"
+                    :min="30000"
+                    :max="32767"
+                  />
+                </div>
+                
+                <div class="form-item">
+                  <label class="form-label">强制端口</label>
+                  <n-switch v-model:value="config.forcePort" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 高级配置 -->
+            <div class="form-section">
+              <h3 class="section-title">高级配置</h3>
+              <div class="form-grid">
+                <div class="form-item full-width" v-if="config.type === 'java'">
+                  <label class="form-label">Java 选项</label>
+                  <n-input 
+                    v-model:value="config.javaOpts" 
+                    placeholder="-Xmx512m -Xms256m"
+                  />
+                </div>
+                
+                <div class="form-item full-width">
+                  <label class="form-label">构建命令</label>
+                  <n-input 
+                    v-model:value="config.buildCmds" 
+                    placeholder="自定义构建命令（可选）"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-        <!-- 代码源配置 -->
-        <div class="form-section">
-          <h3 class="section-title">代码源</h3>
-          <div class="form-grid">
-            <div class="form-item full-width">
-              <label class="form-label">Git 仓库地址 *</label>
-              <n-input
-                v-model:value="config.gitUrl"
-                placeholder="https://github.com/user/repo.git"
-                :status="errors.gitUrl ? 'error' : undefined"
-              />
-              <span v-if="errors.gitUrl" class="error-text">{{ errors.gitUrl }}</span>
-            </div>
-            
-            <div class="form-item">
-              <label class="form-label">分支</label>
-              <n-input
-                v-model:value="config.branch"
-                placeholder="main"
-              />
+          <!-- 模板预览 - 文件内容显示 -->
+          <div class="template-preview" v-show="currentView === 'preview'">
+            <n-card class="preview-card">
+              <template #header>
+                <div class="file-header">
+                  <span class="file-name">{{ selectedFile || '请选择文件' }}</span>
+                  <n-button-group size="small" v-if="selectedFile">
+                    <n-button @click="copyToClipboard">复制</n-button>
+                    <n-button @click="downloadFile">下载</n-button>
+                  </n-button-group>
+                </div>
+              </template>
 
-            </div>
-            
-            <div class="form-item" v-if="showBuildTool">
-              <label class="form-label">构建工具</label>
-              <n-select 
-                v-model:value="config.buildTool" 
-                :options="buildToolOptions"
-                placeholder="选择构建工具"
-              />
-            </div>
-          </div>
-        </div>
+              <div class="preview-content">
+                <div v-if="selectedFile && fileContent" class="file-content-viewer">
+                  <div class="code-viewer">
+                    <pre><code>{{ fileContent }}</code></pre>
+                  </div>
+                </div>
 
-        <!-- 构建配置 -->
-        <div class="form-section">
-          <h3 class="section-title">构建配置</h3>
-          <div class="form-grid">
-            <div class="form-item">
-              <label class="form-label">构建环境</label>
-              <n-select
-                v-model:value="config.buildEnv"
-                :options="buildEnvOptions"
-                placeholder="选择构建环境"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- 端口配置 -->
-        <div class="form-section">
-          <h3 class="section-title">端口配置</h3>
-          <div class="form-grid">
-            <div class="form-item">
-              <label class="form-label">应用端口</label>
-              <n-input-number 
-                v-model:value="config.appPort" 
-                placeholder="8080"
-                :min="1"
-                :max="65535"
-              />
-            </div>
-            
-            <div class="form-item">
-              <label class="form-label">暴露端口</label>
-              <n-input-number 
-                v-model:value="config.exposePort" 
-                placeholder="30000-32767"
-                :min="30000"
-                :max="32767"
-              />
-            </div>
-            
-            <div class="form-item">
-              <label class="form-label">强制端口</label>
-              <n-switch v-model:value="config.forcePort" />
-            </div>
-          </div>
-        </div>
-
-        <!-- 高级配置 -->
-        <div class="form-section">
-          <h3 class="section-title">高级配置</h3>
-          <div class="form-grid">
-            <div class="form-item full-width" v-if="config.type === 'java'">
-              <label class="form-label">Java 选项</label>
-              <n-input 
-                v-model:value="config.javaOpts" 
-                placeholder="-Xmx512m -Xms256m"
-              />
-            </div>
-            
-            <div class="form-item full-width">
-              <label class="form-label">构建命令</label>
-              <n-input 
-                v-model:value="config.buildCmds" 
-                placeholder="自定义构建命令（可选）"
-              />
-            </div>
+                <div v-else class="empty-preview">
+                  <n-empty description="请从左侧选择文件查看内容">
+                    <template #icon>
+                      <n-icon size="48"><DocumentText /></n-icon>
+                    </template>
+                  </n-empty>
+                </div>
+              </div>
+            </n-card>
           </div>
         </div>
       </div>
     </div>
   </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { usePipelineStore } from '@/stores/pipeline'
 import * as workspaceApi from '@/api/workspace'
-// 移除图标导入，保持简洁设计
+import { deployApi } from '@/api/deploy'
+import { DocumentText } from '@vicons/ionicons5'
 
 const router = useRouter()
 const route = useRoute()
@@ -220,6 +315,21 @@ const pipelineStore = usePipelineStore()
 const deploying = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
+
+// 视图切换相关
+const currentView = ref('config') // 'config' | 'preview'
+const renderingPreview = ref(false)
+const renderedTemplate = ref<{ files: Record<string, string> } | null>(null)
+const selectedFile = ref('')
+const templateFiles = ref<Array<{ label: string; value: string }>>([])
+
+// 文件内容计算属性
+const fileContent = computed(() => {
+  if (!renderedTemplate.value || !selectedFile.value) {
+    return ''
+  }
+  return renderedTemplate.value.files[selectedFile.value] || ''
+})
 
 // 配置数据
 const config = ref({
@@ -418,6 +528,133 @@ const goBack = () => {
   })
 }
 
+// 视图切换处理
+const handleViewChange = (view: string) => {
+  if (view === 'preview' && !renderedTemplate.value) {
+    // 切换到预览时自动生成预览
+    refreshPreview()
+  }
+}
+
+// 刷新模板预览
+const refreshPreview = async () => {
+  if (!validateForm()) {
+    message.error('请完善配置参数后再预览模板')
+    currentView.value = 'config'
+    return
+  }
+
+  if (!selectedTemplate.value?.originalName && !selectedTemplate.value?.name) {
+    message.error('未选择模板')
+    return
+  }
+
+  renderingPreview.value = true
+  try {
+    const templateName = selectedTemplate.value.originalName || selectedTemplate.value.name
+    console.log(`开始预览模板: ${templateName}`)
+
+    // 构建预览配置
+    const previewConfig = {
+      name: config.value.name,
+      namespace: config.value.namespace,
+      appPort: config.value.appPort,
+      exposePort: config.value.exposePort,
+      javaOpts: config.value.javaOpts,
+      buildEnv: config.value.buildEnv,
+      imagePath: `harbor.example.com/${config.value.name}:latest`, // 示例镜像路径
+      enableHarbor: true, // 根据实际配置决定
+      harborSecretName: 'harbor-secret'
+    }
+
+    // 调用API渲染模板
+    const response = await deployApi.previewTemplate(
+      currentWorkspace.value,
+      templateName,
+      previewConfig
+    )
+
+    if (response.success && response.data?.files) {
+      renderedTemplate.value = response.data
+      
+      // 构建文件选项
+      templateFiles.value = Object.keys(response.data.files).map(filename => ({
+        label: filename,
+        value: filename
+      }))
+      
+      // 默认选择第一个文件
+      if (templateFiles.value.length > 0) {
+        selectedFile.value = templateFiles.value[0].value
+      }
+      
+      message.success(`模板预览生成成功，共生成 ${templateFiles.value.length} 个文件`)
+    } else {
+      throw new Error(response.message || '模板预览生成失败')
+    }
+  } catch (error: any) {
+    console.error('模板预览失败:', error)
+    const errorMessage = error.response?.data?.message || error.message || '生成模板预览失败'
+    message.error(`模板预览失败: ${errorMessage}`)
+    
+    // 如果是模板路径问题，给出提示
+    if (errorMessage.includes('模板目录不存在') || errorMessage.includes('未找到模板目录')) {
+      message.warning(`请检查模板 "${templateName}" 是否存在于远程服务器`)
+    }
+  } finally {
+    renderingPreview.value = false
+  }
+}
+
+// 复制到剪贴板
+const copyToClipboard = async () => {
+  if (!fileContent.value) {
+    message.warning('没有内容可复制')
+    return
+  }
+  
+  try {
+    await navigator.clipboard.writeText(fileContent.value)
+    message.success('已复制到剪贴板')
+  } catch (error) {
+    message.error('复制失败')
+    console.error('复制失败:', error)
+  }
+}
+
+// 下载文件
+const downloadFile = () => {
+  if (!fileContent.value || !selectedFile.value) {
+    message.warning('没有内容可下载')
+    return
+  }
+  
+  const blob = new Blob([fileContent.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = selectedFile.value
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success('文件下载成功')
+}
+
+// 获取文件大小
+const getFileSize = (filename: string) => {
+  if (!renderedTemplate.value?.files[filename]) {
+    return '0 B'
+  }
+  
+  const content = renderedTemplate.value.files[filename]
+  const bytes = new Blob([content]).size
+  
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
 // 加载workspace配置并填充默认值
 const loadWorkspaceDefaults = async () => {
   try {
@@ -552,6 +789,27 @@ onMounted(async () => {
     grid-template-columns: 420px 1fr;
     gap: 48px;
   }
+}
+
+/* 视图切换选项卡样式 */
+.view-tabs {
+  margin-bottom: 24px;
+}
+
+.view-tabs :deep(.n-tabs-nav) {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.view-tabs :deep(.n-tabs-tab) {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* 右侧内容区域 */
+.content-area {
+  width: 100%;
 }
 
 .config-form {
@@ -748,7 +1006,94 @@ onMounted(async () => {
   font-size: 16px;
 }
 
+/* 模板预览样式 */
+.template-preview {
+  width: 100%;
+}
 
+.preview-card {
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  min-height: 600px;
+}
+
+.preview-content {
+  height: 100%;
+}
+
+.template-files {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-selector {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e8e9eb;
+}
+
+.file-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e8e9eb;
+  overflow: hidden;
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e8e9eb;
+}
+
+.file-name {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #24292f;
+}
+
+.code-viewer {
+  flex: 1;
+  padding: 16px;
+  background: #ffffff;
+  overflow: auto;
+  max-height: 500px;
+}
+
+.code-viewer pre {
+  margin: 0;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #24292f;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.code-viewer code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.empty-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
@@ -761,7 +1106,7 @@ onMounted(async () => {
     order: 0;
   }
 
-  .config-form {
+  .content-area {
     order: 1;
   }
 }
@@ -801,5 +1146,84 @@ onMounted(async () => {
   .info-panel {
     gap: 16px;
   }
+}
+
+/* 文件列表样式 */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e8e9eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.file-item:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.file-item.active {
+  border-color: #007AFF;
+  background: #f0f8ff;
+}
+
+.file-icon {
+  color: #6b7280;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.file-item.active .file-icon {
+  color: #007AFF;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #24292f;
+  margin-bottom: 2px;
+  word-break: break-all;
+}
+
+.file-item.active .file-name {
+  color: #007AFF;
+}
+
+.file-size {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.empty-file-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* 文件内容查看器样式 */
+.file-content-viewer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 </style>

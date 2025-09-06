@@ -46,4 +46,7 @@ router.get('/resources/templates', deployController.getRemoteTemplates);
 router.get('/resources/deployments', deployController.getRemoteDeployments);
 router.get('/resources/system-info', deployController.getSystemInfo);
 
+// 模板预览功能
+router.post('/template-preview', deployController.previewTemplate);
+
 export default router;
