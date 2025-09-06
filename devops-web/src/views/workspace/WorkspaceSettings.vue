@@ -73,7 +73,7 @@
             <div class="settings-section">
               <div class="section-header">
                 <h3 class="section-title">Git 配置</h3>
-                <p class="section-description">默认的 Git 仓库和分支设置</p>
+                <p class="section-description">默认的 Git 仓库和分支设置，以及访问凭证</p>
               </div>
               <div class="section-content">
                 <div class="form-grid">
@@ -84,6 +84,19 @@
                   <div class="form-item">
                     <label class="form-label">默认分支</label>
                     <n-input v-model:value="workspaceConfig.gitBranch" placeholder="main" />
+                  </div>
+                  <div class="form-item">
+                    <label class="form-label">Git 用户名</label>
+                    <n-input v-model:value="workspaceConfig.gitUsername" placeholder="用户名" />
+                  </div>
+                  <div class="form-item">
+                    <label class="form-label">Git 密码</label>
+                    <n-input
+                      v-model:value="workspaceConfig.gitPassword"
+                      type="password"
+                      placeholder="密码或访问令牌"
+                      show-password-on="click"
+                    />
                   </div>
                 </div>
               </div>
@@ -278,6 +291,8 @@ const workspaceConfig = ref({
   environment: 'development',
   gitUrl: '',
   gitBranch: 'main',
+  gitUsername: '',
+  gitPassword: '',
   harborEnabled: false,
   harborAddress: '',
   harborProject: '',
@@ -394,6 +409,8 @@ const loadWorkspaceConfig = async () => {
         environment: config.DEFAULT_ENVIRONMENT || 'development',
         gitUrl: config.BUILD_GIT_URL || '',
         gitBranch: config.BUILD_GIT_BRANCH || 'main',
+        gitUsername: config.BUILD_GIT_USERNAME || '',
+        gitPassword: config.BUILD_GIT_PASSWORD || '',
         harborEnabled: config.BUILD_ENABEL_HARBOR === '1' || config.BUILD_ENABEL_HARBOR === 1,
         harborAddress: config.BUILD_HARBOR_ADDRESS || '',
         harborProject: config.BUILD_HARBOR_PROJECT || '',
