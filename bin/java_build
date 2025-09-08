@@ -46,6 +46,16 @@ function java_build() {
 		env[tmp_build_dist_path]=$module_path/build/libs
 	 ;;
 	maven)
+		# 尝试初始化SDKMAN和添加常见的Maven路径到PATH
+		if ! command -v mvn > /dev/null 2>&1; then
+			# 初始化SDKMAN
+			export SDKMAN_DIR="$HOME/.sdkman"
+			[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
+			# 添加SDKMAN管理的Maven路径
+			export PATH="$HOME/.sdkman/candidates/maven/current/bin:$PATH"
+			# 添加其他常见Maven路径
+			export PATH="/opt/maven/bin:/usr/local/maven/bin:/usr/share/maven/bin:$PATH"
+		fi
 		check_env_by_cmd_v mvn
 		info "开始使用maven构建项目"
 		# 构建代码
