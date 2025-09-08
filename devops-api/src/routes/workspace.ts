@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { WorkspaceController } from '../controllers/WorkspaceController';
 import { AppTemplateController } from '../controllers/AppTemplateController';
+import { TemplateController } from '../controllers/TemplateController';
 
 const router = Router();
 const workspaceController = new WorkspaceController();
 const appTemplateController = new AppTemplateController();
+const templateController = new TemplateController();
 
 // 获取工作空间列表
 router.get('/', workspaceController.getWorkspaces);
@@ -37,5 +39,10 @@ router.post('/:workspace/app/templates/copy', appTemplateController.copyGlobalTe
 
 // 缓存管理
 router.post('/:workspace/app/templates/refresh-cache', appTemplateController.refreshCache);
+
+// 工作空间应用模板文件相关路由
+router.get('/:workspace/app/templates/:templateName/files', templateController.getWorkspaceAppTemplateFiles);
+router.get('/:workspace/app/templates/:templateName/files/:fileName', templateController.getWorkspaceAppTemplateFileContent);
+router.put('/:workspace/app/templates/:templateName/files/:fileName', templateController.updateWorkspaceAppTemplateFileContent);
 
 export default router;

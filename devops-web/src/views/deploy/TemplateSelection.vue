@@ -90,6 +90,16 @@
               <div class="template-divider"></div>
               <div class="template-actions">
                 <n-button
+                  size="small"
+                  @click.stop="viewTemplateFiles(template)"
+                  class="action-button secondary-button"
+                >
+                  <template #icon>
+                    <n-icon><Eye /></n-icon>
+                  </template>
+                  查看文件
+                </n-button>
+                <n-button
                   type="primary"
                   size="small"
                   @click.stop="selectTemplate(template)"
@@ -118,7 +128,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
-import { ArrowBack } from '@vicons/ionicons5'
+import { ArrowBack, Eye } from '@vicons/ionicons5'
 import { appTemplateApi, type AppTemplate } from '@/api/template'
 
 console.log('TemplateSelection component loaded')
@@ -291,6 +301,31 @@ const selectTemplate = (template: AppTemplate) => {
       ...(fromQuery && { from: fromQuery }) // 保持来源参数
     }
   })
+}
+
+// 查看模板文件
+const viewTemplateFiles = (template: AppTemplate) => {
+  console.log('查看模板文件:', template)
+
+  // 根据模板来源决定跳转路由
+  if (template.source === 'global') {
+    // 全局模板
+    router.push({
+      name: 'AppTemplateDetail',
+      params: {
+        templateName: template.name
+      }
+    })
+  } else {
+    // 工作空间模板
+    router.push({
+      name: 'WorkspaceAppTemplateDetail',
+      params: {
+        workspace: workspaceName.value,
+        templateName: template.name
+      }
+    })
+  }
 }
 
 // 获取返回按钮文本
@@ -634,14 +669,15 @@ onMounted(() => {
 /* 按钮优化 */
 .action-button {
   font-weight: var(--font-weight-medium);
-  font-size: 12px !important;
-  border-radius: 6px;
+  font-size: 11px !important;
+  border-radius: 4px;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   border: none !important;
   outline: none !important;
-  padding: 6px 12px !important;
+  padding: 4px 10px !important;
   height: auto !important;
-  min-height: 28px !important;
+  min-height: 22px !important;
+  line-height: 1.3 !important;
 }
 
 .primary-button {

@@ -1,11 +1,14 @@
 import { Request, Response } from 'express';
 import { MiddlewareService } from '../services/MiddlewareService';
+import { TemplateFileService } from '../services/TemplateFileService';
 
 export class MiddlewareController {
   private middlewareService: MiddlewareService;
+  private templateFileService: TemplateFileService;
 
   constructor() {
     this.middlewareService = new MiddlewareService();
+    this.templateFileService = new TemplateFileService();
   }
 
   // 获取模板列表
@@ -224,8 +227,8 @@ export class MiddlewareController {
       const { workspace, instanceName } = req.params;
       const { lines } = req.query;
       const logs = await this.middlewareService.getInstanceLogs(
-        workspace, 
-        instanceName, 
+        workspace,
+        instanceName,
         lines ? parseInt(lines as string) : undefined
       );
       res.json(logs);
@@ -234,6 +237,108 @@ export class MiddlewareController {
         success: false,
         message: error.message || '获取日志失败'
       });
+    }
+  };
+
+  // 获取工作空间模板文件列表
+  getTemplateFiles = async (req: Request, res: Response) => {
+    try {
+      const { workspace, templateName } = req.params;
+      const sessionId = (req.session as any).sessionId;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录或会话已过期'
+        });
+        return;
+      }
+
+      const files = await this.templateFileService.getTemplateFiles(sessionId, workspace, templateName);
+      res.json({
+        success: true,
+        data: files
+      });
+      return;
+    } catch (error: any) {
+      console.error('获取工作空间模板文件列表失败:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取模板文件列表失败'
+      });
+      return;
+    }
+  };
+
+  // 获取工作空间模板文件内容
+  getTemplateFileContent = async (req: Request, res: Response) => {
+    try {
+      const { workspace, templateName, fileName } = req.params;
+      const sessionId = (req.session as any).sessionId;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录或会话已过期'
+        });
+        return;
+      }
+
+      const content = await this.templateFileService.getTemplateFileContent(sessionId, workspace, templateName, fileName);
+      res.json({
+        success: true,
+        data: {
+          fileName,
+          content
+        }
+      });
+      return;
+    } catch (error: any) {
+      console.error('获取工作空间模板文件内容失败:', error);
+      res.status(404).json({
+        success: false,
+        message: error.message || '模板文件不存在'
+      });
+      return;
+    }
+  };
+
+  // 更新工作空间模板文件内容
+  updateTemplateFileContent = async (req: Request, res: Response) => {
+    try {
+      const { workspace, templateName, fileName } = req.params;
+      const { content } = req.body;
+      const sessionId = (req.session as any).sessionId;
+
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '未登录或会话已过期'
+        });
+        return;
+      }
+
+      if (!content && content !== '') {
+        res.status(400).json({
+          success: false,
+          message: '文件内容不能为空'
+        });
+        return;
+      }
+
+      await this.templateFileService.updateTemplateFileContent(sessionId, workspace, templateName, fileName, content);
+      res.json({
+        success: true,
+        message: '文件更新成功'
+      });
+      return;
+    } catch (error: any) {
+      console.error('更新工作空间模板文件内容失败:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '更新文件失败'
+      });
+      return;
     }
   };
 }

@@ -54,6 +54,30 @@ export interface AppTemplateDetailResponse {
   data: AppTemplate
 }
 
+// 模板文件信息
+export interface TemplateFile {
+  name: string
+  type: 'file' | 'directory'
+  size?: number
+  extension?: string
+  lastModified?: Date
+}
+
+// 模板文件列表响应
+export interface TemplateFilesResponse {
+  success: boolean
+  data: TemplateFile[]
+}
+
+// 模板文件内容响应
+export interface TemplateFileContentResponse {
+  success: boolean
+  data: {
+    fileName: string
+    content: string
+  }
+}
+
 export const appTemplateApi = {
   // 获取全局app模板列表
   getGlobalAppTemplates: () => {
@@ -122,5 +146,49 @@ export const appTemplateApi = {
         defaults: Record<string, any>
       }
     }>(url)
+  },
+
+  // 获取全局模板文件列表
+  getGlobalTemplateFiles: (templateName: string) => {
+    return api.get<TemplateFilesResponse>(`/templates/${templateName}/files`)
+  },
+
+  // 获取全局模板文件内容
+  getGlobalTemplateFileContent: (templateName: string, fileName: string) => {
+    return api.get<TemplateFileContentResponse>(`/templates/${templateName}/files/${fileName}`)
+  },
+
+  // 获取全局应用模板文件列表
+  getGlobalAppTemplateFiles: (templateName: string) => {
+    return api.get<TemplateFilesResponse>(`/templates/app/${templateName}/files`)
+  },
+
+  // 获取全局应用模板文件内容
+  getGlobalAppTemplateFileContent: (templateName: string, fileName: string) => {
+    return api.get<TemplateFileContentResponse>(`/templates/app/${templateName}/files/${fileName}`)
+  },
+
+  // 更新应用模板文件内容（仅限工作空间模板）
+  updateAppTemplateFileContent: (templateName: string, fileName: string, content: string) => {
+    return api.put(`/templates/app/${templateName}/files/${fileName}`, {
+      content
+    })
+  },
+
+  // 获取工作空间应用模板文件列表
+  getWorkspaceAppTemplateFiles: (workspace: string, templateName: string) => {
+    return api.get<TemplateFilesResponse>(`/workspaces/${workspace}/app/templates/${templateName}/files`)
+  },
+
+  // 获取工作空间应用模板文件内容
+  getWorkspaceAppTemplateFileContent: (workspace: string, templateName: string, fileName: string) => {
+    return api.get<TemplateFileContentResponse>(`/workspaces/${workspace}/app/templates/${templateName}/files/${fileName}`)
+  },
+
+  // 更新工作空间应用模板文件内容
+  updateWorkspaceAppTemplateFileContent: (workspace: string, templateName: string, fileName: string, content: string) => {
+    return api.put(`/workspaces/${workspace}/app/templates/${templateName}/files/${fileName}`, {
+      content
+    })
   }
 }

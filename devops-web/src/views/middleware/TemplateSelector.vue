@@ -85,6 +85,7 @@
                 <TemplateCard
                   :template="template"
                   @select="selectTemplate"
+                  @view="viewTemplate"
                 />
                 <div class="template-actions">
                   <n-button size="small" @click.stop="openCopyModal(template.name)" class="copy-button">
@@ -104,6 +105,7 @@
                 :key="template.name"
                 :template="template"
                 @select="selectTemplate"
+                @view="viewTemplate"
               />
             </div>
           </div>
@@ -259,6 +261,16 @@ const selectTemplate = (template: MiddlewareTemplate) => {
     name: 'MiddlewareConfig',
     params: {
       workspaceName: workspaceName.value,
+      templateName: template.name
+    }
+  })
+}
+
+const viewTemplate = (template: MiddlewareTemplate) => {
+  router.push({
+    name: 'WorkspaceTemplateDetail',
+    params: {
+      workspace: workspaceName.value,
       templateName: template.name
     }
   })

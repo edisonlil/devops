@@ -70,6 +70,12 @@ const routes: RouteRecordRaw[] = [
             name: 'MiddlewareProgress',
             component: () => import('@/views/middleware/DeployProgress.vue'),
             meta: { title: '部署进度' }
+          },
+          {
+            path: 'template/:templateName/files',
+            name: 'WorkspaceTemplateDetail',
+            component: () => import('@/views/template/TemplateDetail.vue'),
+            meta: { title: '模板详情' }
           }
         ]
       },
@@ -92,12 +98,36 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '配置部署' }
       },
       {
+        path: 'app-template/:templateName/files',
+        name: 'WorkspaceAppTemplateDetail',
+        component: () => import('@/views/template/TemplateDetail.vue'),
+        meta: { title: '应用模板详情' }
+      },
+      {
         path: 'template',
         name: 'GlobalTemplateManager',
         component: () => import('@/views/template/GlobalTemplateManager.vue'),
-        meta: { 
+        meta: {
           title: '全局模板管理',
-          requiresPermission: 'admin' 
+          requiresPermission: 'admin'
+        }
+      },
+      {
+        path: 'template/:templateName/files',
+        name: 'TemplateDetail',
+        component: () => import('@/views/template/TemplateDetail.vue'),
+        meta: {
+          title: '模板详情',
+          requiresPermission: 'admin'
+        }
+      },
+      {
+        path: 'app-template/:templateName/files',
+        name: 'AppTemplateDetail',
+        component: () => import('@/views/template/TemplateDetail.vue'),
+        meta: {
+          title: '应用模板详情',
+          requiresPermission: 'admin'
         }
       },
 

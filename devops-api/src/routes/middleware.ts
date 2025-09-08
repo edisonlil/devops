@@ -13,6 +13,15 @@ router.get('/templates/:templateName', middlewareController.getTemplate);
 // 获取模板表单定义
 router.get('/templates/:templateName/form', middlewareController.getTemplateForm);
 
+// 获取模板文件列表
+router.get('/templates/:templateName/files', middlewareController.getTemplateFiles);
+
+// 获取模板文件内容
+router.get('/templates/:templateName/files/:fileName', middlewareController.getTemplateFileContent);
+
+// 更新模板文件内容（仅限工作空间模板）
+router.put('/templates/:templateName/files/:fileName', middlewareController.updateTemplateFileContent);
+
 // 验证配置参数
 router.post('/validate', middlewareController.validateConfig);
 

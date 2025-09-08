@@ -151,18 +151,18 @@
                 <div class="form-grid">
                   <div class="form-item">
                     <label class="form-label">构建版本</label>
-                    <n-input v-model:value="workspaceConfig.buildVersion" placeholder="node:18.12" />
+                    <n-input v-model:value="workspaceConfig.buildVersion" placeholder="例如: node:18.12 (可选)" />
                   </div>
                   <div class="form-item">
                     <label class="form-label">Maven Settings</label>
-                    <n-input v-model:value="workspaceConfig.mavenSettings" placeholder="/root/settings.xml" />
+                    <n-input v-model:value="workspaceConfig.mavenSettings" placeholder="例如: /root/settings.xml (可选)" />
                   </div>
                   <div class="form-item full-width">
                     <label class="form-label">构建命令</label>
                     <n-input
                       v-model:value="workspaceConfig.buildCommands"
                       type="textarea"
-                      placeholder="npm ci && npm run build"
+                      placeholder="例如: npm ci && npm run build (可选)"
                       :rows="3"
                     />
                   </div>
@@ -298,9 +298,9 @@ const workspaceConfig = ref({
   harborProject: '',
   harborUsername: '',
   harborPassword: '',
-  buildVersion: 'node:18.12',
-  buildCommands: 'npm ci && npm run build',
-  mavenSettings: '/root/settings.xml',
+  buildVersion: '',
+  buildCommands: '',
+  mavenSettings: '',
   createdAt: '2025/9/5',
   updatedAt: '2025/9/5'
 })
@@ -416,9 +416,9 @@ const loadWorkspaceConfig = async () => {
         harborProject: config.BUILD_HARBOR_PROJECT || '',
         harborUsername: config.BUILD_HARBOR_USERNAME || '',
         harborPassword: config.BUILD_HARBOR_PASSWORD || '',
-        buildVersion: config.BUILD_VERSION || 'node:18.12',
-        buildCommands: config.BUILD_COMMANDS || 'npm ci && npm run build',
-        mavenSettings: config.BUILD_MAVEN_SETTINGS || '/root/settings.xml'
+        buildVersion: config.BUILD_VERSION || '',
+        buildCommands: config.BUILD_COMMANDS || '',
+        mavenSettings: config.BUILD_MAVEN_SETTINGS || ''
       }
     } else {
       // 如果配置文件不存在，使用默认值
@@ -443,8 +443,9 @@ const resetToDefaults = async () => {
       namespace: 'default',
       environment: 'development',
       gitBranch: 'main',
-      buildVersion: 'node:18.12',
-      buildCommands: 'npm ci && npm run build'
+      buildVersion: '',
+      buildCommands: '',
+      mavenSettings: ''
     }
     Object.assign(workspaceConfig.value, defaults)
     message.success('已重置为默认配置')

@@ -188,10 +188,11 @@ import { useMessage, useDialog } from 'naive-ui'
 import { Add, Refresh, Search, Close, Edit, Trash, Eye } from '@vicons/ionicons5'
 import type { MiddlewareTemplate } from '@/types/middleware'
 import { appTemplateApi } from '@/api/template'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const message = useMessage()
 const dialog = useDialog()
+const router = useRouter()
 
 const loading = ref(false)
 const creating = ref(false)
@@ -434,7 +435,12 @@ const createTemplate = async () => {
 }
 
 const viewTemplate = (template: MiddlewareTemplate) => {
-  message.info(`查看模板: ${template.name}`)
+  router.push({
+    name: 'TemplateDetail',
+    params: {
+      templateName: template.name
+    }
+  })
 }
 
 const editTemplate = (template: MiddlewareTemplate) => {

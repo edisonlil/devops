@@ -1,12 +1,13 @@
 import axios from 'axios'
-import type { 
-  MiddlewareTemplate, 
-  TemplateFormDefinition, 
+import type {
+  MiddlewareTemplate,
+  TemplateFormDefinition,
   MiddlewareInstance,
   DeploymentConfig,
   DeploymentJob,
   CostEstimation
 } from '@/types/middleware'
+import type { TemplateFile, TemplateFilesResponse, TemplateFileContentResponse } from './template'
 
 const api = axios.create({
   baseURL: '/api',
@@ -117,6 +118,23 @@ export const middlewareApi = {
   getInstanceLogs: (workspace: string, instanceName: string, lines?: number) => {
     return api.get<{ logs: string[] }>(`/workspaces/${workspace}/middleware/instances/${instanceName}/logs`, {
       params: { lines }
+    })
+  },
+
+  // 获取工作空间模板文件列表
+  getTemplateFiles: (workspace: string, templateName: string) => {
+    return api.get<TemplateFilesResponse>(`/workspaces/${workspace}/middleware/templates/${templateName}/files`)
+  },
+
+  // 获取工作空间模板文件内容
+  getTemplateFileContent: (workspace: string, templateName: string, fileName: string) => {
+    return api.get<TemplateFileContentResponse>(`/workspaces/${workspace}/middleware/templates/${templateName}/files/${fileName}`)
+  },
+
+  // 更新工作空间模板文件内容
+  updateTemplateFileContent: (workspace: string, templateName: string, fileName: string, content: string) => {
+    return api.put(`/workspaces/${workspace}/middleware/templates/${templateName}/files/${fileName}`, {
+      content
     })
   }
 }

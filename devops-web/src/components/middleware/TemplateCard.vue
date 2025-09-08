@@ -72,14 +72,23 @@
     </div>
 
     <div class="card-footer">
-      <n-button type="primary" block @click.stop="$emit('select', template)">
-        选择此模板
-      </n-button>
+      <n-space>
+        <n-button @click.stop="$emit('view', template)" quaternary size="small">
+          <template #icon>
+            <n-icon><Eye /></n-icon>
+          </template>
+          查看文件
+        </n-button>
+        <n-button type="primary" @click.stop="$emit('select', template)" size="small" style="flex: 1">
+          选择此模板
+        </n-button>
+      </n-space>
     </div>
   </n-card>
 </template>
 
 <script setup lang="ts">
+import { Eye } from '@vicons/ionicons5'
 import type { MiddlewareTemplate } from '@/types/middleware'
 
 defineProps<{
@@ -88,6 +97,7 @@ defineProps<{
 
 defineEmits<{
   select: [template: MiddlewareTemplate]
+  view: [template: MiddlewareTemplate]
 }>()
 
 const getDifficultyTagType = (difficulty: string) => {
@@ -261,6 +271,13 @@ const getTagType = (tag: string) => {
   padding-right: 24px;
   padding-bottom: 24px;
   border-radius: 0 0 8px 8px;
+}
+
+/* 按钮样式优化 */
+.card-footer :deep(.n-button) {
+  padding: 4px 10px !important;
+  min-height: 24px !important;
+  line-height: 1.3 !important;
 }
 
 @media (max-width: 768px) {
