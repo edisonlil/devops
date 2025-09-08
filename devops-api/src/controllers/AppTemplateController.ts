@@ -140,6 +140,33 @@ export class AppTemplateController {
     }
   };
 
+  // 复制全局模板到工作空间（可重命名）
+  copyGlobalTemplateToWorkspace = async (req: Request, res: Response) => {
+    try {
+      const sessionId = (req.session as any).sessionId;
+      if (!sessionId) {
+        res.status(401).json({ success: false, message: '请先进行SSH登录' });
+        return;
+      }
+
+      const { workspace } = req.params as { workspace: string };
+      const { sourceName, newName } = req.body as { sourceName: string; newName: string };
+
+      if (!workspace || !sourceName || !newName) {
+        res.status(400).json({ success: false, message: '参数不完整' });
+        return;
+      }
+
+      const result = await this.appTemplateService.copyGlobalTemplateToWorkspace(sessionId, workspace, sourceName, newName);
+      res.json({ success: true, data: result });
+      return;
+    } catch (error: any) {
+      console.error('复制模板失败:', error);
+      res.status(500).json({ success: false, message: error.message || '复制模板失败' });
+      return;
+    }
+  };
+
   // 获取app模板详情
   getAppTemplate = async (req: Request, res: Response) => {
     try {

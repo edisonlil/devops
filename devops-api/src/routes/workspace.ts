@@ -32,6 +32,9 @@ router.get('/:workspace/app/templates/category/:category', appTemplateController
 router.get('/:workspace/app/templates/:templateName', appTemplateController.getAppTemplate);
 router.get('/:workspace/app/templates/:templateName/variables', appTemplateController.getAppTemplateVariables);
 
+// 复制全局模板到工作空间
+router.post('/:workspace/app/templates/copy', appTemplateController.copyGlobalTemplateToWorkspace);
+
 // 缓存管理
 router.post('/:workspace/app/templates/refresh-cache', appTemplateController.refreshCache);
 

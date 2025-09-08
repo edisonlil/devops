@@ -93,9 +93,17 @@
                   type="primary"
                   size="small"
                   @click.stop="selectTemplate(template)"
-                  style="border: none !important; border-width: 0 !important; outline: none !important;"
+                  class="action-button primary-button"
                 >
                   选择模板
+                </n-button>
+                <n-button
+                  v-if="template.source === 'global'"
+                  size="small"
+                  @click.stop="openCopyDialog(template)"
+                  class="action-button secondary-button"
+                >
+                  复制到工作空间
                 </n-button>
               </div>
             </div>
@@ -107,9 +115,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { ArrowBack } from '@vicons/ionicons5'
 import { appTemplateApi, type AppTemplate } from '@/api/template'
 
@@ -118,6 +126,7 @@ console.log('TemplateSelection component loaded')
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const dialog = useDialog()
 
 // 搜索查询
 const searchQuery = ref('')
@@ -317,6 +326,47 @@ const goBack = () => {
       // 默认返回应用管理页面
       router.push({ name: 'ApplicationManager', params: { workspaceName } })
   }
+}
+
+// 复制到工作空间
+const copying = ref(false)
+const copyForm = ref({ sourceName: '', newName: '' })
+
+const openCopyDialog = (template: AppTemplate) => {
+  dialog.success({
+    title: '复制到工作空间',
+    content: () => h('div', { style: 'display:flex; flex-direction:column; gap:8px;' }, [
+      h('div', [`源模板: `, h('strong', template.name)]),
+      h('div', [
+        h('label', { style: 'display:block; font-size:12px; color:#666;' }, '新模板名'),
+        h('input', {
+          value: template.name,
+          onInput: (e: any) => { copyForm.value.newName = e?.target?.value || '' },
+          style: 'width:100%; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px;'
+        })
+      ])
+    ]),
+    positiveText: '复制',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const newName = copyForm.value.newName?.trim() || template.name
+      if (!newName) {
+        message.warning('请输入新模板名')
+        return false
+      }
+      try {
+        copying.value = true
+        await appTemplateApi.copyToWorkspace(workspaceName.value, template.name, newName)
+        message.success('复制成功')
+        await loadTemplates()
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || e?.message || '复制失败')
+        return false
+      } finally {
+        copying.value = false
+      }
+    }
+  })
 }
 
 // 组件挂载时加载数据
@@ -578,10 +628,11 @@ onMounted(() => {
 .template-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 /* 按钮优化 */
-.template-actions .n-button {
+.action-button {
   font-weight: var(--font-weight-medium);
   font-size: 12px !important;
   border-radius: 6px;
@@ -593,18 +644,36 @@ onMounted(() => {
   min-height: 28px !important;
 }
 
-.template-actions .n-button:hover {
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
-  border: none !important;
+.primary-button {
+  background: #007AFF !important;
+  color: white !important;
 }
 
-.template-actions .n-button:focus {
+.primary-button:hover {
+  background: #0056CC !important;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);
+}
+
+.secondary-button {
+  background: #f8f9fa !important;
+  color: #6c757d !important;
+  border: 1px solid #e9ecef !important;
+}
+
+.secondary-button:hover {
+  background: #e9ecef !important;
+  color: #495057 !important;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-button:focus {
   border: none !important;
   outline: none !important;
 }
 
-.template-actions .n-button:active {
+.action-button:active {
   transform: translateY(0) scale(0.98);
   border: none !important;
   outline: none !important;

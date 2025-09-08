@@ -183,10 +183,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { Add, Refresh, Search, Close, Edit, Trash, Eye } from '@vicons/ionicons5'
 import type { MiddlewareTemplate } from '@/types/middleware'
+import { appTemplateApi } from '@/api/template'
+import { useRoute } from 'vue-router'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -244,6 +246,9 @@ const statusOptions = [
 ]
 
 // 表格列配置
+const route = useRoute()
+const workspaceName = computed(() => route.params.workspaceName as string)
+
 const columns = [
   {
     title: '模板名称',
@@ -294,6 +299,11 @@ const columns = [
           style: 'margin-left: 8px;',
           onClick: () => editTemplate(row)
         }, { default: () => '编辑', icon: () => h(Edit) }),
+        h('n-button', {
+          size: 'small',
+          style: 'margin-left: 8px;',
+          onClick: () => openCopyDialog(row)
+        }, { default: () => '复制到工作空间' }),
         h('n-button', {
           size: 'small',
           type: 'error',
@@ -447,6 +457,46 @@ const deleteTemplate = (template: MiddlewareTemplate) => {
         await refreshData()
       } catch (error: any) {
         message.error(error.message || '删除模板失败')
+      }
+    }
+  })
+}
+
+// 复制到工作空间
+const copying = ref(false)
+const copyForm = ref({ sourceName: '', newName: '' })
+const openCopyDialog = (template: MiddlewareTemplate) => {
+  dialog.success({
+    title: '复制到工作空间',
+    content: () => h('div', { style: 'display:flex; flex-direction:column; gap:8px;' }, [
+      h('div', [`源模板: `, h('strong', template.name)]),
+      h('div', [
+        h('label', { style: 'display:block; font-size:12px; color:#666;' }, '新模板名'),
+        h('input', {
+          value: template.name,
+          onInput: (e: any) => { copyForm.value.newName = e?.target?.value || '' },
+          style: 'width:100%; padding:6px 8px; border:1px solid #e5e7eb; border-radius:6px;'
+        })
+      ])
+    ]),
+    positiveText: '复制',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      const newName = copyForm.value.newName?.trim() || template.name
+      if (!newName) {
+        message.warning('请输入新模板名')
+        return false
+      }
+      try {
+        copying.value = true
+        await appTemplateApi.copyToWorkspace(String(workspaceName.value || ''), template.name, newName)
+        message.success('复制成功')
+        await refreshData()
+      } catch (e: any) {
+        message.error(e?.response?.data?.message || e?.message || '复制失败')
+        return false
+      } finally {
+        copying.value = false
       }
     }
   })

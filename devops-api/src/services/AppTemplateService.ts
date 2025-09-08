@@ -71,6 +71,49 @@ export class AppTemplateService {
     }, 60 * 1000); // 每分钟清理一次
   }
 
+  // 复制全局模板目录到工作空间模板目录，并重命名
+  async copyGlobalTemplateToWorkspace(sessionId: string, workspace: string, sourceName: string, newName: string) {
+    const workspaceConfig = await this.getWorkspaceConfig(sessionId, workspace);
+    const buildPlatform = workspaceConfig?.BUILD_PLATFORM || 'KUBERNETES';
+    const platformDir = this.getPlatformDir(buildPlatform);
+
+    const globalPath = `${this.remoteBasePath}/templates/${platformDir}/app/${sourceName}`;
+    const targetPath = `${this.remoteBasePath}/workspace/${workspace}/templates/${platformDir}/app/${newName}`;
+
+    // 构建复制脚本：确保目标目录父级存在，再进行复制
+    const script = `#!/bin/bash
+set -e
+SRC="${globalPath}"
+DST="${targetPath}"
+if [ ! -d "$SRC" ]; then
+  echo "SOURCE_NOT_EXISTS"
+  exit 2
+fi
+mkdir -p "$(dirname \"$DST\")"
+if [ -d "$DST" ]; then
+  echo "TARGET_EXISTS"
+  exit 3
+fi
+cp -a "$SRC" "$DST"
+echo "OK"
+`;
+
+    const result = await authService.executeCommand(sessionId, script);
+    if (result.exitCode !== 0) {
+      if (result.stdout.includes('SOURCE_NOT_EXISTS')) {
+        throw new Error(`源模板不存在: ${sourceName}`);
+      }
+      if (result.stdout.includes('TARGET_EXISTS')) {
+        throw new Error(`目标模板已存在: ${newName}`);
+      }
+      throw new Error(result.stderr || '复制失败');
+    }
+
+    // 清理工作空间模板缓存，使新模板立刻可见
+    this.clearWorkspaceCache(workspace);
+    return { workspace, name: newName };
+  }
+
   // 清理过期缓存
   private cleanExpiredCache(): void {
     const now = Date.now();

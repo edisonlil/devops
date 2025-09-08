@@ -96,6 +96,11 @@ export const appTemplateApi = {
     return api.get<AppTemplateListResponse>(url)
   },
 
+  // 复制全局模板到工作空间，并指定新模板名
+  copyToWorkspace: (workspace: string, sourceName: string, newName: string) => {
+    return api.post(`/workspaces/${workspace}/app/templates/copy`, { sourceName, newName })
+  },
+
   // 获取app模板变量定义（从metadata.yaml）
   getAppTemplateVariables: (templateName: string, workspace?: string) => {
     const url = workspace

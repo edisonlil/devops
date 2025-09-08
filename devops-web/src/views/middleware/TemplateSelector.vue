@@ -81,12 +81,17 @@
           <div v-if="globalTemplates.length" class="template-group">
             <h3>全局模板</h3>
             <div class="templates-grid">
-              <TemplateCard
-                v-for="template in globalTemplates"
-                :key="template.name"
-                :template="template"
-                @select="selectTemplate"
-              />
+              <div v-for="template in globalTemplates" :key="template.name" class="template-with-actions">
+                <TemplateCard
+                  :template="template"
+                  @select="selectTemplate"
+                />
+                <div class="template-actions">
+                  <n-button size="small" @click.stop="openCopyModal(template.name)" class="copy-button">
+                    复制到工作空间
+                  </n-button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -106,12 +111,33 @@
       </n-spin>
     </div>
   </div>
+
+  <!-- 复制模板弹窗 -->
+  <n-modal v-model:show="showCopyModal" preset="dialog" title="复制模板到工作空间" :mask-closable="false">
+    <div class="copy-form">
+      <n-form :model="copyForm">
+        <n-form-item label="源模板名">
+          <n-input v-model:value="copyForm.sourceName" disabled />
+        </n-form-item>
+        <n-form-item label="新模板名">
+          <n-input v-model:value="copyForm.newName" placeholder="请输入新模板目录名" />
+        </n-form-item>
+      </n-form>
+    </div>
+    <template #action>
+      <n-space>
+        <n-button @click="showCopyModal = false" :disabled="copying">取消</n-button>
+        <n-button type="primary" :loading="copying" @click="confirmCopy">复制</n-button>
+      </n-space>
+    </template>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
+import { appTemplateApi } from '@/api/template'
 import { ArrowBack, Search, InformationCircle } from '@vicons/ionicons5'
 import { middlewareApi } from '@/api/middleware'
 import type { MiddlewareTemplate, WorkspaceDefaults } from '@/types/middleware'
@@ -238,6 +264,35 @@ const selectTemplate = (template: MiddlewareTemplate) => {
   })
 }
 
+// 复制模板到工作空间逻辑
+const showCopyModal = ref(false)
+const copying = ref(false)
+const copyForm = ref<{ sourceName: string; newName: string }>({ sourceName: '', newName: '' })
+
+const openCopyModal = (sourceName: string) => {
+  copyForm.value.sourceName = sourceName
+  copyForm.value.newName = sourceName
+  showCopyModal.value = true
+}
+
+const confirmCopy = async () => {
+  if (!copyForm.value.newName.trim()) {
+    message.warning('请输入新模板名')
+    return
+  }
+  copying.value = true
+  try {
+    await appTemplateApi.copyToWorkspace(workspaceName.value, copyForm.value.sourceName, copyForm.value.newName.trim())
+    message.success('复制成功')
+    showCopyModal.value = false
+    await loadTemplates()
+  } catch (e: any) {
+    message.error(e?.response?.data?.message || e?.message || '复制失败')
+  } finally {
+    copying.value = false
+  }
+}
+
 const goBack = () => {
   // 检查是否有历史记录可以返回
   if (window.history.length > 1) {
@@ -309,6 +364,45 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+}
+
+.template-with-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.template-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.copy-button {
+  background: #f8f9fa !important;
+  color: #6c757d !important;
+  border: 1px solid #e9ecef !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+.copy-button:hover {
+  background: #e9ecef !important;
+  color: #495057 !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.copy-button:focus {
+  border: 1px solid #e9ecef !important;
+  outline: none !important;
+}
+
+.copy-button:active {
+  transform: translateY(0) scale(0.98) !important;
 }
 
 @media (max-width: 768px) {
