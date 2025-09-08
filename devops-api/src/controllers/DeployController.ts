@@ -120,7 +120,57 @@ export class DeployController {
   };
 
   getDevopsStatus = async (req: Request, res: Response) => {
-    res.json({ success: true, data: { isInstalled: true, version: '1.8.5' } });
+    try {
+      const sessionId = (req.session as any).sessionId;
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '会话无效'
+        });
+        return;
+      }
+
+      // 检查devops命令是否存在
+      const checkCommands = [
+        'which devops',
+        'ls -la /root/devops/bin/devops',
+        'echo "PATH=$PATH"'
+      ];
+
+      const results = [];
+      for (const cmd of checkCommands) {
+        try {
+          const result = await authService.executeCommand(sessionId, cmd);
+          results.push({
+            command: cmd,
+            exitCode: result.exitCode,
+            stdout: result.stdout?.trim(),
+            stderr: result.stderr?.trim()
+          });
+        } catch (error: any) {
+          results.push({
+            command: cmd,
+            error: error.message
+          });
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        data: { 
+          isInstalled: true, 
+          version: '1.8.5',
+          debugInfo: results
+        } 
+      });
+      return;
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'DevOps状态检查失败'
+      });
+      return;
+    }
   };
 
   getExecutionHistory = async (req: Request, res: Response) => {
@@ -524,11 +574,8 @@ rm -rf "${outputDir}"
     try {
       console.log(`执行命令 [${executionId}]: ${command}`);
       
-      // 构建完整的命令，如果指定了工作目录
-      let fullCommand = command;
-      if (workingDir) {
-        fullCommand = `cd "${workingDir}" && ${command}`;
-      }
+      // 构建完整的命令，确保环境变量和PATH正确
+      let fullCommand = this.buildCommandWithEnvironment(command, workingDir);
       
       execution.logs.push(`[${new Date().toISOString()}] INFO: 开始执行命令: ${command}`);
       if (workingDir) {
@@ -546,6 +593,38 @@ rm -rf "${outputDir}"
       
       console.error(`命令执行异常 [${executionId}]:`, error);
     }
+  }
+
+  // 构建带有正确环境的命令
+  private buildCommandWithEnvironment(command: string, workingDir?: string): string {
+    // devops命令的实际安装路径
+    const devopsPath = '/root/devops/bin/devops';
+
+    let fullCommand = '';
+    
+    // 设置环境变量，确保能找到devops命令
+    const envSetup = [
+      'source ~/.bashrc 2>/dev/null || true',
+      'source ~/.profile 2>/dev/null || true',
+      'export PATH="/root/devops/bin:/usr/local/bin:/usr/bin:/bin:/root/devops:/opt/devops:$PATH"'
+    ].join(' && ');
+
+    // 如果指定了工作目录
+    if (workingDir) {
+      fullCommand = `${envSetup} && cd "${workingDir}" && `;
+    } else {
+      fullCommand = `${envSetup} && `;
+    }
+
+    // 如果命令以devops开头，使用正确的路径
+    if (command.startsWith('devops ')) {
+      const devopsCmd = command.substring(7); // 去掉 'devops '
+      fullCommand += `${devopsPath} ${devopsCmd}`;
+    } else {
+      fullCommand += command;
+    }
+
+    return fullCommand;
   }
 
   // 支持流式输出的命令执行

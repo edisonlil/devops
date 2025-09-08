@@ -90,9 +90,9 @@ export const deployApi = {
 
   // 远程命令执行
   executeDevopsCommand: (workspace: string, commandData: {
-    serverId: string
+    serverId?: string
     command: string
-    args: string[]
+    args?: string[]
     workingDir?: string
     timeout?: number
   }) => {
@@ -110,11 +110,11 @@ export const deployApi = {
   },
 
   getExecutionDetails: (workspace: string, executionId: string) => {
-    return api.get<CommandExecution>(`/workspaces/${workspace}/deploy/executions/${executionId}`)
+    return api.get<CommandExecution & { duration?: number }>(`/workspaces/${workspace}/deploy/executions/${executionId}`)
   },
 
   getExecutionLogs: (workspace: string, executionId: string) => {
-    return api.get(`/workspaces/${workspace}/deploy/executions/${executionId}/logs`)
+    return api.get<{ logs?: string[]; stdout?: string; stderr?: string }>(`/workspaces/${workspace}/deploy/executions/${executionId}/logs`)
   },
 
   cancelExecution: (workspace: string, executionId: string) => {

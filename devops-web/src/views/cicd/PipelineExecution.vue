@@ -27,7 +27,7 @@
         </div>
         <div class="info-item">
           <span class="info-label">执行状态</span>
-          <n-tag :type="getStatusType(executionStatus)" size="small">
+          <n-tag :type="getStatusType(executionStatus)" size="small" class="status-tag">
             {{ getStatusText(executionStatus) }}
           </n-tag>
         </div>
@@ -112,8 +112,56 @@ const currentHistoryId = ref<string | null>(null)
 
 // 模拟执行过程的定时器
 let executionTimer: any = null
-// 跟踪已处理的日志行数，避免重复显示
-let processedLogLines = 0
+// 跟踪已处理的日志行数，避免重复显示（结构化 logs）
+let processedStructuredLogLines = 0
+// 分别跟踪 stdout/stderr 的已处理行数，避免混用导致的重复
+let processedStdoutLines = 0
+let processedStderrLines = 0
+
+// 解码后端可能返回的 \uXXXX 转义序列（更健壮，逐段替换）
+const decodeUnicodeEscapes = (text: string): string => {
+  if (!text) return text
+  try {
+    // 直接替换所有 \uXXXX 为对应字符，避免 JSON.parse 失败
+    return text.replace(/\\u([0-9a-fA-F]{4})/g, (_match, grp: string) => {
+      const code = parseInt(grp, 16)
+      return String.fromCharCode(code)
+    })
+  } catch {
+    return text
+  }
+}
+
+// 统一解析日志级别与消息，同时进行解码
+const normalizeLogLine = (raw: string): { level: LogEntry['level']; message: string } => {
+  const line = decodeUnicodeEscapes(raw)
+  if (line.includes('ERROR:')) {
+    return { level: 'error', message: line.replace(/.*ERROR:\s*/, '') }
+  }
+  if (line.includes('SUCCESS:')) {
+    return { level: 'success', message: line.replace(/.*SUCCESS:\s*/, '') }
+  }
+  if (line.includes('WARN:') || line.includes('WARNING:')) {
+    return { level: 'warn', message: line.replace(/.*WARN(?:ING)?:\s*/, '') }
+  }
+  if (line.includes('OUTPUT:') || line.includes('INFO:')) {
+    return { level: 'info', message: line.replace(/.*(?:OUTPUT|INFO):\s*/, '') }
+  }
+  return { level: 'info', message: line }
+}
+
+// 记录已展示过的日志，避免跨来源重复（结构化/stdout/stderr）
+const seenLogKeys = new Set<string>()
+
+// 归一化生成去重 Key：移除时间戳等不同步前缀（忽略级别，跨来源统一去重）
+const makeLogKey = (_level: LogEntry['level'], message: string): string => {
+  // 去掉常见的时间戳前缀，比如 "2025-09-08 10:27:24,003 - INFO - " 或 "[10:14:56] INFO: "
+  const cleaned = message
+    .replace(/^\[?\d{1,2}:\d{2}:\d{2}\]?\s*/, '')
+    .replace(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:,\d+)?\s*-\s*\w+\s*-\s*/, '')
+    .trim()
+  return cleaned
+}
 
 // 计算属性
 const pipelineId = computed(() => route.params.pipelineId as string)
@@ -138,10 +186,15 @@ const loadPipeline = async () => {
 }
 
 const addLog = (level: LogEntry['level'], message: string) => {
+  const { level: normalizedLevel, message: normalizedMessage } = normalizeLogLine(message)
+  const key = makeLogKey(normalizedLevel, normalizedMessage)
+  if (seenLogKeys.has(key)) return
+  seenLogKeys.add(key)
+
   logs.value.push({
     time: new Date(),
-    level,
-    message
+    level: normalizedLevel,
+    message: normalizedMessage
   })
   
   // 自动滚动到底部
@@ -159,8 +212,12 @@ const startExecution = async () => {
   starting.value = true
   isExecuting.value = true
   executionStatus.value = 'running'
+  // 新执行开始，清空去重集合
+  seenLogKeys.clear()
   logs.value = []
-  processedLogLines = 0 // 重置日志跟踪
+  processedStructuredLogLines = 0 // 重置日志跟踪
+  processedStdoutLines = 0
+  processedStderrLines = 0
 
   try {
     // 使用store开始执行
@@ -236,11 +293,14 @@ const executeRealCommand = async (historyId: string) => {
       workingDir: '/root/devops'
     })
 
-    if (!response.success) {
-      throw new Error(response.message || '执行请求失败')
+    // 后端返回: { success, data: { executionId, status, message } }
+    const success = (response as any)?.success
+    const data = (response as any)?.data
+    const msg = (response as any)?.message
+    if (!success || !data?.executionId) {
+      throw new Error(msg || '执行请求失败')
     }
-
-    const executionId = response.data.executionId
+    const executionId = data.executionId
     addLog('info', `获得执行ID: ${executionId}`)
     
     // 将executionId保存到历史记录中，以便后续恢复
@@ -271,64 +331,59 @@ const pollExecutionStatus = async (workspace: string, executionId: string) => {
       const detailsResponse = await deployApi.getExecutionDetails(workspace, executionId)
       console.log('轮询详情响应:', detailsResponse)
       
-      if (detailsResponse.success) {
-        const execution = detailsResponse.data
+      if ((detailsResponse as any).success) {
+        const execution = (detailsResponse as any).data
         
         // 获取最新的日志并只显示新增内容
         try {
           const logsResponse = await deployApi.getExecutionLogs(workspace, executionId)
           console.log('日志响应:', logsResponse)
           
-          if (logsResponse.success) {
+          if ((logsResponse as any).success) {
             // 处理结构化日志 - 只显示新的日志条目
-            if (logsResponse.data.logs && logsResponse.data.logs.length > 0) {
-              const newLogs = logsResponse.data.logs.slice(processedLogLines)
-              newLogs.forEach((logLine: string) => {
-                if (logLine.trim()) {
-                  // 解析日志级别
-                  if (logLine.includes('ERROR:')) {
-                    addLog('error', logLine.replace(/.*ERROR:\s*/, ''))
-                  } else if (logLine.includes('OUTPUT:')) {
-                    addLog('info', logLine.replace(/.*OUTPUT:\s*/, ''))
-                  } else if (logLine.includes('SUCCESS:')) {
-                    addLog('success', logLine.replace(/.*SUCCESS:\s*/, ''))
-                  } else if (logLine.includes('INFO:')) {
-                    addLog('info', logLine.replace(/.*INFO:\s*/, ''))
-                  } else {
-                    addLog('info', logLine)
-                  }
-                }
+            if ((logsResponse as any).data?.logs && (logsResponse as any).data.logs.length > 0) {
+              const allLogs = (logsResponse as any).data.logs as string[]
+              const newLogs = allLogs.slice(processedStructuredLogLines)
+              newLogs.forEach((raw: string) => {
+                const logLine = raw.trim()
+                if (!logLine) return
+                const { level, message } = normalizeLogLine(logLine)
+                addLog(level, message)
               })
-              processedLogLines = logsResponse.data.logs.length
-              
+              processedStructuredLogLines = allLogs.length
+
               // 实时更新历史记录中的日志，这样重新进入页面时能看到最新日志
               if (currentHistoryId.value && newLogs.length > 0) {
                 await pipelineStore.updateDeployHistory(currentHistoryId.value, {
-                  logs: logsResponse.data.logs // 使用完整的后端日志列表
+                  logs: allLogs // 使用完整的后端日志列表
                 })
               }
             }
-            
+
             // 如果没有结构化日志，回退到处理标准输出
-            else if (logsResponse.data.stdout) {
-              const allStdoutLines = logsResponse.data.stdout.split('\n')
-              const newStdoutLines = allStdoutLines.slice(processedLogLines)
-              newStdoutLines.forEach((line: string) => {
-                if (line.trim()) {
-                  addLog('info', line.trim())
-                }
+            else if ((logsResponse as any).data?.stdout) {
+              const allStdoutLines = (logsResponse as any).data.stdout.split('\n')
+              const newStdoutLines = allStdoutLines.slice(processedStdoutLines)
+              newStdoutLines.forEach((raw: string) => {
+                const line = raw.trim()
+                if (!line) return
+                const { level, message } = normalizeLogLine(line)
+                addLog(level, message)
               })
-              processedLogLines = allStdoutLines.length
+              processedStdoutLines = allStdoutLines.length
             }
-            
-            // 处理错误输出日志
-            if (logsResponse.data.stderr) {
-              const stderrLines = logsResponse.data.stderr.split('\n')
-              stderrLines.forEach((line: string) => {
-                if (line.trim()) {
-                  addLog('error', line.trim())
-                }
+
+            // 处理错误输出日志（独立指针，避免与 stdout/结构化混用造成重复）
+            if ((logsResponse as any).data?.stderr) {
+              const allStderrLines = (logsResponse as any).data.stderr.split('\n')
+              const newStderrLines = allStderrLines.slice(processedStderrLines)
+              newStderrLines.forEach((raw: string) => {
+                const line = raw.trim()
+                if (!line) return
+                const decoded = decodeUnicodeEscapes(line)
+                addLog('error', decoded)
               })
+              processedStderrLines = allStderrLines.length
             }
           }
         } catch (logError) {
@@ -430,7 +485,11 @@ const stopExecution = async () => {
 const restartExecution = () => {
   executionStatus.value = 'never'
   logs.value = []
-  processedLogLines = 0 // 重置日志跟踪
+  // 重启执行前清空去重集合
+  seenLogKeys.clear()
+  processedStructuredLogLines = 0 // 重置日志跟踪
+  processedStdoutLines = 0
+  processedStderrLines = 0
   startExecution()
 }
 
@@ -455,6 +514,8 @@ const getStatusText = (status: string) => {
   }
   return statusMap[status] || '未知'
 }
+
+// 已移除图标方法，保持简单标签展示
 
 const formatTime = (time: Date) => {
   return time.toLocaleTimeString()
@@ -489,6 +550,8 @@ const restoreExecutionState = async () => {
       
       // 恢复日志
       logs.value = [] // 清空当前日志
+      // 恢复前清空去重集合
+      seenLogKeys.clear()
       if (history.logs && history.logs.length > 0) {
         console.log('恢复历史日志，共', history.logs.length, '条')
         
@@ -508,9 +571,13 @@ const restoreExecutionState = async () => {
         })
         
         // 设置已处理的日志行数，这样轮询时只获取新的日志
-        processedLogLines = history.logs.length
+        processedStructuredLogLines = history.logs.length
+        processedStdoutLines = 0
+        processedStderrLines = 0
       } else {
-        processedLogLines = 0
+        processedStructuredLogLines = 0
+        processedStdoutLines = 0
+        processedStderrLines = 0
       }
       
       addLog('info', '恢复执行状态，继续监控部署进度...')
@@ -641,6 +708,8 @@ onUnmounted(() => {
   padding: 24px;
   margin-bottom: 24px;
 }
+
+.status-tag { padding: 2px 8px; font-size: 12px; line-height: 18px; }
 
 .info-grid {
   display: grid;
