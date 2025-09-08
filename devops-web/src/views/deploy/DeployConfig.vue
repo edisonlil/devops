@@ -481,6 +481,52 @@ const copyCommand = async () => {
   }
 }
 
+// 共用的保存流水线方法
+const savePipelineInternal = async (workspaceName: string): Promise<string> => {
+  pipelineStore.setCurrentWorkspace(workspaceName)
+
+  let pipelineId: string
+
+  if (isEditMode.value) {
+    // 编辑模式：更新特定的流水线
+    pipelineId = route.query.pipelineId as string
+    if (!pipelineId) {
+      throw new Error('无效的流水线ID')
+    }
+
+    await pipelineStore.updatePipeline(pipelineId, {
+      name: config.value.name,
+      template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
+      config: { ...config.value },
+      command: generatedCommand.value
+    }, workspaceName)
+  } else {
+    // 新建模式：检查是否已存在同名流水线
+    const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
+
+    if (existingPipeline) {
+      // 更新现有流水线
+      await pipelineStore.updatePipeline(existingPipeline.id, {
+        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
+        config: { ...config.value },
+        command: generatedCommand.value
+      }, workspaceName)
+      pipelineId = existingPipeline.id
+    } else {
+      // 创建新流水线
+      const newPipeline = await pipelineStore.createPipeline({
+        name: config.value.name,
+        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
+        config: { ...config.value },
+        command: generatedCommand.value
+      }, workspaceName)
+      pipelineId = newPipeline.id
+    }
+  }
+
+  return pipelineId
+}
+
 // 处理部署
 const handleDeploy = async () => {
   if (!validateForm()) {
@@ -488,13 +534,30 @@ const handleDeploy = async () => {
     return
   }
 
+  const workspaceName = route.params.workspaceName as string
   deploying.value = true
+
   try {
-    // 这里调用部署API
-    message.success('部署任务已提交')
-    router.push({ name: 'ApplicationManager' })
+    // 1. 先保存流水线
+    const pipelineId = await savePipelineInternal(workspaceName)
+
+    message.success('流水线已保存，正在启动部署...')
+
+    // 2. 跳转到部署详情页并执行部署
+    router.push({
+      name: 'PipelineExecution',
+      params: {
+        workspaceName: workspaceName,
+        pipelineId: pipelineId
+      },
+      query: {
+        autoStart: 'true' // 标识自动开始执行
+      }
+    })
+
   } catch (error: any) {
-    message.error(error.message || '部署失败')
+    console.error('保存流水线或启动部署失败:', error)
+    message.error(error.message || '保存流水线失败')
   } finally {
     deploying.value = false
   }
@@ -509,49 +572,12 @@ const savePipeline = async () => {
 
   const workspaceName = route.params.workspaceName as string
   saving.value = true
-  
+
   try {
-    // 设置当前工作空间
-    pipelineStore.setCurrentWorkspace(workspaceName)
-    
-    if (isEditMode.value) {
-      // 编辑模式：更新特定的流水线
-      const pipelineId = route.query.pipelineId as string
-      if (!pipelineId) {
-        message.error('无效的流水线ID')
-        return
-      }
-      
-      await pipelineStore.updatePipeline(pipelineId, {
-        name: config.value.name,
-        template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
-        config: { ...config.value },
-        command: generatedCommand.value
-      }, workspaceName)
-      message.success(`流水线 "${config.value.name}" 已更新`)
-    } else {
-      // 新建模式：检查是否已存在同名流水线
-      const existingPipeline = pipelineStore.pipelines.find(p => p.name === config.value.name)
-      
-      if (existingPipeline) {
-        // 更新现有流水线
-        await pipelineStore.updatePipeline(existingPipeline.id, {
-          template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
-          config: { ...config.value },
-          command: generatedCommand.value
-        }, workspaceName)
-        message.success(`流水线 "${config.value.name}" 已更新`)
-      } else {
-        // 创建新流水线
-        await pipelineStore.createPipeline({
-          name: config.value.name,
-          template: selectedTemplate.value?.originalName || selectedTemplate.value?.name || '',
-          config: { ...config.value },
-          command: generatedCommand.value
-        }, workspaceName)
-        message.success(`流水线 "${config.value.name}" 已保存`)
-      }
-    }
+    // 使用共用的保存方法
+    await savePipelineInternal(workspaceName)
+
+    message.success(`流水线 "${config.value.name}" 已保存`)
 
     // 跳转到CI/CD管理页面
     setTimeout(() => {

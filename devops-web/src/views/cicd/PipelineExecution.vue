@@ -658,13 +658,20 @@ const goBack = () => {
 // 生命周期
 onMounted(async () => {
   console.log('PipelineExecution页面挂载，路由查询参数:', route.query)
-  
+
   await loadPipeline()
-  
+
   // 检查是否是查看模式，如果是则恢复执行状态
   if (route.query.view === 'true') {
     console.log('检测到查看模式，开始恢复执行状态')
     await restoreExecutionState()
+  } else if (route.query.autoStart === 'true') {
+    // 检查是否是自动开始模式（从部署配置页面跳转过来）
+    console.log('检测到自动开始模式，立即开始执行流水线')
+    // 等待一小段时间确保页面完全加载
+    setTimeout(() => {
+      startExecution()
+    }, 500)
   } else {
     console.log('非查看模式，跳过状态恢复')
   }
