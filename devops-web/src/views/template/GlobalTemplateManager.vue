@@ -185,7 +185,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
-import { Add, Refresh, Search, Close, Edit, Trash, Eye } from '@vicons/ionicons5'
+import { Add, Refresh, Search, Close, Create, Trash, Eye } from '@vicons/ionicons5'
 import type { MiddlewareTemplate } from '@/types/middleware'
 import { appTemplateApi } from '@/api/template'
 import { useRoute, useRouter } from 'vue-router'
@@ -299,7 +299,7 @@ const columns = [
           size: 'small',
           style: 'margin-left: 8px;',
           onClick: () => editTemplate(row)
-        }, { default: () => '编辑', icon: () => h(Edit) }),
+        }, { default: () => '编辑', icon: () => h(Create) }),
         h('n-button', {
           size: 'small',
           style: 'margin-left: 8px;',

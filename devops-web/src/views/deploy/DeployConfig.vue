@@ -176,27 +176,59 @@
               <h3 class="section-title">代码源</h3>
               <div class="form-grid">
                 <div class="form-item full-width">
-                  <label class="form-label">Git 仓库地址 *</label>
-                  <n-input
-                    v-model:value="config.gitUrl"
-                    placeholder="https://github.com/user/repo.git"
-                    :status="errors.gitUrl ? 'error' : undefined"
-                  />
-                  <span v-if="errors.gitUrl" class="error-text">{{ errors.gitUrl }}</span>
+                  <label class="form-label">代码来源类型 *</label>
+                  <n-radio-group v-model:value="config.sourceType">
+                    <n-radio value="git">Git 仓库</n-radio>
+                    <n-radio value="local">本地目录</n-radio>
+                  </n-radio-group>
                 </div>
-                
-                <div class="form-item">
-                  <label class="form-label">分支</label>
-                  <n-input
-                    v-model:value="config.branch"
-                    placeholder="main"
-                  />
-                </div>
-                
+
+                <!-- Git 仓库配置 -->
+                <template v-if="config.sourceType === 'git'">
+                  <div class="form-item full-width">
+                    <label class="form-label">Git 仓库地址 *</label>
+                    <n-input
+                      v-model:value="config.gitUrl"
+                      placeholder="https://github.com/user/repo.git"
+                      :status="errors.gitUrl ? 'error' : undefined"
+                    />
+                    <span v-if="errors.gitUrl" class="error-text">{{ errors.gitUrl }}</span>
+                  </div>
+
+                  <div class="form-item">
+                    <label class="form-label">分支</label>
+                    <n-input
+                      v-model:value="config.branch"
+                      placeholder="main"
+                    />
+                  </div>
+                </template>
+
+                <!-- 本地目录配置 -->
+                <template v-if="config.sourceType === 'local'">
+                  <div class="form-item full-width">
+                    <label class="form-label">本地目录路径 *</label>
+                    <n-input
+                      v-model:value="config.staticDir"
+                      placeholder="/path/to/your/project 或 /path/to/dist.tar"
+                      :status="errors.staticDir ? 'error' : undefined"
+                    />
+                    <span v-if="errors.staticDir" class="error-text">{{ errors.staticDir }}</span>
+                    <div class="form-help">
+                      <n-icon size="14" style="margin-right: 4px;">
+                        <svg viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                        </svg>
+                      </n-icon>
+                      支持本地目录路径或tar包文件（.tar, .tar.gz, .tar.bz2）
+                    </div>
+                  </div>
+                </template>
+
                 <div class="form-item" v-if="showBuildTool">
                   <label class="form-label">构建工具</label>
-                  <n-select 
-                    v-model:value="config.buildTool" 
+                  <n-select
+                    v-model:value="config.buildTool"
                     :options="buildToolOptions"
                     placeholder="选择构建工具"
                   />
@@ -349,8 +381,10 @@ const config = ref({
   type: '',
   workspace: 'default',
   namespace: '',
+  sourceType: 'git', // 'git' 或 'local'
   gitUrl: '',
   branch: 'main',
+  staticDir: '', // 本地目录路径
   buildTool: '',
   buildEnv: 'prod',
   appPort: null as number | null,
@@ -405,11 +439,18 @@ const isEditMode = computed(() => {
 const generatedCommand = computed(() => {
   const parts = ['devops', 'run', config.value.type]
 
-  if (config.value.gitUrl) {
-    parts.push('--git-url', `"${config.value.gitUrl}"`)
-  }
-  if (config.value.branch && config.value.branch !== 'main') {
-    parts.push('--git-branch', config.value.branch)
+  // 根据代码来源类型添加不同的参数
+  if (config.value.sourceType === 'git') {
+    if (config.value.gitUrl) {
+      parts.push('--git-url', `"${config.value.gitUrl}"`)
+    }
+    if (config.value.branch && config.value.branch !== 'main') {
+      parts.push('--git-branch', config.value.branch)
+    }
+  } else if (config.value.sourceType === 'local') {
+    if (config.value.staticDir) {
+      parts.push('--static-dir', `"${config.value.staticDir}"`)
+    }
   }
   if (config.value.buildTool) {
     parts.push('--build-tool', config.value.buildTool)
@@ -464,8 +505,15 @@ const validateForm = () => {
     errors.value.type = '部署类型不能为空'
   }
   
-  if (!config.value.gitUrl) {
-    errors.value.gitUrl = 'Git 仓库地址不能为空'
+  // 根据代码来源类型验证不同的字段
+  if (config.value.sourceType === 'git') {
+    if (!config.value.gitUrl) {
+      errors.value.gitUrl = 'Git 仓库地址不能为空'
+    }
+  } else if (config.value.sourceType === 'local') {
+    if (!config.value.staticDir) {
+      errors.value.staticDir = '本地目录路径不能为空'
+    }
   }
   
   return Object.keys(errors.value).length === 0
@@ -817,6 +865,11 @@ const loadPipelineForEdit = async () => {
       ...pipeline.config,
       workspace: currentWorkspace.value // 确保工作空间正确
     }
+
+    // 确保代码来源类型正确设置
+    if (!config.value.sourceType) {
+      config.value.sourceType = config.value.staticDir ? 'local' : 'git'
+    }
   }
   
   // 设置模板信息
@@ -1056,6 +1109,17 @@ onMounted(async () => {
   color: #6B7280;
   margin-top: 4px;
   font-style: italic;
+  display: flex;
+  align-items: center;
+}
+
+.n-radio-group {
+  display: flex;
+  gap: 16px;
+}
+
+.n-radio {
+  margin-right: 0;
 }
 
 /* 右侧信息面板 */
