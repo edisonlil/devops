@@ -191,16 +191,30 @@
                       v-model:value="config.gitUrl"
                       placeholder="https://github.com/user/repo.git"
                       :status="errors.gitUrl ? 'error' : undefined"
+                      @blur="handleGitUrlChange"
+                      @input="handleGitUrlInput"
                     />
                     <span v-if="errors.gitUrl" class="error-text">{{ errors.gitUrl }}</span>
                   </div>
 
                   <div class="form-item">
                     <label class="form-label">分支</label>
-                    <n-input
+                    <n-select
                       v-model:value="config.branch"
-                      placeholder="main"
+                      :options="branchOptions"
+                      :loading="loadingBranches"
+                      placeholder="选择分支"
+                      filterable
+                      tag
+                      :fallback-option="false"
+                      @update:value="handleBranchChange"
                     />
+                    <div class="form-help" v-if="loadingBranches">
+                      正在获取远程分支列表...
+                    </div>
+                    <div class="form-help" v-else-if="branchOptions.length === 0 && config.gitUrl">
+                      无法获取分支列表，请检查仓库地址或网络连接
+                    </div>
                   </div>
                 </template>
 
@@ -343,7 +357,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { usePipelineStore } from '@/stores/pipeline'
@@ -359,6 +373,11 @@ const pipelineStore = usePipelineStore()
 const deploying = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
+
+// 分支相关状态
+const branchOptions = ref<Array<{ label: string; value: string }>>([])
+const loadingBranches = ref(false)
+const branchLoadTimeout = ref<number | null>(null)
 
 // 视图切换相关
 const currentView = ref('config') // 'config' | 'preview'
@@ -526,6 +545,103 @@ const copyCommand = async () => {
     message.success('命令已复制到剪贴板')
   } catch (error) {
     message.error('复制失败')
+  }
+}
+
+// 获取Git分支列表
+const fetchGitBranches = async (gitUrl: string) => {
+  if (!gitUrl || loadingBranches.value) return
+
+  // 清除之前的定时器
+  if (branchLoadTimeout.value) {
+    clearTimeout(branchLoadTimeout.value)
+  }
+
+  // 延迟执行，避免频繁请求
+  branchLoadTimeout.value = setTimeout(async () => {
+    try {
+      loadingBranches.value = true
+      branchOptions.value = []
+
+      const workspaceName = route.params.workspaceName as string
+      const response = await deployApi.getGitBranches(workspaceName, gitUrl)
+
+      if (response.data.branches && response.data.branches.length > 0) {
+        branchOptions.value = response.data.branches.map(branch => ({
+          label: branch,
+          value: branch
+        }))
+
+        // 如果当前分支不在列表中，添加到列表
+        if (config.value.branch && !response.data.branches.includes(config.value.branch)) {
+          branchOptions.value.unshift({
+            label: config.value.branch,
+            value: config.value.branch
+          })
+        }
+
+        // 如果没有设置分支，设置默认分支
+        if (!config.value.branch) {
+          // 优先选择 main，然后是 master，最后是第一个分支
+          const defaultBranch = response.data.branches.find(b => b === 'main') ||
+                               response.data.branches.find(b => b === 'master') ||
+                               response.data.branches[0]
+          if (defaultBranch) {
+            config.value.branch = defaultBranch
+          }
+        }
+      } else {
+        // 如果没有获取到分支，提供默认选项
+        branchOptions.value = [
+          { label: 'main', value: 'main' },
+          { label: 'master', value: 'master' },
+          { label: 'develop', value: 'develop' }
+        ]
+
+        if (!config.value.branch) {
+          config.value.branch = 'main'
+        }
+      }
+    } catch (error: any) {
+      console.error('获取Git分支失败:', error)
+      // 出错时提供默认分支选项
+      branchOptions.value = [
+        { label: 'main', value: 'main' },
+        { label: 'master', value: 'master' },
+        { label: 'develop', value: 'develop' }
+      ]
+
+      if (!config.value.branch) {
+        config.value.branch = 'main'
+      }
+    } finally {
+      loadingBranches.value = false
+    }
+  }, 1000) // 1秒延迟
+}
+
+// 处理分支变化
+const handleBranchChange = (value: string) => {
+  config.value.branch = value
+}
+
+// 处理Git URL输入变化
+const handleGitUrlInput = () => {
+  // 清空分支选项，等待用户完成输入
+  if (branchLoadTimeout.value) {
+    clearTimeout(branchLoadTimeout.value)
+  }
+  branchOptions.value = []
+}
+
+// 处理Git URL失去焦点
+const handleGitUrlChange = () => {
+  if (config.value.sourceType === 'git' && config.value.gitUrl) {
+    // 验证Git URL格式
+    const gitUrlPattern = /^(https?:\/\/|git@|ssh:\/\/)/
+    if (gitUrlPattern.test(config.value.gitUrl)) {
+      fetchGitBranches(config.value.gitUrl)
+    }
   }
 }
 
@@ -816,6 +932,13 @@ const loadWorkspaceDefaults = async () => {
 
       if (workspaceConfig.BUILD_GIT_URL && !config.value.gitUrl) {
         config.value.gitUrl = workspaceConfig.BUILD_GIT_URL
+        // 设置了默认Git URL后，如果是Git模式，加载分支列表
+        if (config.value.sourceType === 'git') {
+          // 延迟一点执行，确保DOM更新完成
+          setTimeout(() => {
+            fetchGitBranches(config.value.gitUrl)
+          }, 100)
+        }
       }
 
       if (workspaceConfig.BUILD_K8S_NAMESPACE && !config.value.namespace) {
@@ -870,6 +993,11 @@ const loadPipelineForEdit = async () => {
     if (!config.value.sourceType) {
       config.value.sourceType = config.value.staticDir ? 'local' : 'git'
     }
+
+    // 如果是Git模式且有URL，加载分支列表
+    if (config.value.sourceType === 'git' && config.value.gitUrl) {
+      fetchGitBranches(config.value.gitUrl)
+    }
   }
   
   // 设置模板信息
@@ -912,6 +1040,32 @@ onMounted(async () => {
 
   // 加载workspace默认配置
   await loadWorkspaceDefaults()
+
+  // 如果有Git URL，自动加载分支
+  if (config.value.sourceType === 'git' && config.value.gitUrl) {
+    fetchGitBranches(config.value.gitUrl)
+  }
+})
+
+// 监听代码来源类型变化
+watch(() => config.value.sourceType, (newType) => {
+  if (newType === 'git' && config.value.gitUrl) {
+    // 切换到Git模式且有URL时，加载分支
+    fetchGitBranches(config.value.gitUrl)
+  } else if (newType === 'local') {
+    // 切换到本地模式时，清空分支选项
+    branchOptions.value = []
+    if (branchLoadTimeout.value) {
+      clearTimeout(branchLoadTimeout.value)
+    }
+  }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (branchLoadTimeout.value) {
+    clearTimeout(branchLoadTimeout.value)
+  }
 })
 </script>
 

@@ -119,6 +119,83 @@ export class DeployController {
     res.json({ success: true, message: '连接正常' });
   };
 
+  // 获取Git仓库分支列表
+  getGitBranches = async (req: Request, res: Response) => {
+    try {
+      const sessionId = (req.session as any).sessionId;
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '会话无效'
+        });
+        return;
+      }
+
+      const { gitUrl } = req.body;
+
+      if (!gitUrl) {
+        res.status(400).json({
+          success: false,
+          message: 'Git URL不能为空'
+        });
+        return;
+      }
+
+      console.log(`获取Git仓库分支: ${gitUrl}`);
+
+      // 使用git ls-remote命令获取远程分支
+      const command = `git ls-remote --heads "${gitUrl}" | sed 's/.*refs\\/heads\\///' | sort`;
+
+      try {
+        const result = await authService.executeCommand(sessionId, command);
+
+        if (result.exitCode !== 0) {
+          console.error('获取分支失败:', result.stderr);
+          res.json({
+            success: true,
+            data: {
+              branches: ['main', 'master', 'develop'] // 提供默认分支作为备选
+            }
+          });
+          return;
+        }
+
+        const branches = result.stdout
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .slice(0, 50); // 限制最多50个分支
+
+        console.log(`获取到 ${branches.length} 个分支:`, branches);
+
+        res.json({
+          success: true,
+          data: {
+            branches: branches.length > 0 ? branches : ['main', 'master']
+          }
+        });
+        return;
+      } catch (error: any) {
+        console.error('执行git命令失败:', error);
+        // 如果命令执行失败，返回默认分支
+        res.json({
+          success: true,
+          data: {
+            branches: ['main', 'master', 'develop']
+          }
+        });
+        return;
+      }
+    } catch (error: any) {
+      console.error('获取Git分支失败:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+      return;
+    }
+  };
+
   getDevopsStatus = async (req: Request, res: Response) => {
     try {
       const sessionId = (req.session as any).sessionId;

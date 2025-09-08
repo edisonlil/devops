@@ -113,6 +113,11 @@ export const deployApi = {
     return api.get<CommandExecution & { duration?: number }>(`/workspaces/${workspace}/deploy/executions/${executionId}`)
   },
 
+  // 获取Git仓库分支列表
+  getGitBranches: (workspace: string, gitUrl: string) => {
+    return api.post<{ branches: string[] }>(`/workspaces/${workspace}/deploy/git-branches`, { gitUrl })
+  },
+
   getExecutionLogs: (workspace: string, executionId: string) => {
     return api.get<{ logs?: string[]; stdout?: string; stderr?: string }>(`/workspaces/${workspace}/deploy/executions/${executionId}/logs`)
   },

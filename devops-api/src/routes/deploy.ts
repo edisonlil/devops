@@ -7,6 +7,9 @@ const deployController = new DeployController();
 // 远程 devops 命令执行接口
 router.post('/execute', deployController.executeDevopsCommand);
 
+// 获取Git仓库分支列表
+router.post('/git-branches', deployController.getGitBranches);
+
 // 获取远程服务器列表
 router.get('/servers', deployController.getRemoteServers);
 
