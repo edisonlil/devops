@@ -602,11 +602,17 @@ rm -rf "${outputDir}"
 
     let fullCommand = '';
     
-    // 设置环境变量，确保能找到devops命令
+    // 设置环境变量，确保能找到devops命令和SDKMAN管理的工具
     const envSetup = [
       'source ~/.bashrc 2>/dev/null || true',
       'source ~/.profile 2>/dev/null || true',
-      'export PATH="/root/devops/bin:/usr/local/bin:/usr/bin:/bin:/root/devops:/opt/devops:$PATH"'
+      // 初始化 SDKMAN
+      'export SDKMAN_DIR="$HOME/.sdkman"',
+      '[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"',
+      // 添加 SDKMAN 管理的工具路径
+      'export PATH="$HOME/.sdkman/candidates/maven/current/bin:$HOME/.sdkman/candidates/java/current/bin:$HOME/.sdkman/candidates/gradle/current/bin:$PATH"',
+      // 添加其他常见路径
+      'export PATH="/root/devops/bin:/usr/local/bin:/usr/bin:/bin:/root/devops:/opt/devops:/opt/maven/bin:/usr/local/maven/bin:/usr/share/maven/bin:$PATH"'
     ].join(' && ');
 
     // 如果指定了工作目录
