@@ -392,7 +392,8 @@ function run_middleware() {
     render_middleware_template
 
     # 处理端口配置（如果用户指定了端口参数）
-    local output_file="$cfg_deploy_gen_location/${cmd_job_name}.yml"
+    local middleware_deploy_dir="$cfg_deploy_gen_location/middleware"
+    local output_file="$middleware_deploy_dir/${cmd_job_name}.yml"
     enhance_multi_ports "$output_file"
 
     # 部署
@@ -807,11 +808,17 @@ function render_template() {
 		error "Python模板渲染器不存在: $python_script"; exit 1
 	fi
 	
+	# 确保应用部署目录存在
+	local app_deploy_dir="$cfg_deploy_gen_location/app"
+	if [ ! -d "$app_deploy_dir" ]; then
+		mkdir -p "$app_deploy_dir"
+	fi
+
 	# 构建Python渲染器参数
 	local python_args=(
 		"$python_script"
 		"--template" "$deploy_tpl"
-		"--output" "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		"--output" "$app_deploy_dir/${cmd_job_name}.yml"
 		"--module-name" "$cmd_job_name"
 		"--image-path" "$tmp_image_path"
 		"--namespace" "$cfg_k8s_namespace"
@@ -848,7 +855,7 @@ function render_template() {
 	info "Renderer java_opts: ${java_opts}"
 	info "Renderer argv: ${python_args[@]}"
 	if python3 "${python_args[@]}"; then
-		success "模板渲染成功: $cfg_deploy_gen_location/${cmd_job_name}.yml"
+		success "应用模板渲染成功: $app_deploy_dir/${cmd_job_name}.yml"
 	else
 		error "模板渲染失败"; exit 1
 	fi
@@ -856,11 +863,11 @@ function render_template() {
 	# 处理NodePort动态注入 (仅K8s平台)
 	if [[ "$cfg_build_platform" == "KUBERNETES" ]]; then
 		# 优先处理多端口配置
-		enhance_multi_ports "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+		enhance_multi_ports "$app_deploy_dir/${cmd_job_name}.yml"
 
 		# 如果没有多端口配置，使用传统的单端口处理
 		if [[ -z "${env[opt_service_port]}" && -z "${env[opt_export_port]}" ]]; then
-			enhance_service_nodeport "$cfg_deploy_gen_location/${cmd_job_name}.yml"
+			enhance_service_nodeport "$app_deploy_dir/${cmd_job_name}.yml"
 		fi
 	fi
 }
@@ -908,12 +915,13 @@ function render_middleware_template() {
 
     info "渲染中间件模板: $deploy_tpl (类型: $template_type)"
 
-    # 确保输出目录存在
-    if [ ! -d "$cfg_deploy_gen_location" ]; then
-        mkdir -p "$cfg_deploy_gen_location"
+    # 确保中间件部署目录存在
+    local middleware_deploy_dir="$cfg_deploy_gen_location/middleware"
+    if [ ! -d "$middleware_deploy_dir" ]; then
+        mkdir -p "$middleware_deploy_dir"
     fi
 
-    local output_file="$cfg_deploy_gen_location/${cmd_job_name}.yml"
+    local output_file="$middleware_deploy_dir/${cmd_job_name}.yml"
 
     # 根据模板类型选择渲染器
     case "$template_type" in
@@ -1267,6 +1275,20 @@ function process_jinja2_syntax() {
     echo "$content"
 }
 
+# 获取部署文件路径的辅助函数
+function get_deploy_file_path() {
+    local cfg_deploy_gen_location=${env[cfg_deploy_gen_location]}
+    local cmd_job_name=${env[cmd_job_name]}
+    local cmd_2=${env[cmd_2]}
+
+    # 根据部署类型确定子目录
+    if [[ "$cmd_2" == "middleware" ]]; then
+        echo "$cfg_deploy_gen_location/middleware/${cmd_job_name}.yml"
+    else
+        echo "$cfg_deploy_gen_location/app/${cmd_job_name}.yml"
+    fi
+}
+
 function deploy() {
         cfg_deploy_target=${env[cfg_deploy_target]}
 	if test -z "$cfg_deploy_target"  ; then
@@ -1287,7 +1309,7 @@ function local_deploy() {
     cmd_job_name=${env[cmd_job_name]}
     cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 
-	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
+	deploy_job_yml=$(get_deploy_file_path)
         #创建或者更新镜像
         if [ "$cfg_build_platform" = "KUBERNETES" ]
         then
@@ -1356,7 +1378,7 @@ function remote_deploy() {
     cmd_job_name=${env[cmd_job_name]}
     cfg_k8s_namespace=${env[cfg_k8s_namespace]}
 
-	deploy_job_yml=$cfg_deploy_gen_location/${cmd_job_name}.yml
+	deploy_job_yml=$(get_deploy_file_path)
 
         array=(${cfg_deploy_target//:/ })
         user=${array[0]}
