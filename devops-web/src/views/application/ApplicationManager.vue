@@ -133,8 +133,9 @@
             
             <div class="col-status">
               <div class="status-indicator">
-                <div class="status-dot" :class="`status-${app.status}`"></div>
-                <span class="status-text">{{ getStatusText(app.status) }}</span>
+                <div class="status-dot" :class="getStatusClass(app)"></div>
+                <span class="status-text">{{ getStatusText(app) }}</span>
+                <n-spin v-if="app.starting || app.stopping" size="small" style="margin-left: 8px;" />
               </div>
             </div>
             
@@ -236,18 +237,17 @@
       <div v-else>
         <!-- 配置编辑器 -->
         <div style="margin-bottom: 16px;">
-          <n-input
-            v-model:value="configContent"
-            type="textarea"
-            placeholder="YAML配置内容"
-            :rows="20"
-            style="font-family: 'Courier New', monospace;"
+          <ConfigEditor
+            v-model="configContent"
+            :platform="getPlatformType(editingApp?.platform)"
+            height="500px"
+            theme="vs-dark"
           />
         </div>
 
         <!-- 自动重新部署选项 -->
         <div style="margin-bottom: 16px;">
-          <n-checkbox v-model:checked="autoRedeploy">
+          <n-checkbox v-model="autoRedeploy">
             保存后自动重新部署应用
           </n-checkbox>
           <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">
@@ -272,13 +272,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { applicationApi } from '../../api/applications'
 import { Add, Search, EllipsisHorizontal } from '@vicons/ionicons5'
+import ConfigEditor from '../../components/ConfigEditor.vue'
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const dialog = useDialog()
 
 const searchQuery = ref('')
 const sortField = ref('')
@@ -343,6 +345,7 @@ const loadApplications = async () => {
       memory: app.memory || 0, // 显示实际内存使用率，获取不到时显示0
       createdAt: app.createdAt || new Date().toISOString(),
       starting: false,
+      stopping: false,
       // 保存原始数据用于操作
       _original: app
     }))
@@ -458,15 +461,25 @@ const getStatusType = (status: string) => {
   return types[status] || 'default'
 }
 
+// 获取状态样式类
+const getStatusClass = (app: any) => {
+  if (app.starting) return 'status-deploying'
+  if (app.stopping) return 'status-stopping'
+  return `status-${app.status}`
+}
+
 // 获取状态文本
-const getStatusText = (status: string) => {
+const getStatusText = (app: any) => {
+  if (app.starting) return '启动中'
+  if (app.stopping) return '停止中'
+
   const texts = {
     'running': '运行中',
     'stopped': '已停机',
     'deploying': '部署中',
     'error': '异常'
   }
-  return texts[status] || status
+  return texts[app.status] || app.status
 }
 
 // 获取资源使用率颜色
@@ -619,6 +632,20 @@ const handleCancelEditConfig = () => {
   autoRedeploy.value = false
 }
 
+// 根据平台获取编辑器类型
+const getPlatformType = (platform: string) => {
+  if (!platform) return 'kubernetes'
+
+  const platformLower = platform.toLowerCase()
+  if (platformLower.includes('docker') && platformLower.includes('compose')) {
+    return 'docker-compose'
+  } else if (platformLower.includes('kubernetes') || platformLower.includes('k8s')) {
+    return 'kubernetes'
+  } else {
+    return 'kubernetes' // 默认使用Kubernetes语法
+  }
+}
+
 // 处理更多操作
 const handleMoreAction = async (key: string, app: any) => {
   try {
@@ -649,17 +676,52 @@ const handleMoreAction = async (key: string, app: any) => {
 
 // 停止应用
 const handleStopApplication = async (app: any) => {
-  await applicationApi.executeAction(
-    currentWorkspace.value,
-    app.name,
-    'stop'
-  )
+  // 显示确认对话框
+  const confirmed = await new Promise((resolve) => {
+    dialog.warning({
+      title: '确认停止应用',
+      content: `确定要停止应用 "${app.name}" 吗？停止后应用将无法访问，直到重新启动。`,
+      positiveText: '确认停止',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        resolve(true)
+      },
+      onNegativeClick: () => {
+        resolve(false)
+      }
+    })
+  })
 
-  setTimeout(() => {
-    loadApplications()
-  }, 1000)
+  if (!confirmed) {
+    return
+  }
 
-  message.success(`应用 ${app.name} 已停止`)
+  try {
+    // 设置应用为停止中状态
+    app.stopping = true
+
+    const response = await applicationApi.executeAction(
+      currentWorkspace.value,
+      app.name,
+      'stop'
+    )
+
+    if (response.data.success) {
+      message.success(`应用 ${app.name} 停止成功`)
+
+      // 延迟刷新应用列表，让用户看到状态变化
+      setTimeout(() => {
+        loadApplications()
+      }, 1500)
+    } else {
+      message.error(`应用 ${app.name} 停止失败`)
+    }
+  } catch (error: any) {
+    console.error('停止应用失败:', error)
+    message.error(error.message || `停止应用 ${app.name} 失败`)
+  } finally {
+    app.stopping = false
+  }
 }
 
 // 重启应用
@@ -977,6 +1039,10 @@ onMounted(() => {
 
 .status-dot.status-deploying {
   background-color: #1890FF;
+}
+
+.status-dot.status-stopping {
+  background-color: #FA8C16;
 }
 
 .status-dot.status-error {

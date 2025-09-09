@@ -39,6 +39,8 @@ export class KubernetesHandler extends BasePlatformHandler {
   async getApplicationStatus(nameOrApp: string | ApplicationInstance, config: WorkspaceConfig, sessionId: string): Promise<Partial<ApplicationInstance>> {
     // 支持传入应用名称或完整应用对象
     const name = typeof nameOrApp === 'string' ? nameOrApp : nameOrApp.name;
+
+    // 优先使用应用对象中的命名空间信息，如果没有则使用配置中的命名空间
     const namespace = typeof nameOrApp === 'object' && nameOrApp.platformSpecific?.namespace
       ? nameOrApp.platformSpecific.namespace
       : config.BUILD_K8S_NAMESPACE || 'default';

@@ -242,9 +242,22 @@ class ApplicationService {
       const devopsRoot = process.env.DEVOPS_ROOT || '/root/devops';
       const filePath = `${devopsRoot}/workspace/${workspace}/deploy/app/${appName}.yml`;
 
+      // 创建备份目录并备份原文件
+      const backupDir = `${devopsRoot}/workspace/${workspace}/deploy/app/backups`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFileName = `${appName}.yml.backup.${timestamp}`;
+      const backupPath = `${backupDir}/${backupFileName}`;
+
+      // 确保备份目录存在
+      await this.executeRemoteCommand(sessionId, `mkdir -p "${backupDir}"`, workspace);
+
       // 备份原文件
-      const backupPath = `${filePath}.backup.${Date.now()}`;
       await this.executeRemoteCommand(sessionId, `cp "${filePath}" "${backupPath}"`, workspace);
+
+      console.log(`配置文件已备份到: ${backupPath}`);
+
+      // 清理旧备份文件（保留最近10个备份）
+      await this.cleanupOldBackups(sessionId, backupDir, appName, workspace);
 
       // 保存新内容
       await this.writeRemoteFile(filePath, content, sessionId, workspace);
@@ -306,6 +319,35 @@ class ApplicationService {
 
     if (result.exitCode !== 0) {
       throw new Error(`写入文件失败: ${result.stderr}`);
+    }
+  }
+
+  /**
+   * 清理旧备份文件
+   */
+  private async cleanupOldBackups(sessionId: string, backupDir: string, appName: string, workspace: string): Promise<void> {
+    try {
+      // 列出该应用的所有备份文件，按时间排序
+      const listCommand = `ls -t "${backupDir}/${appName}.yml.backup."* 2>/dev/null || true`;
+      const result = await this.executeRemoteCommand(sessionId, listCommand, workspace);
+
+      if (result.exitCode === 0 && result.stdout.trim()) {
+        const backupFiles = result.stdout.trim().split('\n');
+
+        // 如果备份文件超过10个，删除最旧的
+        if (backupFiles.length > 10) {
+          const filesToDelete = backupFiles.slice(10); // 保留最新的10个
+          for (const file of filesToDelete) {
+            if (file.trim()) {
+              await this.executeRemoteCommand(sessionId, `rm -f "${file.trim()}"`, workspace);
+              console.log(`已删除旧备份文件: ${file.trim()}`);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('清理旧备份文件失败:', error);
+      // 不抛出错误，因为这不是关键操作
     }
   }
 
