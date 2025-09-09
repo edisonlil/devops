@@ -193,7 +193,7 @@ const functions = ref([
     description: '部署和管理容器化应用程序',
     icon: 'application',
     enabled: true,
-    status: { type: 'info', text: '开发中' },
+    status: { type: 'success', text: '运行中' },
     stats: [
       { label: '应用', value: 12 },
       { label: '运行中', value: 8 }

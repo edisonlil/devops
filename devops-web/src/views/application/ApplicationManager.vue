@@ -26,15 +26,30 @@
           </template>
         </n-input>
 
-        <n-button type="primary" @click="goToDeployPage">
-          <template #icon>
-            <n-icon><Add /></n-icon>
-          </template>
-          部署应用
-        </n-button>
+        <div class="action-buttons">
+          <n-button @click="loadApplications" :loading="loading">
+            <template #icon>
+              <n-icon><Search /></n-icon>
+            </template>
+            刷新
+          </n-button>
+
+          <n-button type="primary" @click="goToDeployPage">
+            <template #icon>
+              <n-icon><Add /></n-icon>
+            </template>
+            部署应用
+          </n-button>
+        </div>
       </div>
 
       <div class="application-list">
+        <!-- 刷新时显示进度条 -->
+        <div v-if="loading && applications.length > 0" class="loading-bar">
+          <n-progress type="line" :percentage="100" :show-indicator="false" processing />
+          <span class="loading-text">正在刷新应用列表...</span>
+        </div>
+
         <div class="table-container">
           <div class="table-header">
             <div class="col-name" @click="handleSort('name')">
@@ -45,9 +60,9 @@
                 </svg>
               </n-icon>
             </div>
-            <div class="col-status" @click="handleSort('status')">
-              <span>状态</span>
-              <n-icon class="sort-icon" :class="{ active: sortField === 'status' }">
+            <div class="col-status" @click="handleSort('type')">
+              <span>类型</span>
+              <n-icon class="sort-icon" :class="{ active: sortField === 'type' }">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M7 10l5 5 5-5z"/>
                 </svg>
@@ -83,8 +98,18 @@
           </div>
 
           <div class="table-body">
-          
-          <div v-if="paginatedApplications.length === 0" class="empty-state">
+
+          <!-- 首次加载且无数据时显示加载状态 -->
+          <div v-if="loading && applications.length === 0" class="empty-state">
+            <div class="empty-content">
+              <div class="empty-icon">⏳</div>
+              <div class="empty-title">加载中...</div>
+              <div class="empty-description">正在获取应用列表</div>
+            </div>
+          </div>
+
+          <!-- 无应用时显示空状态 -->
+          <div v-else-if="!loading && paginatedApplications.length === 0" class="empty-state">
             <div class="empty-content">
               <div class="empty-icon">📦</div>
               <div class="empty-title">暂无应用</div>
@@ -166,7 +191,7 @@
                 </a>
                 <n-dropdown
                   :options="getMoreActions(app)"
-                  @select="handleMoreAction"
+                  @select="(key) => handleMoreAction(key, app)"
                   trigger="click"
                 >
                   <a href="#" class="action-link">
@@ -194,17 +219,65 @@
       </div>
     </div>
 
+    <!-- 配置编辑模态框 -->
+    <n-modal v-model:show="showConfigEditor" preset="card" style="width: 80%; max-width: 1000px;" title="编辑应用配置">
+      <template #header>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span>编辑应用配置 - {{ editingApp?.name }}</span>
+          <n-tag v-if="editingApp" type="info" size="small">{{ editingApp.platform }}</n-tag>
+        </div>
+      </template>
+
+      <div v-if="configLoading" style="text-align: center; padding: 40px;">
+        <n-spin size="large" />
+        <div style="margin-top: 16px;">正在加载配置文件...</div>
+      </div>
+
+      <div v-else>
+        <!-- 配置编辑器 -->
+        <div style="margin-bottom: 16px;">
+          <n-input
+            v-model:value="configContent"
+            type="textarea"
+            placeholder="YAML配置内容"
+            :rows="20"
+            style="font-family: 'Courier New', monospace;"
+          />
+        </div>
+
+        <!-- 自动重新部署选项 -->
+        <div style="margin-bottom: 16px;">
+          <n-checkbox v-model:checked="autoRedeploy">
+            保存后自动重新部署应用
+          </n-checkbox>
+          <div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">
+            勾选此选项将在保存配置后自动重新部署应用，确保新配置生效
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <n-button @click="handleCancelEditConfig">取消</n-button>
+          <n-button type="primary" @click="handleSaveConfig" :loading="configLoading" :disabled="configLoading">
+            保存配置
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
+import { applicationApi } from '../../api/applications'
 import { Add, Search, EllipsisHorizontal } from '@vicons/ionicons5'
 
 const router = useRouter()
+const route = useRoute()
 const message = useMessage()
 
 const searchQuery = ref('')
@@ -212,40 +285,119 @@ const sortField = ref('')
 const sortOrder = ref('asc')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const loading = ref(false)
 
-// 模拟应用数据
-const applications = ref([
-  {
-    id: '1',
-    name: 'web-frontend',
-    type: 'Vue.js',
-    status: 'running',
-    cpu: 15,
-    memory: 32,
-    createdAt: '2025-08-29T17:34:00Z',
-    starting: false
-  },
-  {
-    id: '2', 
-    name: 'api-backend',
-    type: 'Java',
-    status: 'running',
-    cpu: 45,
-    memory: 68,
-    createdAt: '2025-08-29T16:43:00Z',
-    starting: false
-  },
-  {
-    id: '3',
-    name: 'nginx-proxy',
-    type: 'Nginx',
-    status: 'stopped',
-    cpu: 0,
-    memory: 0,
-    createdAt: '2025-08-28T14:22:00Z',
-    starting: false
+// 配置编辑相关
+const showConfigEditor = ref(false)
+const editingApp = ref<any>(null)
+const configContent = ref('')
+const configLoading = ref(false)
+const autoRedeploy = ref(false)
+
+// 当前工作空间
+const currentWorkspace = computed(() => route.params.workspaceName as string)
+
+// 应用数据
+const applications = ref([])
+
+// 获取应用列表
+const loadApplications = async () => {
+  if (!currentWorkspace.value) return
+
+  loading.value = true
+  try {
+    const response = await applicationApi.getApplications(currentWorkspace.value)
+
+    // 检查响应数据结构
+    console.log('API响应:', response)
+
+    // 将后端数据转换为前端格式
+    let apps = []
+    const responseData = response.data as any
+    console.log('响应数据结构:', responseData)
+
+    // 处理嵌套的data结构
+    if (responseData?.data?.applications) {
+      apps = responseData.data.applications
+      console.log('使用 response.data.data.applications:', apps)
+    } else if (responseData?.applications) {
+      apps = responseData.applications
+      console.log('使用 response.data.applications:', apps)
+    } else if (Array.isArray(responseData?.data)) {
+      apps = responseData.data
+      console.log('使用 response.data.data:', apps)
+    } else if (Array.isArray(responseData)) {
+      apps = responseData
+      console.log('使用 response.data:', apps)
+    } else {
+      console.warn('未知的响应数据格式:', responseData)
+      apps = []
+    }
+
+    applications.value = apps.map((app: any) => ({
+      id: app.name, // 使用name作为id
+      name: app.name,
+      type: app.platform || 'Unknown', // 显示平台类型
+      status: mapStatus(app.status), // 映射状态
+      cpu: app.cpu || 0, // 显示实际CPU使用率，获取不到时显示0
+      memory: app.memory || 0, // 显示实际内存使用率，获取不到时显示0
+      createdAt: app.createdAt || new Date().toISOString(),
+      starting: false,
+      // 保存原始数据用于操作
+      _original: app
+    }))
+
+    console.log(`加载了 ${applications.value.length} 个应用`)
+  } catch (error: any) {
+    console.error('获取应用列表失败:', error)
+
+    // 更详细的错误信息
+    if (error.response) {
+      console.error('响应状态:', error.response.status)
+      console.error('响应数据:', error.response.data)
+      message.error(`获取应用列表失败: ${error.response.data?.message || error.message}`)
+    } else if (error.request) {
+      console.error('请求失败:', error.request)
+      message.error('网络请求失败，请检查网络连接')
+    } else {
+      console.error('错误:', error.message)
+      message.error(error.message || '获取应用列表失败')
+    }
+  } finally {
+    loading.value = false
   }
-])
+}
+
+// 从镜像名提取应用类型
+const extractTypeFromImage = (image: string) => {
+  if (!image) return 'Unknown'
+
+  const imageName = image.toLowerCase()
+  if (imageName.includes('nginx')) return 'Nginx'
+  if (imageName.includes('node')) return 'Node.js'
+  if (imageName.includes('java') || imageName.includes('openjdk')) return 'Java'
+  if (imageName.includes('python')) return 'Python'
+  if (imageName.includes('mysql')) return 'MySQL'
+  if (imageName.includes('postgres')) return 'PostgreSQL'
+  if (imageName.includes('redis')) return 'Redis'
+  if (imageName.includes('mongo')) return 'MongoDB'
+
+  // 从镜像名提取第一部分作为类型
+  const parts = image.split(':')[0].split('/')
+  return parts[parts.length - 1] || 'Unknown'
+}
+
+// 映射状态
+const mapStatus = (backendStatus: string) => {
+  const statusMap: Record<string, string> = {
+    'running': 'running',
+    'stopped': 'stopped',
+    'error': 'error',
+    'pending': 'deploying',
+    'unknown': 'stopped'
+  }
+  return statusMap[backendStatus] || 'stopped'
+}
 
 // 过滤和排序后的应用列表
 const filteredAndSortedApplications = computed(() => {
@@ -340,13 +492,20 @@ const formatTime = (timeStr: string) => {
 const startApplication = async (app: any) => {
   app.starting = true
   try {
-    // 这里将来调用实际的API启动应用
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    app.status = 'running'
-    app.cpu = Math.floor(Math.random() * 50) + 10
-    app.memory = Math.floor(Math.random() * 60) + 20
+    await applicationApi.executeAction(
+      currentWorkspace.value,
+      app.name,
+      'start'
+    )
+
+    // 刷新应用状态
+    setTimeout(() => {
+      loadApplications()
+    }, 1000)
+
     message.success(`应用 ${app.name} 启动成功`)
   } catch (error: any) {
+    console.error('启动应用失败:', error)
     message.error(error.message || '启动应用失败')
   } finally {
     app.starting = false
@@ -359,24 +518,212 @@ const showApplicationDetail = (app: any) => {
 }
 
 // 获取更多操作选项
-const getMoreActions = (app: any) => [
-  {
+const getMoreActions = (app: any) => {
+  const actions = [
+    {
+      label: '查看日志',
+      key: 'logs'
+    }
+  ]
+
+  // 根据应用状态添加不同操作
+  if (app.status === 'running') {
+    actions.push({
+      label: '停止应用',
+      key: 'stop'
+    })
+    actions.push({
+      label: '滚动刷新 (保持配置，零停机)',
+      key: 'restart'
+    })
+  }
+
+  actions.push({
     label: '编辑配置',
     key: 'edit'
-  },
-  {
-    label: '查看日志',
-    key: 'logs'
-  },
-  {
-    label: '重新部署',
+  })
+
+  actions.push({
+    label: '重新启动 (重读配置文件)',
     key: 'redeploy'
+  })
+
+  return actions
+}
+
+// 编辑配置
+const handleEditConfig = async (app: any) => {
+  try {
+    editingApp.value = app
+    configLoading.value = true
+    showConfigEditor.value = true
+
+    const response = await applicationApi.getApplicationConfig(
+      currentWorkspace.value,
+      app.name
+    )
+
+    console.log('API响应:', response)
+    console.log('响应数据:', response.data)
+    console.log('嵌套数据:', (response.data as any).data)
+    console.log('配置内容:', (response.data as any).data?.content)
+
+    // 因为后端返回的格式是 { success: true, data: { content: "...", filePath: "..." } }
+    // 而axios返回的是完整的response，所以需要访问 response.data.data.content
+    configContent.value = response.data.data?.content || ''
+  } catch (error: any) {
+    console.error('获取配置失败:', error)
+    message.error(error.message || '获取配置失败')
+    showConfigEditor.value = false
+  } finally {
+    configLoading.value = false
   }
-]
+}
+
+// 保存配置
+const handleSaveConfig = async () => {
+  try {
+    configLoading.value = true
+
+    const response = await applicationApi.saveApplicationConfig(
+      currentWorkspace.value,
+      editingApp.value.name,
+      configContent.value,
+      autoRedeploy.value
+    )
+
+    if (response.data.data.saved) {
+      message.success(`配置保存成功${response.data.data.redeployed ? '，应用已重新部署' : ''}`)
+      showConfigEditor.value = false
+
+      if (response.data.data.redeployed) {
+        // 如果重新部署了，刷新应用列表
+        setTimeout(() => {
+          loadApplications()
+        }, 1000)
+      }
+    }
+  } catch (error: any) {
+    console.error('保存配置失败:', error)
+    message.error(error.message || '保存配置失败')
+  } finally {
+    configLoading.value = false
+  }
+}
+
+// 取消编辑配置
+const handleCancelEditConfig = () => {
+  showConfigEditor.value = false
+  editingApp.value = null
+  configContent.value = ''
+  autoRedeploy.value = false
+}
 
 // 处理更多操作
-const handleMoreAction = (key: string) => {
-  message.info(`${key} 功能开发中...`)
+const handleMoreAction = async (key: string, app: any) => {
+  try {
+    switch (key) {
+      case 'logs':
+        await handleViewLogs(app)
+        break
+      case 'stop':
+        await handleStopApplication(app)
+        break
+      case 'restart':
+        await handleRestartApplication(app)
+        break
+      case 'redeploy':
+        await handleRedeployApplication(app)
+        break
+      case 'edit':
+        await handleEditConfig(app)
+        break
+      default:
+        message.info(`${key} 功能开发中...`)
+    }
+  } catch (error: any) {
+    console.error('操作失败:', error)
+    message.error(error.message || '操作失败')
+  }
+}
+
+// 停止应用
+const handleStopApplication = async (app: any) => {
+  await applicationApi.executeAction(
+    currentWorkspace.value,
+    app.name,
+    'stop'
+  )
+
+  setTimeout(() => {
+    loadApplications()
+  }, 1000)
+
+  message.success(`应用 ${app.name} 已停止`)
+}
+
+// 重启应用
+const handleRestartApplication = async (app: any) => {
+  await applicationApi.executeAction(
+    currentWorkspace.value,
+    app.name,
+    'restart'
+  )
+
+  setTimeout(() => {
+    loadApplications()
+  }, 1000)
+
+  message.success(`应用 ${app.name} 已重启`)
+}
+
+// 查看日志
+const handleViewLogs = async (app: any) => {
+  try {
+    const response = await applicationApi.getApplicationLogs(
+      currentWorkspace.value,
+      app.name,
+      100
+    )
+
+    // 在新窗口显示日志
+    const logWindow = window.open('', '_blank', 'width=800,height=600')
+    if (logWindow) {
+      logWindow.document.write(`
+        <html>
+          <head><title>${app.name} - 应用日志</title></head>
+          <body style="font-family: monospace; padding: 20px;">
+            <h3>${app.name} 应用日志</h3>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto; white-space: pre-wrap;">${response.data.logs || '暂无日志'}</pre>
+          </body>
+        </html>
+      `)
+      logWindow.document.close()
+    }
+  } catch (error: any) {
+    console.error('获取日志失败:', error)
+    message.error(error.message || '获取日志失败')
+  }
+}
+
+// 重新启动应用
+const handleRedeployApplication = async (app: any) => {
+  try {
+    await applicationApi.executeAction(
+      currentWorkspace.value,
+      app.name,
+      'redeploy'
+    )
+
+    setTimeout(() => {
+      loadApplications()
+    }, 1000)
+
+    message.success(`应用 ${app.name} 重新启动成功`)
+  } catch (error: any) {
+    console.error('重新启动应用失败:', error)
+    message.error(error.message || '重新启动应用失败')
+  }
 }
 
 
@@ -403,6 +750,10 @@ const goToDeployPage = () => {
   router.push({ name: 'TemplateSelection' })
 }
 
+// 页面挂载时加载数据
+onMounted(() => {
+  loadApplications()
+})
 
 </script>
 
@@ -448,6 +799,30 @@ const goToDeployPage = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 操作按钮组样式 */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 加载进度条样式 */
+.loading-bar {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.loading-text {
+  display: block;
+  margin-top: 8px;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  text-align: center;
 }
 
 /* 分页区域样式 */

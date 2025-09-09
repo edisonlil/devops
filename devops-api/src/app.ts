@@ -14,6 +14,7 @@ import middlewareRoutes from './routes/middleware';
 import templateRoutes from './routes/template';
 import appRoutes from './routes/app';
 import deployRoutes from './routes/deploy';
+import applicationRoutes from './routes/applications';
 
 // 导入中间件
 import { errorHandler } from './middleware/errorHandler';
@@ -23,7 +24,7 @@ import { notFound } from './middleware/notFound';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT || 3001;
 
 // 基础中间件
 app.use(helmet());
@@ -72,6 +73,7 @@ app.use('/api/workspaces/:workspace/middleware', middlewareRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/app', appRoutes);
 app.use('/api/workspaces/:workspace/deploy', deployRoutes);
+app.use('/api/workspaces', applicationRoutes);
 
 // 错误处理中间件
 app.use(notFound);
