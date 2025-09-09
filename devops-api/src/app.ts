@@ -20,6 +20,9 @@ import applicationRoutes from './routes/applications';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 
+// 导入服务
+import { workspaceConfigService } from './services/WorkspaceConfigService';
+
 // 加载环境变量
 dotenv.config();
 
@@ -84,6 +87,10 @@ app.listen(PORT, () => {
   console.log(`🚀 DevOps API Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // 清除工作空间配置缓存，确保使用最新配置
+  workspaceConfigService.clearAllCache();
+  console.log('🔄 工作空间配置缓存已清除');
 });
 
 export default app;

@@ -75,7 +75,10 @@ export class KubernetesHandler extends BasePlatformHandler {
 
   async executeOperation(name: string, operation: string, params?: any, config?: WorkspaceConfig, sessionId?: string): Promise<boolean> {
     if (!sessionId) return false;
+
+    console.log(`K8s操作参数:`, { name, operation, params, config });
     const namespace = config?.BUILD_K8S_NAMESPACE || 'default';
+    console.log(`K8s命名空间: ${namespace} (来源: ${config?.BUILD_K8S_NAMESPACE ? 'config.BUILD_K8S_NAMESPACE' : 'default'})`);
     
     try {
       let command = '';

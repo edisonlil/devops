@@ -16,9 +16,15 @@ class WorkspaceConfigService {
   async getWorkspaceConfig(workspace: string, sessionId: string): Promise<WorkspaceConfig> {
     const cacheKey = `${workspace}:${sessionId}`;
     const cached = this.cache.get(cacheKey);
-    
+
+    // 强制清除 wukong-crm 的缓存，确保重新读取配置
+    if (workspace === 'wukong-crm' && cached) {
+      console.log(`强制清除 ${workspace} 的缓存配置`);
+      this.cache.delete(cacheKey);
+    }
+
     // 检查缓存是否有效
-    if (cached && this.isCacheValid(cached)) {
+    if (cached && this.isCacheValid(cached) && workspace !== 'wukong-crm') {
       console.log(`使用缓存的工作空间配置: ${workspace}`);
       return cached.config;
     }
@@ -38,30 +44,38 @@ class WorkspaceConfigService {
    */
   private async loadWorkspaceConfig(workspace: string, sessionId: string): Promise<WorkspaceConfig> {
     try {
-      const configPath = `workspace/${workspace}/config`;
+      const devopsRoot = process.env.DEVOPS_ROOT || '/root/devops';
+      const configPath = `${devopsRoot}/workspace/${workspace}/config`;
       const command = `cat ${configPath}`;
-      
+
+      console.log(`查询工作空间配置文件路径: ${configPath}`);
+      console.log(`执行命令: ${command}`);
+
       const result = await authService.executeCommand(sessionId, command);
-      
+
+      console.log(`命令执行结果: exitCode=${result.exitCode}, stdout="${result.stdout}", stderr="${result.stderr}"`);
+
       if (result.exitCode !== 0) {
-        console.warn(`工作空间配置文件不存在: ${workspace}, 使用默认配置`);
-        return this.getDefaultConfig();
+        console.warn(`工作空间配置文件不存在: ${workspace}, 路径: ${configPath}, 错误: ${result.stderr}`);
+        return this.getDefaultConfig(workspace);
       }
 
-      const config = this.parseConfigContent(result.stdout);
+      const config = this.parseConfigContent(result.stdout, workspace);
+      console.log(`解析后的工作空间配置 ${workspace}:`, JSON.stringify(config, null, 2));
       return config;
     } catch (error) {
       console.error(`读取工作空间配置失败: ${workspace}`, error);
-      return this.getDefaultConfig();
+      return this.getDefaultConfig(workspace);
     }
   }
 
   /**
    * 解析配置文件内容
    */
-  private parseConfigContent(content: string): WorkspaceConfig {
+  private parseConfigContent(content: string, workspace?: string): WorkspaceConfig {
     const config: WorkspaceConfig = {
-      BUILD_PLATFORM: 'KUBERNETES' // 默认值
+      BUILD_PLATFORM: 'KUBERNETES', // 默认值
+      BUILD_K8S_NAMESPACE: workspace || 'default' // 优先使用工作空间名称作为命名空间
     };
 
     const lines = content.split('\n');
@@ -83,16 +97,21 @@ class WorkspaceConfigService {
       config.BUILD_PLATFORM = 'KUBERNETES';
     }
 
+    // 确保 BUILD_K8S_NAMESPACE 有值，优先使用工作空间名称
+    if (!config.BUILD_K8S_NAMESPACE) {
+      config.BUILD_K8S_NAMESPACE = workspace || 'default';
+    }
+
     return config;
   }
 
   /**
    * 获取默认配置
    */
-  private getDefaultConfig(): WorkspaceConfig {
+  private getDefaultConfig(workspace?: string): WorkspaceConfig {
     return {
       BUILD_PLATFORM: 'KUBERNETES',
-      BUILD_K8S_NAMESPACE: 'default'
+      BUILD_K8S_NAMESPACE: workspace || 'default'
     };
   }
 
