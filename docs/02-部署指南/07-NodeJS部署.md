@@ -261,8 +261,10 @@ devops run nodejs \
 |------|------|------|
 | **目录** | 自动打包为 tar | `--static-dir ./dist/` |
 | **.tar** | 直接使用 tar 包 | `--static-dir ./build.tar` |
-| **.tar.gz** | 压缩的 tar 包 | `--static-dir ./build.tar.gz` |
+| **.tar.gz** | gzip 压缩的 tar 包 | `--static-dir ./build.tar.gz` |
+| **.tgz** | gzip 压缩的 tar 包（简写） | `--static-dir ./build.tgz` |
 | **.tar.bz2** | bzip2 压缩的 tar 包 | `--static-dir ./build.tar.bz2` |
+| **.tbz2** | bzip2 压缩的 tar 包（简写） | `--static-dir ./build.tbz2` |
 
 ### 使用示例
 
@@ -282,12 +284,15 @@ devops run nodejs \
 
 #### tar 包部署
 ```bash
-# 1. 打包构建好的应用
-tar -czf my-app.tar.gz -C ./dist .
+# 1. 打包构建好的应用（支持多种格式）
+tar -czf my-app.tar.gz -C ./dist .    # .tar.gz 格式
+tar -czf my-app.tgz -C ./dist .       # .tgz 格式（简写）
+tar -cjf my-app.tar.bz2 -C ./dist .   # .tar.bz2 格式
+tar -cjf my-app.tbz2 -C ./dist .      # .tbz2 格式（简写）
 
 # 2. 使用 tar 包部署
 devops run nodejs \
-  --static-dir ./my-app.tar.gz \
+  --static-dir ./my-app.tgz \
   --service-port "api:3000,admin:9090" \
   --export-port "30300,30090" \
   my-app
@@ -296,10 +301,15 @@ devops run nodejs \
 ### 工作流程
 
 1. **跳过 SCM**：不从 Git/SVN 拉取代码
-2. **处理本地资源**：
-   - 目录：自动打包为 `dist.tar`
-   - tar包：直接复制到构建目录
-3. **继续构建**：正常进行 Docker 镜像构建和部署
+2. **统一解压处理**：
+   - 目录：直接复制到构建目录
+   - `.tar` 包：解压到构建目录
+   - `.tar.gz/.tgz` 包：解压到构建目录
+   - `.tar.bz2/.tbz2` 包：解压到构建目录
+3. **智能目录结构处理**：
+   - 如果解压后只有一个顶级目录，自动提升其内容到根级别
+   - 确保关键文件（如 `package.json`）在构建上下文的根目录
+4. **统一构建流程**：所有应用类型使用相同的目录结构进行 Docker 构建
 
 ### 使用场景
 

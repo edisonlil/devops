@@ -1,7 +1,6 @@
 # 使用官方Node.js运行时作为基础镜像
 FROM node:18-alpine
-MAINTAINER devops@company.com
-LABEL maintainer='corp'
+LABEL maintainer='devops@company.com'
 
 # 设置工作目录
 WORKDIR /app
@@ -23,8 +22,8 @@ RUN addgroup -g 1001 -S nodejs && \
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# 暴露端口
-EXPOSE ?app_port
+# 暴露端口（Node.js应用通常监听环境变量PORT）
+EXPOSE 3001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

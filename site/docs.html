@@ -660,8 +660,10 @@ devops run nodejs \
                         <ul>
                             <li><strong>目录</strong>：<code>--static-dir ./dist/</code> - 自动打包为 tar</li>
                             <li><strong>.tar</strong>：<code>--static-dir ./build.tar</code> - 直接使用 tar 包</li>
-                            <li><strong>.tar.gz</strong>：<code>--static-dir ./build.tar.gz</code> - 压缩的 tar 包</li>
+                            <li><strong>.tar.gz</strong>：<code>--static-dir ./build.tar.gz</code> - gzip 压缩的 tar 包</li>
+                            <li><strong>.tgz</strong>：<code>--static-dir ./build.tgz</code> - gzip 压缩的 tar 包（简写）</li>
                             <li><strong>.tar.bz2</strong>：<code>--static-dir ./build.tar.bz2</code> - bzip2 压缩包</li>
+                            <li><strong>.tbz2</strong>：<code>--static-dir ./build.tbz2</code> - bzip2 压缩包（简写）</li>
                         </ul>
                     </div>
 
@@ -682,15 +684,26 @@ devops run nodejs \
                     </div>
 
                     <div class="info-block">
-                        <h3>🔧 构建流程</h3>
-                        <p>Node.js 应用的完整构建流程：</p>
+                        <h3>🔧 统一构建流程</h3>
+                        <p>所有应用类型（Node.js、Vue.js、Nginx）的统一构建流程：</p>
                         <ol>
-                            <li><strong>代码拉取</strong>：从 Git/SVN 仓库拉取源码</li>
-                            <li><strong>包管理器检测</strong>：自动检测 yarn/pnpm/npm</li>
-                            <li><strong>依赖安装</strong>：执行对应的安装命令</li>
-                            <li><strong>项目构建</strong>：执行构建脚本或自定义命令</li>
-                            <li><strong>健康检查</strong>：自动创建健康检查文件</li>
-                            <li><strong>容器化</strong>：构建 Docker 镜像并部署</li>
+                            <li><strong>代码获取</strong>：从 Git/SVN 仓库拉取源码或处理本地代码</li>
+                            <li><strong>统一解压处理</strong>：
+                                <ul>
+                                    <li>目录：直接复制到构建目录</li>
+                                    <li>压缩包：统一解压到构建目录</li>
+                                    <li>智能提升：自动处理单一顶级目录结构</li>
+                                </ul>
+                            </li>
+                            <li><strong>应用特定处理</strong>：
+                                <ul>
+                                    <li>Node.js：包管理器检测、依赖安装、项目构建</li>
+                                    <li>Vue.js：智能检测源码或构建产物，按需构建</li>
+                                    <li>Nginx：直接使用静态文件</li>
+                                </ul>
+                            </li>
+                            <li><strong>容器化</strong>：使用统一的目录结构构建 Docker 镜像</li>
+                            <li><strong>部署</strong>：推送镜像并部署到 Kubernetes</li>
                         </ol>
                     </div>
 

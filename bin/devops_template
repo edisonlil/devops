@@ -292,28 +292,54 @@ copy_template() {
         return 1
     fi
 
-    # 查找全局模板
-    local global_template_dir=""
-    for platform_dir in "$TEMPLATES_DIR"/*; do
-        if [ -d "$platform_dir" ]; then
-            local template_dir="$platform_dir/$template_id"
-            if [ -d "$template_dir" ]; then
-                global_template_dir="$template_dir"
-                break
-            fi
-        fi
-    done
+    # 读取workspace配置以确定平台类型
+    local workspace_config="$workspace_dir/config"
+    local platform_name="k8s"  # 默认平台
 
-    if [ -z "$global_template_dir" ]; then
-        log_error "全局模板不存在: $template_id"
+    if [ -f "$workspace_config" ]; then
+        # 从配置文件中读取BUILD_PLATFORM
+        local build_platform=$(grep "^BUILD_PLATFORM=" "$workspace_config" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        case "$build_platform" in
+            "KUBERNETES") platform_name="k8s" ;;
+            "DOCKER_SWARM") platform_name="swarm" ;;
+            "DOCKER_COMPOSE") platform_name="compose" ;;
+            "SHELL") platform_name="shell" ;;
+            *)
+                log_warning "未知的平台类型: $build_platform，使用默认平台 k8s"
+                platform_name="k8s"
+                ;;
+        esac
+        log_info "检测到workspace平台类型: $build_platform -> $platform_name"
+    else
+        log_warning "workspace配置文件不存在，使用默认平台: k8s"
+    fi
+
+    # 查找指定平台的应用模板（优先查找app目录）
+    local global_template_dir="$TEMPLATES_DIR/$platform_name/app/$template_id"
+    if [ ! -d "$global_template_dir" ]; then
+        # 如果app目录下没有，尝试middleware目录
+        global_template_dir="$TEMPLATES_DIR/$platform_name/middleware/$template_id"
+        if [ ! -d "$global_template_dir" ]; then
+            log_error "全局模板不存在: $template_id (平台: $platform_name)"
+            log_info "可用的应用模板位置: $TEMPLATES_DIR/$platform_name/app/"
+            log_info "可用的中间件模板位置: $TEMPLATES_DIR/$platform_name/middleware/"
+            return 1
+        fi
+    fi
+
+    # 确定模板类型（app 或 middleware）
+    local template_type=""
+    if [[ "$global_template_dir" == *"/app/"* ]]; then
+        template_type="app"
+    elif [[ "$global_template_dir" == *"/middleware/"* ]]; then
+        template_type="middleware"
+    else
+        log_error "无法确定模板类型: $global_template_dir"
         return 1
     fi
 
-    # 确定平台类型
-    local platform_name=$(basename "$(dirname "$global_template_dir")")
-
-    # 创建workspace模板目录
-    local workspace_template_dir="$workspace_dir/templates/$platform_name/$template_id"
+    # 创建workspace模板目录（保持相同的层级结构）
+    local workspace_template_dir="$workspace_dir/templates/$platform_name/$template_type/$template_id"
 
     # 检查是否已存在
     if [ -d "$workspace_template_dir" ]; then

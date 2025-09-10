@@ -3,7 +3,7 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/docker_helper.sh"
 
 function nginx_build() {
-	# 这里假定 scm() 已经将静态内容打包为 ${env[cfg_temp_dir]}/dist.tar
+	# scm() 已经将静态内容解压到 ${env[cfg_temp_dir]}
 	cfg_temp_dir=${env[cfg_temp_dir]}
 	cmd_job_name=${env[cmd_job_name]}
 	tmp_dockerfile=${env[tmp_dockerfile]}
@@ -11,21 +11,12 @@ function nginx_build() {
 	cfg_harbor_project=${env[cfg_harbor_project]}
 	tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
 
-	# 构建目录即为打包后的临时目录
-	if [ ! -f "$cfg_temp_dir/dist.tar" ]; then
-		error "未找到静态资源包: $cfg_temp_dir/dist.tar"; exit 1
+	# 检查构建目录是否存在
+	if [ ! -d "$cfg_temp_dir" ]; then
+		error "构建目录不存在: $cfg_temp_dir"; exit 1
 	fi
 
-	# 检查是否为压缩的tar包，如果是则解压
-	if [[ "$cfg_temp_dir/dist.tar" =~ \.(tar\.gz|tar\.bz2)$ ]]; then
-		info "检测到压缩的tar包，正在解压..."
-		if [[ "$cfg_temp_dir/dist.tar" =~ \.tar\.gz$ ]]; then
-			gunzip -f "$cfg_temp_dir/dist.tar"
-		elif [[ "$cfg_temp_dir/dist.tar" =~ \.tar\.bz2$ ]]; then
-			bunzip2 -f "$cfg_temp_dir/dist.tar"
-		fi
-		info "tar包解压完成"
-	fi
+	info "开始nginx项目镜像的构建，使用目录: $cfg_temp_dir"
 
 	env[tmp_build_dist_path]=$cfg_temp_dir
 

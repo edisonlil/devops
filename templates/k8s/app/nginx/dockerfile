@@ -1,18 +1,20 @@
 FROM nginx:alpine
-MAINTAINER devops@company.com
-LABEL maintainer='corp'
+LABEL maintainer='devops@company.com'
 
-# 复制打包的静态资源
-COPY dist.tar /tmp/
-RUN rm -rf /usr/share/nginx/html/* && \
-    tar -xf /tmp/dist.tar -C /usr/share/nginx/html && \
-    rm /tmp/dist.tar
+# 清理默认的nginx内容
+RUN rm -rf /usr/share/nginx/html/*
 
+# 复制静态文件到nginx目录
+COPY . /usr/share/nginx/html/
+
+# 暴露端口
 EXPOSE 80
 
+# 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost/ || exit 1
 
+# 启动 Nginx
 CMD ["nginx", "-g", "daemon off;"]
 
 

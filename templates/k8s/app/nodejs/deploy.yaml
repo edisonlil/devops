@@ -32,22 +32,22 @@ spec:
           value: "?app_port"
         - name: APP_NAME
           value: "?module_name"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: ?app_port
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: ?app_port
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+#        livenessProbe:
+#          httpGet:
+#            path: /health
+#            port: ?app_port
+#          initialDelaySeconds: 30
+#          periodSeconds: 10
+#          timeoutSeconds: 5
+#          failureThreshold: 3
+#        readinessProbe:
+#          httpGet:
+#            path: /ready
+#            port: ?app_port
+#          initialDelaySeconds: 5
+#          periodSeconds: 5
+#          timeoutSeconds: 3
+#          failureThreshold: 3
         resources:
           requests:
             memory: "128Mi"

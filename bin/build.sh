@@ -456,21 +456,39 @@ function scm() {
 		mkdir -p "$cfg_temp_dir"
 
 		# 检查是否为tar包文件
-		if [[ -f "$opt_static_dir" && "$opt_static_dir" =~ \.(tar|tar\.gz|tar\.bz2)$ ]]; then
-			info "检测到tar包文件: $opt_static_dir"
-			# 直接复制tar包到构建目录
-			cp "$opt_static_dir" "$cfg_temp_dir/dist.tar"
-			info "已复制tar包到构建目录: $cfg_temp_dir/dist.tar"
+		if [[ -f "$opt_static_dir" && "$opt_static_dir" =~ \.(tar|tar\.gz|tar\.bz2|tgz|tbz2)$ ]]; then
+			info "解压tar包文件: $opt_static_dir"
+
+			# 根据文件类型解压到构建目录
+			if [[ "$opt_static_dir" =~ \.(tar\.gz|tgz)$ ]]; then
+				tar -xzf "$opt_static_dir" -C "$cfg_temp_dir"
+			elif [[ "$opt_static_dir" =~ \.(tar\.bz2|tbz2)$ ]]; then
+				tar -xjf "$opt_static_dir" -C "$cfg_temp_dir"
+			elif [[ "$opt_static_dir" =~ \.tar$ ]]; then
+				tar -xf "$opt_static_dir" -C "$cfg_temp_dir"
+			fi
+
+			# 智能处理目录结构：如果解压后只有一个目录，则提升其内容到根级别
+			extract_contents=$(ls -A "$cfg_temp_dir")
+			if [[ $(echo "$extract_contents" | wc -l) -eq 1 && -d "$cfg_temp_dir/$extract_contents" ]]; then
+				info "检测到单一顶级目录，提升内容到根级别: $extract_contents"
+				mv "$cfg_temp_dir/$extract_contents"/* "$cfg_temp_dir/"
+				mv "$cfg_temp_dir/$extract_contents"/.[^.]* "$cfg_temp_dir/" 2>/dev/null || true
+				rmdir "$cfg_temp_dir/$extract_contents"
+			fi
+
+			info "已解压到构建目录: $cfg_temp_dir"
 		elif [ -d "$opt_static_dir" ]; then
-			info "检测到静态资源目录: $opt_static_dir"
-			# 打包静态资源为 dist.tar
-			( cd "$opt_static_dir" && tar -cf "$cfg_temp_dir/dist.tar" . )
-			info "已打包静态资源为: $cfg_temp_dir/dist.tar"
+			info "复制静态资源目录: $opt_static_dir"
+			cp -r "$opt_static_dir"/* "$cfg_temp_dir/"
+			# 复制隐藏文件
+			cp -r "$opt_static_dir"/.[^.]* "$cfg_temp_dir/" 2>/dev/null || true
+			info "已复制到构建目录: $cfg_temp_dir"
 		else
 			error "--static-dir 不存在或格式不支持: $opt_static_dir"; exit 1
 		fi
 
-		# 供后续 docker build 使用
+		# 设置构建路径
 		env[tmp_build_dist_path]="$cfg_temp_dir"
 		# 生成镜像后缀（仅日期）
 		date=`date +%Y-%m-%d_%H-%M-%S`

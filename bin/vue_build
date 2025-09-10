@@ -60,11 +60,39 @@ function vue_build() {
 		fi
 	fi
 
-	env[tmp_build_dist_path]=$module_path/dist
+	# 智能检测构建产物或源码
+	if [[ -d "$module_path/dist" && -f "$module_path/dist/index.html" ]]; then
+		info "检测到构建产物目录: $module_path/dist"
+		env[tmp_build_dist_path]="$module_path/dist"
+	elif [[ -f "$module_path/index.html" ]]; then
+		info "检测到静态文件，使用当前目录: $module_path"
+		env[tmp_build_dist_path]="$module_path"
+	elif [[ -f "$module_path/package.json" ]]; then
+		info "检测到Vue源码，需要先构建"
+		cd "$module_path"
 
-    info "开始vue项目镜像的构建"
-	cd ${env[tmp_build_dist_path]}
-	tar -cf dist.tar .
+		# 检测包管理器
+		if [[ -f "yarn.lock" ]]; then
+			info "使用yarn安装依赖"
+			yarn install
+			yarn build
+		elif [[ -f "pnpm-lock.yaml" ]]; then
+			info "使用pnpm安装依赖"
+			pnpm install
+			pnpm run build
+		else
+			info "使用npm安装依赖"
+			npm install
+			npm run build
+		fi
+
+		env[tmp_build_dist_path]="$module_path/dist"
+	else
+		info "未找到明确的构建产物，使用当前目录: $module_path"
+		env[tmp_build_dist_path]="$module_path"
+	fi
+
+	info "开始vue项目镜像的构建，使用目录: ${env[tmp_build_dist_path]}"
 
 	# 复制模板文件到最终构建上下文
 	copy_template_files_to_final_build_context
