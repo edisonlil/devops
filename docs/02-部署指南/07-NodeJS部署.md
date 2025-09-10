@@ -19,8 +19,11 @@
 
 ### 基本部署
 ```bash
-# 最简单的部署方式
+# 从 Git 仓库部署
 devops run nodejs --git-url "https://github.com/user/my-nodejs-app.git" my-app
+
+# 从本地打包好的代码部署
+devops run nodejs --static-dir ./dist/ my-app
 ```
 
 ### 交互式部署（推荐）
@@ -36,6 +39,7 @@ devops run nodejs my-app -i
 |------|------|------|
 | `--git-url` | Git 仓库地址 | `https://github.com/user/app.git` |
 | `--git-branch` | Git 分支 | `main`, `develop` |
+| `--static-dir` | 本地代码目录或tar包 | `./dist/`, `./app.tar.gz` |
 | `--template` | 部署模板 | `nodejs` |
 | `--namespace` | Kubernetes 命名空间 | `production` |
 | `--workspace` | 工作空间 | `prod` |
@@ -95,7 +99,26 @@ devops run nodejs \
   react-ssr
 ```
 
-### 示例4：完整生产环境配置
+### 示例4：使用本地打包代码部署
+```bash
+# 使用本地目录
+devops run nodejs \
+  --static-dir ./dist/ \
+  --app-port 3000 \
+  --expose-port 30300 \
+  --namespace staging \
+  my-app
+
+# 使用 tar 包
+devops run nodejs \
+  --static-dir ./my-app.tar.gz \
+  --service-port "api:3000,admin:9090" \
+  --export-port "30300,30090" \
+  --namespace production \
+  my-service
+```
+
+### 示例5：完整生产环境配置
 ```bash
 devops run nodejs \
   --git-url "https://github.com/company/payment-service.git" \
@@ -227,6 +250,63 @@ devops run nodejs \
 1. 根据包管理器自动安装依赖
 2. 然后执行您指定的自定义构建命令
 3. 这确保了构建命令能够使用已安装的依赖
+
+## 📦 本地代码部署
+
+如果您已经在本地构建好了 Node.js 应用，可以使用 `--static-dir` 参数直接部署，跳过 Git 拉取和构建过程。
+
+### 支持的格式
+
+| 格式 | 说明 | 示例 |
+|------|------|------|
+| **目录** | 自动打包为 tar | `--static-dir ./dist/` |
+| **.tar** | 直接使用 tar 包 | `--static-dir ./build.tar` |
+| **.tar.gz** | 压缩的 tar 包 | `--static-dir ./build.tar.gz` |
+| **.tar.bz2** | bzip2 压缩的 tar 包 | `--static-dir ./build.tar.bz2` |
+
+### 使用示例
+
+#### 本地目录部署
+```bash
+# 1. 本地构建应用
+npm install
+npm run build
+
+# 2. 直接部署构建结果
+devops run nodejs \
+  --static-dir ./dist/ \
+  --app-port 3000 \
+  --expose-port 30300 \
+  my-app
+```
+
+#### tar 包部署
+```bash
+# 1. 打包构建好的应用
+tar -czf my-app.tar.gz -C ./dist .
+
+# 2. 使用 tar 包部署
+devops run nodejs \
+  --static-dir ./my-app.tar.gz \
+  --service-port "api:3000,admin:9090" \
+  --export-port "30300,30090" \
+  my-app
+```
+
+### 工作流程
+
+1. **跳过 SCM**：不从 Git/SVN 拉取代码
+2. **处理本地资源**：
+   - 目录：自动打包为 `dist.tar`
+   - tar包：直接复制到构建目录
+3. **继续构建**：正常进行 Docker 镜像构建和部署
+
+### 使用场景
+
+- **CI/CD 流水线**：先构建，再部署
+- **本地开发测试**：快速部署测试版本
+- **多环境部署**：使用相同的构建产物部署到不同环境
+- **离线部署**：不依赖网络连接到代码仓库
 
 ## 🌐 npm 镜像源配置
 

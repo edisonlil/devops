@@ -580,9 +580,14 @@ devops run vue \
 
                     <h2>基础部署</h2>
                     <div class="code-block">
-                        <code># 基础 Node.js 项目部署（自动检测包管理器）
+                        <code># 从 Git 仓库部署（自动检测包管理器）
 devops run nodejs \
   --git-url https://github.com/example/nodejs-app.git \
+  my-app
+
+# 从本地打包好的代码部署
+devops run nodejs \
+  --static-dir ./dist/ \
   my-app</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
                     </div>
@@ -631,6 +636,33 @@ devops run nodejs \
   --namespace production \
   my-service</code>
                         <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>本地代码部署</h2>
+                    <p>如果您已经在本地构建好了应用，可以直接部署，跳过构建过程：</p>
+                    <div class="code-block">
+                        <code># 使用本地目录
+devops run nodejs \
+  --static-dir ./dist/ \
+  --app-port 3000 \
+  my-app
+
+# 使用 tar 包
+devops run nodejs \
+  --static-dir ./my-app.tar.gz \
+  --service-port "api:3000,admin:9090" \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>📦 支持的格式</h3>
+                        <ul>
+                            <li><strong>目录</strong>：<code>--static-dir ./dist/</code> - 自动打包为 tar</li>
+                            <li><strong>.tar</strong>：<code>--static-dir ./build.tar</code> - 直接使用 tar 包</li>
+                            <li><strong>.tar.gz</strong>：<code>--static-dir ./build.tar.gz</code> - 压缩的 tar 包</li>
+                            <li><strong>.tar.bz2</strong>：<code>--static-dir ./build.tar.bz2</code> - bzip2 压缩包</li>
+                        </ul>
                     </div>
 
                     <h2>自定义构建</h2>
