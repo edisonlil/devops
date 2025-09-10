@@ -75,12 +75,24 @@ export const applicationApi = {
   },
 
   // 获取应用日志
-  getApplicationLogs: (workspace: string, appName: string, lines?: number, follow?: boolean) => {
+  getApplicationLogs: (workspace: string, appName: string, lines?: number, follow?: boolean, container?: string) => {
     const params = new URLSearchParams()
     if (lines) params.append('lines', lines.toString())
     if (follow) params.append('follow', follow.toString())
+    if (container) params.append('container', container)
 
-    return request.get<{ logs: string; lines: number }>(`/workspaces/${workspace}/applications/${appName}/logs?${params}`)
+    return request.get<{
+      success: boolean;
+      data?: {
+        workspace: string;
+        appName: string;
+        logs: string;
+        lines: number
+      };
+      logs?: string;
+      lines?: number;
+      error?: string;
+    }>(`/workspaces/${workspace}/applications/${appName}/logs?${params}`)
   },
 
   // 获取应用配置文件

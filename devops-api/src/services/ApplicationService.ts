@@ -102,20 +102,32 @@ class ApplicationService {
    * 获取应用日志
    */
   async getApplicationLogs(
-    workspace: string, 
-    appName: string, 
-    lines: number = 100, 
+    workspace: string,
+    appName: string,
+    sessionId: string,
+    lines: number = 100,
     follow: boolean = false,
-    sessionId: string
+    container?: string
   ): Promise<string> {
     try {
       const config = await workspaceConfigService.getWorkspaceConfig(workspace, sessionId);
       const handler = this.getHandler(config.BUILD_PLATFORM);
-      
-      // 执行日志查询操作
-      const result = await handler.executeOperation(appName, 'logs', { lines, follow }, config, sessionId);
-      
-      return result ? 'Logs retrieved successfully' : 'Failed to retrieve logs';
+
+      // 获取命名空间
+      const namespace = config.BUILD_K8S_NAMESPACE || workspace || 'default';
+
+      // 如果是Kubernetes平台，直接调用getApplicationLogs方法
+      if (config.BUILD_PLATFORM === 'KUBERNETES') {
+        const kubernetesHandler = handler as any; // 类型断言
+        return await kubernetesHandler.getApplicationLogs(
+          appName,
+          namespace,
+          { lines, follow, container },
+          sessionId
+        );
+      }
+
+      throw new Error(`平台 ${config.BUILD_PLATFORM} 暂不支持日志查看功能`);
     } catch (error) {
       console.error(`获取应用日志失败: ${workspace}/${appName}`, error);
       throw error;

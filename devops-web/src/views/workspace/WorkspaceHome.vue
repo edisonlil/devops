@@ -92,6 +92,14 @@ const createRules = {
 // 可用模块配置
 const availableModules = computed(() => [
   {
+    id: 'application',
+    name: '应用管理',
+    description: '应用部署管理',
+    icon: '🐙',
+    route: 'application',
+    enabled: true // 已实现
+  },
+  {
     id: 'devbox',
     name: 'DevBox',
     description: '开发环境',
@@ -113,15 +121,7 @@ const availableModules = computed(() => [
     description: '数据库服务',
     icon: '🗄️',
     route: 'database',
-    enabled: false // 暂未实现
-  },
-  {
-    id: 'application',
-    name: '应用管理',
-    description: '应用部署管理',
-    icon: '🐙',
-    route: 'application',
-    enabled: false // 暂未实现
+    enabled: false // 置灰
   },
   {
     id: 'middleware',
@@ -129,7 +129,7 @@ const availableModules = computed(() => [
     description: '中间件部署',
     icon: '🚀',
     route: 'middleware',
-    enabled: true // 已实现
+    enabled: false // 置灰
   },
   {
     id: 'monitoring',
@@ -176,18 +176,6 @@ const availableModules = computed(() => [
 // 功能模块配置
 const functions = ref([
   {
-    id: 'middleware',
-    title: '中间件管理',
-    description: '管理数据库、缓存、消息队列等中间件服务',
-    icon: 'middleware',
-    enabled: true,
-    status: { type: 'success', text: '运行中' },
-    stats: [
-      { label: '实例', value: 5 },
-      { label: '运行中', value: 4 }
-    ]
-  },
-  {
     id: 'application',
     title: '应用管理',
     description: '部署和管理容器化应用程序',
@@ -200,12 +188,36 @@ const functions = ref([
     ]
   },
   {
+    id: 'cicd',
+    title: 'CI/CD',
+    description: '持续集成和持续部署流水线',
+    icon: 'cicd',
+    enabled: true,
+    status: { type: 'success', text: '可用' },
+    stats: [
+      { label: '流水线', value: 0 },
+      { label: '部署次数', value: 0 }
+    ]
+  },
+  {
+    id: 'middleware',
+    title: '中间件管理',
+    description: '管理数据库、缓存、消息队列等中间件服务',
+    icon: 'middleware',
+    enabled: false,
+    status: { type: 'info', text: '暂时禁用' },
+    stats: [
+      { label: '实例', value: 5 },
+      { label: '运行中', value: 4 }
+    ]
+  },
+  {
     id: 'database',
     title: '数据库',
     description: 'MySQL、PostgreSQL、MongoDB 等数据库服务',
     icon: 'database',
-    enabled: true,
-    status: { type: 'success', text: '正常' },
+    enabled: false,
+    status: { type: 'info', text: '暂时禁用' },
     stats: [
       { label: '实例', value: 3 },
       { label: '连接数', value: 45 }
@@ -218,18 +230,6 @@ const functions = ref([
     icon: 'monitoring',
     enabled: false,
     status: { type: 'warning', text: '即将上线' }
-  },
-  {
-    id: 'cicd',
-    title: 'CI/CD',
-    description: '持续集成和持续部署流水线',
-    icon: 'cicd',
-    enabled: true,
-    status: { type: 'success', text: '可用' },
-    stats: [
-      { label: '流水线', value: 0 },
-      { label: '部署次数', value: 0 }
-    ]
   },
   {
     id: 'storage',
@@ -305,14 +305,15 @@ const handleFunctionClick = (func: any) => {
   // 根据功能类型进行路由跳转
   switch (func.id) {
     case 'middleware':
-      router.push(`/workspace/${currentWorkspaceName}/manage/middleware`)
+      // 中间件管理已禁用
+      message.warning('中间件管理功能暂时禁用')
       break
     case 'application':
       router.push(`/workspace/${currentWorkspaceName}/manage/application`)
       break
     case 'database':
-      // 跳转到中间件管理页面，数据库属于中间件的一部分
-      router.push(`/workspace/${currentWorkspaceName}/manage/middleware`)
+      // 数据库功能已禁用
+      message.warning('数据库功能暂时禁用')
       break
     case 'cicd':
       router.push(`/workspace/${currentWorkspaceName}/manage/cicd`)

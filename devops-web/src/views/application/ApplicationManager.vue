@@ -266,16 +266,129 @@
       </template>
     </n-modal>
 
+    <!-- 日志查看模态框 -->
+    <n-modal
+      v-model:show="showLogModal"
+      preset="card"
+      :title="`${currentLogApp?.name || ''} - 应用日志`"
+      style="width: 95%; max-width: 1400px; height: 85vh;"
+      :mask-closable="false"
+      class="log-modal"
+    >
+      <template #header-extra>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px; color: #666;">显示行数:</span>
+            <n-input-number
+              v-model="logLines"
+              :min="10"
+              :max="1000"
+              :step="50"
+              size="small"
+              style="width: 90px;"
+              placeholder="行数"
+            />
+          </div>
+          <n-button
+            size="small"
+            @click="toggleAutoRefresh"
+            :type="autoRefresh ? 'primary' : 'default'"
+          >
+            {{ autoRefresh ? '自动刷新' : '手动刷新' }}
+          </n-button>
+          <n-button size="small" @click="refreshLogs" :loading="logLoading" type="primary">
+            <template #icon>
+              <n-icon><svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></n-icon>
+            </template>
+            刷新日志
+          </n-button>
+          <n-button size="small" @click="scrollToBottom">
+            滚动到底部
+          </n-button>
+          <n-button size="small" @click="downloadLogs">
+            下载日志
+          </n-button>
+        </div>
+      </template>
+
+      <!-- 日志搜索和过滤栏 -->
+      <div style="padding: 8px 0; border-bottom: 1px solid #333; display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+        <n-input
+          v-model:value="logSearchQuery"
+          placeholder="搜索日志内容..."
+          size="small"
+          clearable
+          style="max-width: 300px;"
+        >
+          <template #prefix>
+            <n-icon><svg viewBox="0 0 24 24"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5S14 7.01 14 9.5S11.99 14 9.5 14z"/></svg></n-icon>
+          </template>
+        </n-input>
+
+        <!-- 日志级别过滤 -->
+        <n-select
+          v-model:value="logLevelFilter"
+          placeholder="日志级别"
+          size="small"
+          clearable
+          style="width: 120px;"
+          :options="logLevelOptions"
+        />
+
+        <!-- 搜索结果统计 -->
+        <span v-if="logSearchQuery && filteredLogStats.total > 0" style="font-size: 12px; color: #666;">
+          找到 {{ filteredLogStats.matches }} 行，共 {{ filteredLogStats.total }} 行
+        </span>
+        <span v-else-if="logSearchQuery && filteredLogStats.total === 0" style="font-size: 12px; color: #f56c6c;">
+          未找到匹配内容
+        </span>
+      </div>
+
+      <!-- 日志容器 -->
+      <div class="logs-container">
+        <n-spin :show="logLoading" style="height: 100%;">
+          <div
+            ref="logContainer"
+            class="log-content"
+            @scroll="handleLogScroll"
+          >
+            <div v-if="!filteredLogContent || filteredLogContent.trim() === ''" class="empty-logs">
+              暂无日志内容
+            </div>
+            <pre v-else class="log-text">{{ filteredLogContent }}</pre>
+          </div>
+        </n-spin>
+      </div>
+
+      <template #footer>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="color: #666; font-size: 12px;">
+            显示最近 {{ logLines }} 行日志
+            <span v-if="lastUpdateTime" style="margin-left: 16px;">
+              最后更新: {{ lastUpdateTime }}
+            </span>
+            <span v-if="autoRefresh" style="margin-left: 8px; color: #18a058;">
+              (自动刷新中)
+            </span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <n-button @click="closeLogModal">关闭</n-button>
+          </div>
+        </div>
+      </template>
+    </n-modal>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
 import { applicationApi } from '../../api/applications'
 import { Add, Search, EllipsisHorizontal } from '@vicons/ionicons5'
 import ConfigEditor from '../../components/ConfigEditor.vue'
+
 
 const router = useRouter()
 const route = useRoute()
@@ -739,33 +852,252 @@ const handleRestartApplication = async (app: any) => {
   message.success(`应用 ${app.name} 已重启`)
 }
 
+// 日志相关状态
+const showLogModal = ref(false)
+const currentLogApp = ref<any>(null)
+const logContent = ref('')
+const logLoading = ref(false)
+const logLines = ref(100)
+const autoRefresh = ref(true)
+const logContainer = ref<HTMLElement>()
+const refreshInterval = ref<any>(null)
+const lastUpdateTime = ref('')
+const logRef = ref()
+const logSearchQuery = ref('')
+const logLevelFilter = ref('')
+
+// 日志级别选项
+const logLevelOptions = [
+  { label: 'ERROR', value: 'ERROR' },
+  { label: 'WARN', value: 'WARN' },
+  { label: 'INFO', value: 'INFO' },
+  { label: 'DEBUG', value: 'DEBUG' },
+  { label: 'TRACE', value: 'TRACE' }
+]
+
+// 过滤后的日志内容
+const filteredLogContent = computed(() => {
+  if (!logContent.value) return '暂无日志内容'
+
+  // 按行分割日志内容
+  const lines = logContent.value.split('\n')
+  let filteredLines = lines
+
+  // 日志级别过滤
+  if (logLevelFilter.value) {
+    filteredLines = filteredLines.filter(line =>
+      line.includes(logLevelFilter.value)
+    )
+  }
+
+  // 搜索关键词过滤
+  if (logSearchQuery.value) {
+    const query = logSearchQuery.value.toLowerCase()
+    filteredLines = filteredLines.filter(line =>
+      line.toLowerCase().includes(query)
+    )
+  }
+
+  if (filteredLines.length === 0) {
+    if (logSearchQuery.value && logLevelFilter.value) {
+      return `未找到包含 "${logSearchQuery.value}" 且级别为 "${logLevelFilter.value}" 的日志内容`
+    } else if (logSearchQuery.value) {
+      return `未找到包含 "${logSearchQuery.value}" 的日志内容`
+    } else if (logLevelFilter.value) {
+      return `未找到级别为 "${logLevelFilter.value}" 的日志内容`
+    }
+  }
+
+  return filteredLines.join('\n')
+})
+
+// 日志统计信息
+const filteredLogStats = computed(() => {
+  if (!logContent.value) return { total: 0, matches: 0 }
+
+  const totalLines = logContent.value.split('\n').length
+  const filteredLines = filteredLogContent.value.split('\n').length
+
+  return {
+    total: totalLines,
+    matches: filteredLines
+  }
+})
+
+// 滚动到底部
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (logRef.value) {
+      try {
+        // 使用 n-log 组件的 scrollTo 方法
+        logRef.value.scrollTo({ position: 'bottom', silent: false })
+      } catch (error) {
+        console.warn('滚动到底部失败:', error)
+      }
+    }
+  })
+}
+
+// 日志滚动事件处理
+const handleLogScroll = (event: Event) => {
+  const target = event.target as HTMLElement
+  const { scrollTop, scrollHeight, clientHeight } = target
+
+  // 检查是否滚动到顶部
+  if (scrollTop === 0) {
+    console.log('日志已滚动到顶部')
+  }
+
+  // 检查是否滚动到底部
+  if (scrollTop + clientHeight >= scrollHeight - 1) {
+    console.log('日志已滚动到底部')
+  }
+}
+
+const handleLogReachBottom = () => {
+  console.log('日志已滚动到底部')
+}
+
+const handleLogReachTop = () => {
+  console.log('日志已滚动到顶部')
+}
+
+// 自动滚动到底部
+const scrollLogToBottom = () => {
+  if (logContainer.value) {
+    setTimeout(() => {
+      if (logContainer.value) {
+        logContainer.value.scrollTop = logContainer.value.scrollHeight
+      }
+    }, 100)
+  }
+}
+
+// 开始自动刷新
+const startAutoRefresh = () => {
+  stopAutoRefresh()
+
+  if (autoRefresh.value && currentLogApp.value) {
+    console.log('启动自动刷新定时器，应用:', currentLogApp.value.name)
+    refreshInterval.value = setInterval(() => {
+      if (showLogModal.value && currentLogApp.value && !logLoading.value) {
+        console.log('执行自动刷新，应用:', currentLogApp.value.name)
+        handleViewLogs(currentLogApp.value, false) // 静默刷新
+      }
+    }, 3000) // 每3秒刷新一次
+  } else {
+    console.log('未启动自动刷新，autoRefresh:', autoRefresh.value, 'currentLogApp:', currentLogApp.value?.name)
+  }
+}
+
+// 停止自动刷新
+const stopAutoRefresh = () => {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+}
+
 // 查看日志
-const handleViewLogs = async (app: any) => {
+const handleViewLogs = async (app: any, showModal = true) => {
   try {
+    console.log('开始查看日志:', app.name)
+    currentLogApp.value = app
+    if (showModal) {
+      showLogModal.value = true
+      console.log('设置模态框显示状态:', showLogModal.value)
+      logContent.value = ''
+    }
+
+    // 静默刷新时不显示加载状态，避免闪烁
+    if (showModal) {
+      logLoading.value = true
+    }
+
     const response = await applicationApi.getApplicationLogs(
       currentWorkspace.value,
       app.name,
-      100
+      logLines.value
     )
 
-    // 在新窗口显示日志
-    const logWindow = window.open('', '_blank', 'width=800,height=600')
-    if (logWindow) {
-      logWindow.document.write(`
-        <html>
-          <head><title>${app.name} - 应用日志</title></head>
-          <body style="font-family: monospace; padding: 20px;">
-            <h3>${app.name} 应用日志</h3>
-            <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto; white-space: pre-wrap;">${response.data.logs || '暂无日志'}</pre>
-          </body>
-        </html>
-      `)
-      logWindow.document.close()
+    let newLogContent = ''
+    // 处理不同的响应格式
+    if (response.data.success !== undefined) {
+      // 新的响应格式: { success: boolean, data: {...} }
+      if (response.data.success) {
+        newLogContent = response.data.data?.logs || response.data.logs || '暂无日志内容'
+      } else {
+        throw new Error(response.data.error || '获取日志失败')
+      }
+    } else {
+      // 旧的响应格式: { logs: string, lines: number }
+      newLogContent = response.data.logs || '暂无日志内容'
+    }
+
+    // 只有内容真正变化时才更新，避免不必要的重绘
+    if (logContent.value !== newLogContent) {
+      logContent.value = newLogContent
+
+      // 更新最后更新时间
+      lastUpdateTime.value = new Date().toLocaleTimeString()
+
+      // 滚动到底部（延迟执行，确保DOM更新完成）
+      nextTick(() => {
+        scrollLogToBottom()
+      })
+    }
+
+    // 开始自动刷新（仅在首次打开时）
+    if (showModal && showLogModal.value) {
+      startAutoRefresh()
     }
   } catch (error: any) {
     console.error('获取日志失败:', error)
     message.error(error.message || '获取日志失败')
+    logContent.value = '获取日志失败: ' + (error.message || '未知错误')
+  } finally {
+    logLoading.value = false
   }
+}
+
+// 刷新日志
+const refreshLogs = async () => {
+  if (!currentLogApp.value) return
+  await handleViewLogs(currentLogApp.value, false)
+}
+
+// 切换自动刷新
+const toggleAutoRefresh = () => {
+  autoRefresh.value = !autoRefresh.value
+  console.log('切换自动刷新状态:', autoRefresh.value)
+  if (autoRefresh.value) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
+
+// 下载日志
+const downloadLogs = () => {
+  if (!logContent.value || !currentLogApp.value) return
+
+  const blob = new Blob([logContent.value], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${currentLogApp.value.name}-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// 关闭日志模态框
+const closeLogModal = () => {
+  showLogModal.value = false
+  currentLogApp.value = null
+  logContent.value = ''
+  stopAutoRefresh()
 }
 
 // 重新启动应用
@@ -805,6 +1137,21 @@ const handleSort = (field: string) => {
 // 监听搜索查询变化，重置到第一页
 watch(searchQuery, () => {
   currentPage.value = 1
+})
+
+// 监听日志模态框状态变化
+watch(showLogModal, (newValue) => {
+  if (!newValue) {
+    // 模态框关闭时停止自动刷新
+    stopAutoRefresh()
+    currentLogApp.value = null
+    logContent.value = ''
+  }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 
 // 跳转到部署页面
@@ -1232,4 +1579,43 @@ onMounted(() => {
     font-size: var(--font-size-small);
   }
 }
+
+
+
+
+
+
+/* 日志容器样式 - 完全参考 CI/CD 实现 */
+.logs-container {
+  background: #1F2937;
+  border-radius: 8px;
+  padding: 16px;
+  height: calc(85vh - 200px);
+  min-height: 450px;
+  overflow-y: auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+}
+
+.log-content {
+  height: 100%;
+}
+
+.log-text {
+  color: #F9FAFB;
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: transparent;
+}
+
+.empty-logs {
+  color: #9CA3AF;
+  text-align: center;
+  padding: 32px;
+  font-style: italic;
+}
+
+
 </style>

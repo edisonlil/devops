@@ -204,12 +204,15 @@ class ApplicationController {
 
       console.log(`获取应用日志: ${workspace}/${appName}`);
 
+      const { container } = req.query;
+
       const logs = await applicationService.getApplicationLogs(
         workspace,
         appName,
+        sessionId,
         parseInt(lines as string) || 100,
         follow === 'true',
-        sessionId
+        container as string
       );
 
       res.json({

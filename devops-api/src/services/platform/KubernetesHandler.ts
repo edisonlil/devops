@@ -97,6 +97,9 @@ export class KubernetesHandler extends BasePlatformHandler {
           const replicas = params?.replicas || 1;
           command = `kubectl scale deployment ${name} --replicas=${replicas} -n ${namespace}`;
           break;
+        case 'logs':
+          // logs操作不返回boolean，而是通过专门的方法处理
+          throw new Error('日志操作请使用专门的getApplicationLogs方法');
         case 'redeploy':
           if (!config) throw new Error('配置信息缺失');
           // 从params中获取workspace信息
@@ -342,6 +345,43 @@ export class KubernetesHandler extends BasePlatformHandler {
     // 构建部署目录路径
     const devopsRoot = process.env.DEVOPS_ROOT || '/root/devops';
     return `${devopsRoot}/workspace/${workspace}/deploy/app`;
+  }
+
+  /**
+   * 获取应用日志
+   */
+  async getApplicationLogs(name: string, namespace: string, params: any, sessionId: string): Promise<string> {
+    try {
+      const lines = params?.lines || 100;
+      const follow = params?.follow || false;
+      const container = params?.container || '';
+
+      // 构建kubectl logs命令
+      let command = `kubectl logs deployment/${name} -n ${namespace} --tail=${lines}`;
+
+      // 如果指定了容器名称
+      if (container) {
+        command += ` -c ${container}`;
+      }
+
+      // 如果需要实时跟踪日志
+      if (follow) {
+        command += ' -f';
+      }
+
+      console.log(`获取应用日志: ${command}`);
+
+      const result = await this.executeCommand(sessionId, command);
+
+      if (result.exitCode === 0) {
+        return result.stdout || '暂无日志内容';
+      } else {
+        throw new Error(`获取日志失败: ${result.stderr}`);
+      }
+    } catch (error) {
+      console.error(`获取应用日志失败: ${name}`, error);
+      throw error;
+    }
   }
 
   /**
