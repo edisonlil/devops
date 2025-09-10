@@ -9,7 +9,9 @@ templates/
 ├── k8s/                    # Kubernetes 模板
 │   ├── app/               # 应用类模板
 │   │   ├── spring-boot/   # Spring Boot 应用
-│   │   ├── vue/           # Vue.js 前端应用
+│   │   ├── vue-nginx/     # Vue.js 前端应用
+│   │   ├── nodejs/        # Node.js 应用
+│   │   ├── python/        # Python 应用
 │   │   └── nginx/         # Nginx 静态服务
 │   └── middleware/        # 中间件模板
 │       ├── mysql-standalone/      # MySQL 单实例
@@ -17,9 +19,12 @@ templates/
 │       ├── redis-cluster/         # Redis 集群
 │       └── elasticsearch-cluster/ # Elasticsearch 集群
 ├── compose/                # Docker Compose 模板
+│   ├── app/               # 应用类模板
+│   │   └── nodejs/        # Node.js 应用
 │   └── middleware/        # 中间件模板
 │       └── harbor-standalone/     # Harbor 镜像仓库
 └── swarm/                 # Docker Swarm 模板
+    ├── nodejs/            # Node.js 应用
     └── tomcat/            # Tomcat 应用
 ```
 

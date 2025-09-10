@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# 获取脚本所在目录
+NODEJS_BUILD_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$NODEJS_BUILD_SCRIPT_DIR/docker_helper.sh"
+source "$NODEJS_BUILD_SCRIPT_DIR/version_manager.sh"
+
+function nodejs_build() {
+	cfg_temp_dir=${env[cfg_temp_dir]}
+	cmd_job_name=${env[cmd_job_name]}
+	opt_build_cmds=${env[opt_build_cmds]}
+	opt_build_env=${env[opt_build_env]}
+	opt_build_version=${env[opt_build_version]}
+	cfg_build_version=${env[cfg_build_version]}
+	cfg_harbor_address=${env[cfg_harbor_address]}
+	cfg_harbor_project=${env[cfg_harbor_project]}
+	tmp_dockerfile=${env[tmp_dockerfile]}
+	tmp_docker_image_suffix=${env[tmp_docker_image_suffix]}
+	cfg_vue_registry=${env[cfg_vue_registry]}
+	cfg_vue_registry_auth=${env[cfg_vue_registry_auth]}
+
+	# 应用版本配置（优先级：命令行 > workspace配置）
+	apply_versions "$opt_build_version" "$cfg_build_version"
+
+	check_env_by_cmd_v npm
+	info "开始使用node构建nodejs项目"
+	module_path=`find $cfg_temp_dir/* -type d  -name  ${cmd_job_name}`
+	if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
+
+	# 检查package.json文件
+	if [[ ! -f "$module_path/package.json" ]]; then
+		error "未找到package.json文件，请确保这是一个有效的Node.js项目"
+		exit 1
+	fi
+
+	# 确定包管理器（自动检测）
+	package_manager="npm"
+	if [[ -f "$module_path/yarn.lock" ]]; then
+		package_manager="yarn"
+		check_env_by_cmd_v yarn
+	elif [[ -f "$module_path/pnpm-lock.yaml" ]]; then
+		package_manager="pnpm"
+		check_env_by_cmd_v pnpm
+	fi
+
+	info "使用包管理器: $package_manager"
+
+	# 配置 npm 镜像库
+	npm_config_args=""
+	if [[ -n "$cfg_vue_registry" ]]; then
+		info "使用配置的 npm 镜像库: $cfg_vue_registry"
+		npm_config_args="--registry $cfg_vue_registry"
+	fi
+
+	# 配置 npm 认证（如果需要）
+	if [[ -n "$cfg_vue_registry_auth" ]]; then
+		info "配置 npm 认证信息"
+		# 解析认证信息格式：username:password 或 token
+		if [[ "$cfg_vue_registry_auth" =~ ^[^:]+:[^:]+$ ]]; then
+			# username:password 格式
+			username=$(echo "$cfg_vue_registry_auth" | cut -d: -f1)
+			password=$(echo "$cfg_vue_registry_auth" | cut -d: -f2)
+			npm config set //$(echo "$cfg_vue_registry" | sed 's|^https\?://||')/:_authToken $(echo -n "$username:$password" | base64)
+		else
+			# token 格式
+			npm config set //$(echo "$cfg_vue_registry" | sed 's|^https\?://||')/:_authToken "$cfg_vue_registry_auth"
+		fi
+	fi
+
+	if test -n "$opt_build_cmds" ;then
+		case "$package_manager" in
+			npm)
+				cd $module_path && npm $npm_config_args --unsafe-perm install --legacy-peer-deps && $opt_build_cmds
+				;;
+			yarn)
+				cd $module_path && (yarn install --frozen-lockfile || yarn install) && $opt_build_cmds
+				;;
+			pnpm)
+				cd $module_path && (pnpm install --frozen-lockfile || pnpm install) && $opt_build_cmds
+				;;
+		esac
+	else
+		if test -n "$opt_build_env" ;then
+			case "$package_manager" in
+				npm)
+					cd $module_path && npm $npm_config_args --unsafe-perm install --legacy-peer-deps && npm run build:$opt_build_env
+					;;
+				yarn)
+					cd $module_path && (yarn install --frozen-lockfile || yarn install) && yarn build:$opt_build_env
+					;;
+				pnpm)
+					cd $module_path && (pnpm install --frozen-lockfile || pnpm install) && pnpm run build:$opt_build_env
+					;;
+			esac
+		else
+			case "$package_manager" in
+				npm)
+					cd $module_path && npm $npm_config_args --unsafe-perm install --legacy-peer-deps && npm run build
+					;;
+				yarn)
+					cd $module_path && (yarn install --frozen-lockfile || yarn install) && yarn build
+					;;
+				pnpm)
+					cd $module_path && (pnpm install --frozen-lockfile || pnpm install) && pnpm run build
+					;;
+			esac
+		fi
+	fi
+
+	env[tmp_build_dist_path]=$module_path
+
+	info "开始nodejs项目镜像的构建"
+
+	# 复制模板文件到最终构建上下文
+	copy_template_files_to_final_build_context
+
+	# 构建镜像
+	image_path=${cmd_job_name}_${tmp_docker_image_suffix}:latest
+	if test ${env[cfg_enable_harbor]} -eq 1;
+	then
+	   image_path=$cfg_harbor_address/$cfg_harbor_project/$image_path
+  fi
+	docker build -t $image_path -f  $tmp_dockerfile  ${env[tmp_build_dist_path]}
+
+  #推送镜像
+	docker_push $image_path
+
+}

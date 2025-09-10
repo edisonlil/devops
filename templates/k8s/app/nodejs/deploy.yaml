@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ?module_name
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+    type: backend
+    framework: nodejs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ?module_name
+  template:
+    metadata:
+      labels:
+        app: ?module_name
+        type: backend
+        framework: nodejs
+    spec:
+      containers:
+      - name: ?module_name
+        image: ?image_path
+        ports:
+        - containerPort: ?app_port
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "?app_port"
+        - name: APP_NAME
+          value: "?module_name"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: ?app_port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: ?app_port
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      imagePullSecrets:
+      - name: ?harbor_secret_name
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ?module_name-service
+  namespace: ?namespace
+  labels:
+    app: ?module_name
+spec:
+  selector:
+    app: ?module_name
+  ports:
+  - port: 80
+    targetPort: ?app_port
+    protocol: TCP
+    name: http
+  type: ClusterIP

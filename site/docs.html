@@ -51,6 +51,7 @@
                         <li><a href="#workspace" class="sidebar-link">工作空间管理</a></li>
                         <li><a href="#java-deployment" class="sidebar-link">Java 应用部署</a></li>
                         <li><a href="#vue-deployment" class="sidebar-link">Vue.js 应用部署</a></li>
+                        <li><a href="#nodejs-deployment" class="sidebar-link">Node.js 应用部署</a></li>
                         <li><a href="#python-deploy" class="sidebar-link">Python 应用部署</a></li>
                         <li><a href="#middleware-deployment" class="sidebar-link">中间件部署</a></li>
                         <li><a href="#interactive-mode" class="sidebar-link">交互式部署</a></li>
@@ -93,7 +94,7 @@
                         <div class="highlight-card">
                             <div class="highlight-icon">🔧</div>
                             <h3>多语言支持</h3>
-                            <p>支持 Java、Vue.js、Go、Python 等主流技术栈</p>
+                            <p>支持 Java、Vue.js、Node.js、Go、Python 等主流技术栈</p>
                         </div>
                         <div class="highlight-card">
                             <div class="highlight-icon">☸️</div>
@@ -572,6 +573,179 @@ devops run vue \
                     </div>
                 </section>
 
+                <!-- Node.js 应用部署 -->
+                <section id="nodejs-deployment" class="docs-section">
+                    <h1>Node.js 应用部署</h1>
+                    <p>DevOps 支持 Node.js 应用的自动化构建和部署，包括智能包管理器检测、多端口配置和健康检查。</p>
+
+                    <h2>基础部署</h2>
+                    <div class="code-block">
+                        <code># 基础 Node.js 项目部署（自动检测包管理器）
+devops run nodejs \
+  --git-url https://github.com/example/nodejs-app.git \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>📦 智能包管理器检测</h3>
+                        <p>DevOps 会自动检测项目使用的包管理器：</p>
+                        <ul>
+                            <li><strong>yarn</strong>：检测到 <code>yarn.lock</code> 文件</li>
+                            <li><strong>pnpm</strong>：检测到 <code>pnpm-lock.yaml</code> 文件</li>
+                            <li><strong>npm</strong>：默认选择，兼容性最好</li>
+                        </ul>
+                        <div class="concept-example">
+                            <strong>提示：</strong>系统会根据项目的 lock 文件自动选择最合适的包管理器，无需手动配置。
+                        </div>
+                    </div>
+
+                    <h2>镜像库配置</h2>
+                    <p>Node.js 项目与 Vue.js 项目共享相同的 npm 镜像源配置：</p>
+                    <div class="code-block">
+                        <code># 在 workspace/config 中添加
+BUILD_VUE_REGISTRY="https://registry.npmmirror.com"
+BUILD_VUE_REGISTRY_AUTH="your-token-or-username:password"
+
+# 部署时自动应用配置
+devops run nodejs \
+  --git-url https://github.com/example/nodejs-app.git \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>多端口配置</h2>
+                    <div class="code-block">
+                        <code># 指定应用端口
+devops run nodejs \
+  --git-url https://github.com/example/express-api.git \
+  --app-port 3000 \
+  --expose-port 30300 \
+  my-api
+
+# 多端口微服务配置
+devops run nodejs \
+  --git-url https://github.com/example/microservice.git \
+  --service-port "api:3000,admin:9090,health:9091" \
+  --export-port "30300,30090,30091" \
+  --namespace production \
+  my-service</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>自定义构建</h2>
+                    <div class="code-block">
+                        <code># 环境特定构建
+devops run nodejs \
+  --git-url https://github.com/example/nodejs-app.git \
+  --build-env "production" \
+  my-app
+
+# 自定义构建命令（系统会先安装依赖）
+devops run nodejs \
+  --git-url https://github.com/example/nodejs-app.git \
+  --build-cmds "npm run lint && npm run test && npm run build" \
+  my-app</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🔧 构建流程</h3>
+                        <p>Node.js 应用的完整构建流程：</p>
+                        <ol>
+                            <li><strong>代码拉取</strong>：从 Git/SVN 仓库拉取源码</li>
+                            <li><strong>包管理器检测</strong>：自动检测 yarn/pnpm/npm</li>
+                            <li><strong>依赖安装</strong>：执行对应的安装命令</li>
+                            <li><strong>项目构建</strong>：执行构建脚本或自定义命令</li>
+                            <li><strong>健康检查</strong>：自动创建健康检查文件</li>
+                            <li><strong>容器化</strong>：构建 Docker 镜像并部署</li>
+                        </ol>
+                    </div>
+
+                    <h2>项目结构要求</h2>
+                    <div class="code-block">
+                        <code>my-nodejs-app/
+├── package.json          # 必需：项目依赖和脚本
+├── package-lock.json     # 推荐：锁定依赖版本
+├── app.js               # 应用入口文件
+├── src/                 # 源代码目录
+└── README.md            # 项目说明</code>
+                    </div>
+
+                    <h3>package.json 示例</h3>
+                    <div class="code-block">
+                        <code>{
+  "name": "my-nodejs-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js",
+    "build": "npm run build:assets",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <h2>健康检查</h2>
+                    <p>DevOps 会自动为 Node.js 应用配置健康检查。推荐在应用中实现以下端点：</p>
+                    <div class="code-block">
+                        <code>// app.js
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// 健康检查端点
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+app.get('/ready', (req, res) => {
+  res.status(200).json({
+    status: 'ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});</code>
+                        <button type="button" class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🎯 最佳实践</h3>
+                        <p>Node.js 应用部署建议：</p>
+                        <ul>
+                            <li>应用监听 <code>process.env.PORT</code> 环境变量指定的端口</li>
+                            <li>实现健康检查端点 <code>/health</code> 和 <code>/ready</code></li>
+                            <li>使用 lock 文件锁定依赖版本（package-lock.json/yarn.lock/pnpm-lock.yaml）</li>
+                            <li>在 package.json 中指定 Node.js 版本要求</li>
+                            <li>使用环境变量管理配置</li>
+                            <li>生产环境使用 PM2 或类似的进程管理器</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-block">
+                        <h3>🌐 常用镜像库地址</h3>
+                        <ul>
+                            <li><strong>淘宝镜像</strong>：https://registry.npmmirror.com</li>
+                            <li><strong>腾讯镜像</strong>：https://mirrors.cloud.tencent.com/npm/</li>
+                            <li><strong>华为镜像</strong>：https://mirrors.huaweicloud.com/repository/npm/</li>
+                            <li><strong>官方镜像</strong>：https://registry.npmjs.org</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <!-- Python 部署 -->
                 <section id="python-deploy" class="docs-section">
                     <h1>Python 应用部署</h1>
@@ -974,6 +1148,7 @@ devops run -i
 # 指定类型的交互式部署
 devops run java -i
 devops run vue my-app -i
+devops run nodejs my-app -i
 devops run python my-api -i
 
 # 中间件交互式部署（新功能）
@@ -1002,7 +1177,7 @@ devops run middleware redis-standalone my-redis -i</code>
                             <div class="step-number">1</div>
                             <div class="step-content">
                                 <h3>选择部署类型</h3>
-                                <p>系统会提示选择应用类型：Java、Vue.js、Go、Python、Nginx 或 Tomcat</p>
+                                <p>系统会提示选择应用类型：Java、Vue.js、Node.js、Go、Python、Nginx 或 Tomcat</p>
                             </div>
                         </div>
                         <div class="step">

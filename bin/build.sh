@@ -9,6 +9,7 @@ source "$BUILD_SCRIPT_DIR/tomcat_build"
 source "$BUILD_SCRIPT_DIR/vue_build"
 source "$BUILD_SCRIPT_DIR/nginx_build"
 source "$BUILD_SCRIPT_DIR/python_build"
+source "$BUILD_SCRIPT_DIR/nodejs_build"
 
 function run() {
     # 调试信息
@@ -297,6 +298,10 @@ function run_nginx() {
 
 function run_python() {
 	run_devops python_build
+}
+
+function run_nodejs() {
+	run_devops nodejs_build
 }
 
 function run_middleware() {
@@ -1774,6 +1779,7 @@ function run_interactive() {
         echo "  4) nginx  - Nginx静态项目"
         echo "  5) tomcat - Tomcat Web项目"
         echo "  6) python - Python项目（Flask/Django/FastAPI等）"
+        echo "  7) nodejs - Node.js项目（Express/Koa/NestJS等）"
         echo
         while true; do
             read -p "🔹 请选择部署类型（输入序号或名称）: " deploy_type
@@ -1784,6 +1790,7 @@ function run_interactive() {
                 4|nginx) env[cmd_2]="nginx"; break ;;
                 5|tomcat) env[cmd_2]="tomcat"; break ;;
                 6|python) env[cmd_2]="python"; break ;;
+                7|nodejs) env[cmd_2]="nodejs"; break ;;
                 *) warn "无效选择，请重试" ;;
             esac
         done

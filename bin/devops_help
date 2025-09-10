@@ -49,6 +49,7 @@ function devops_help() {
 	  devops run java crm -i
 	  devops run vue frontend -i
 	  devops run python api -i
+	  devops run nodejs my-app -i
 	  devops run -i  # 完全交互式，会提示选择类型和项目名
 
 	  # 中间件部署（交互式）
@@ -69,6 +70,7 @@ function devops_help() {
 	  devops run java crm --git-url https://git.example.com/crm.git
 	  devops run vue frontend --git-url https://git.example.com/ui.git --build-env prod
 	  devops run python api --git-url https://git.example.com/api.git --python-main server.py --service-port "5000"
+	  devops run nodejs --git-url https://git.example.com/api.git --app-port 3000 --service-port "api:3000,admin:9090" my-api
 
 	  # 创建工作空间（K8s，交互模式）
 	  devops create workspace demo -i
@@ -174,7 +176,7 @@ function devops_help() {
 	    - 引导配置: 逐步提示输入必要参数
 	    - 命令预览: 显示等效的命令行形式
 	  交互式流程:
-	    1. 选择部署类型 (java/vue/go/nginx/tomcat/python)
+	    1. 选择部署类型 (java/vue/go/nginx/tomcat/python/nodejs)
 	    2. 输入项目名称
 	    3. 配置代码拉取 (Git/SVN)
 	    4. 配置构建工具版本 (显示workspace默认值)
