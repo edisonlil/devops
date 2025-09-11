@@ -20,11 +20,12 @@ export const config = {
   
   // Cookie 配置
   cookie: {
-    // DevOps 应用专用的 Cookie 名称前缀
-    namePrefix: 'DEVOPS_',
+    // DevOps 应用专用的 Cookie 名称
+    sessionName: 'DEVOPS_SESSION_ID',
+    authName: 'DEVOPS_AUTH_TOKEN',
 
     // Cookie 路径，避免与其他应用冲突
-    path: '/devops/',
+    path: '/',
 
     // 在容器环境下，确保 SameSite 设置正确
     sameSite: 'lax' as const,
@@ -33,7 +34,10 @@ export const config = {
     secure: import.meta.env.VITE_USE_HTTPS === 'true',
 
     // Cookie 域名（如果需要跨子域）
-    domain: import.meta.env.VITE_COOKIE_DOMAIN || undefined
+    domain: import.meta.env.VITE_COOKIE_DOMAIN || undefined,
+
+    // Cookie 最大存活时间（秒）
+    maxAge: 30 * 60 // 30分钟
   }
 }
 

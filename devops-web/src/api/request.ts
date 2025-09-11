@@ -1,5 +1,6 @@
 import axios from 'axios'
 import config from '@/config'
+import CookieManager from '@/utils/cookie'
 
 const request = axios.create({
   baseURL: config.apiBaseURL,
@@ -17,13 +18,27 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
+    // 确保携带 DevOps 专用的认证信息
+    const sessionId = CookieManager.getSessionId()
+    const authToken = CookieManager.getAuthToken()
+
+    if (sessionId) {
+      config.headers['X-DevOps-Session-ID'] = sessionId
+    }
+
+    if (authToken) {
+      config.headers['Authorization'] = `Bearer ${authToken}`
+    }
+
     // 调试信息：记录请求详情
     console.log('API Request:', {
       url: config.url,
       baseURL: config.baseURL,
       method: config.method,
       withCredentials: config.withCredentials,
-      headers: config.headers
+      headers: config.headers,
+      sessionId: sessionId ? '***' : 'none',
+      authToken: authToken ? '***' : 'none'
     })
 
     return config
@@ -60,6 +75,8 @@ request.interceptors.response.use(
       console.warn('会话失效，跳转到登录页')
       // 清除本地会话信息
       localStorage.removeItem('ssh_session')
+      // 清除 DevOps Cookie（不影响其他系统）
+      CookieManager.clearDevOpsCookies()
       // 会话过期，跳转到登录页
       window.location.href = '/login'
     }

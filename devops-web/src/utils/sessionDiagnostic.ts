@@ -1,3 +1,6 @@
+import CookieManager from './cookie'
+import config from '@/config'
+
 // 会话诊断工具
 export const sessionDiagnostic = {
   // 解析 Cookie 字符串
@@ -17,8 +20,20 @@ export const sessionDiagnostic = {
     const allCookies = this.parseCookies()
     const devopsCookies: Record<string, string> = {}
 
+    // 获取 DevOps 专用 Cookie
+    const sessionId = CookieManager.getSessionId()
+    const authToken = CookieManager.getAuthToken()
+
+    if (sessionId) {
+      devopsCookies[config.cookie.sessionName] = sessionId
+    }
+
+    if (authToken) {
+      devopsCookies[config.cookie.authName] = authToken
+    }
+
+    // 查找其他可能相关的 Cookie
     Object.keys(allCookies).forEach(name => {
-      // 查找可能的 DevOps 会话 Cookie
       if (name.includes('DEVOPS') ||
           name.includes('SESSION') ||
           name.includes('AUTH') ||
@@ -31,18 +46,29 @@ export const sessionDiagnostic = {
     return devopsCookies
   },
 
-  // 清理冲突的 Cookie
-  clearConflictingCookies() {
+  // 清理 DevOps Cookie（不影响其他系统）
+  clearDevOpsCookies() {
+    CookieManager.clearDevOpsCookies()
+  },
+
+  // 检查是否存在可能的冲突 Cookie（仅检查，不删除）
+  checkConflictingCookies() {
     const allCookies = this.parseCookies()
-    const conflictingCookies = ['XXL_JOB_LOGIN_IDENTITY']
+    const conflictingCookies = ['XXL_JOB_LOGIN_IDENTITY', 'JSESSIONID']
+    const found: string[] = []
 
     conflictingCookies.forEach(cookieName => {
       if (allCookies[cookieName]) {
-        // 设置过期时间为过去的时间来删除 Cookie
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
-        console.log(`🗑️ 已清理冲突的 Cookie: ${cookieName}`)
+        found.push(cookieName)
       }
     })
+
+    if (found.length > 0) {
+      console.warn('⚠️ 检测到其他系统的 Cookie，可能存在冲突:', found)
+      console.log('💡 建议：如果遇到会话问题，请联系管理员配置独立的域名或路径')
+    }
+
+    return found
   },
   // 检查当前环境信息
   checkEnvironment() {
@@ -120,38 +146,49 @@ export const sessionDiagnostic = {
   // 完整诊断
   async fullDiagnostic() {
     console.group('🚀 开始完整会话诊断')
-    
+
     // 1. 环境检查
     this.checkEnvironment()
-    
-    // 2. API 连通性检查
+
+    // 2. 检查冲突 Cookie（仅检查，不删除）
+    const conflictingCookies = this.checkConflictingCookies()
+
+    // 3. API 连通性检查
     const apiConnected = await this.checkApiConnectivity()
-    
-    // 3. 会话状态检查
+
+    // 4. 会话状态检查
     const sessionValid = await this.checkSessionStatus()
-    
+
     const result = {
       apiConnected,
       sessionValid,
-      recommendation: this.getRecommendation(apiConnected, sessionValid)
+      conflictingCookies,
+      recommendation: this.getRecommendation(apiConnected, sessionValid, conflictingCookies)
     }
-    
+
     console.log('📊 诊断结果:', result)
     console.groupEnd()
-    
+
     return result
   },
 
   // 获取建议
-  getRecommendation(apiConnected: boolean, sessionValid: boolean) {
+  getRecommendation(apiConnected: boolean, sessionValid: boolean, conflictingCookies: string[] = []) {
     if (!apiConnected) {
       return '❌ API 无法连接，请检查网络配置和后端服务状态'
     }
-    
+
     if (!sessionValid) {
+      if (conflictingCookies.length > 0) {
+        return `⚠️ 会话无效，检测到其他系统 Cookie: ${conflictingCookies.join(', ')}。建议配置独立域名或联系管理员`
+      }
       return '⚠️ 会话无效，可能是 Cookie 配置问题或会话过期'
     }
-    
+
+    if (conflictingCookies.length > 0) {
+      return `⚠️ 检测到其他系统 Cookie: ${conflictingCookies.join(', ')}，建议配置独立域名避免潜在冲突`
+    }
+
     return '✅ 一切正常'
   }
 }

@@ -124,8 +124,8 @@ export function validateApplicationDeployment(data: any) {
       'string.pattern.base': '应用名称只能包含小写字母、数字和连字符',
       'any.required': '应用名称是必填项'
     }),
-    type: Joi.string().valid('java', 'vue', 'go', 'nginx', 'tomcat', 'python').required().messages({
-      'any.only': '应用类型必须是java、vue、go、nginx、tomcat或python之一',
+    type: Joi.string().valid('java', 'vue', 'nodejs', 'go', 'nginx', 'tomcat', 'python').required().messages({
+      'any.only': '应用类型必须是java、vue、nodejs、go、nginx、tomcat或python之一',
       'any.required': '应用类型是必填项'
     }),
     workspace: Joi.string().trim().min(1).required().messages({

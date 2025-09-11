@@ -22,7 +22,7 @@ export interface CommandExecution {
 export interface ApplicationDeployment {
   id: string;
   name: string;
-  type: 'java' | 'vue' | 'go' | 'nginx' | 'tomcat' | 'python';
+  type: 'java' | 'vue' | 'nodejs' | 'go' | 'nginx' | 'tomcat' | 'python';
   workspace: string;
   serverId: string;
   gitUrl?: string;
@@ -271,7 +271,7 @@ export class DeployService {
   // 部署应用
   async deployApplication(config: {
     name: string;
-    type: 'java' | 'vue' | 'go' | 'nginx' | 'tomcat' | 'python';
+    type: 'java' | 'vue' | 'nodejs' | 'go' | 'nginx' | 'tomcat' | 'python';
     workspace: string;
     serverId: string;
     gitUrl?: string;

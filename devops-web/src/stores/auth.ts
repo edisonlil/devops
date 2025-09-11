@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { sshLogin, logout, getSessionInfo, checkSession, type SessionInfo } from '@/api/auth'
 import config from '@/config'
 import { sessionDiagnostic } from '@/utils/sessionDiagnostic'
+import CookieManager from '@/utils/cookie'
 
 export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
@@ -40,11 +41,11 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (credentials: { host: string; username: string; password: string }) => {
     loading.value = true
     try {
-      // 清理可能冲突的 Cookie
-      sessionDiagnostic.clearConflictingCookies()
+      // 清理 DevOps 自己的旧 Cookie（不影响其他系统）
+      CookieManager.clearDevOpsCookies()
 
       const response = await sshLogin(credentials)
-      
+
       // 存储会话信息
       const sessionData = {
         host: credentials.host,
@@ -54,9 +55,16 @@ export const useAuthStore = defineStore('auth', () => {
         defaultWorkspace: response.data.defaultWorkspace,
         availableWorkspaces: response.data.availableWorkspaces
       }
-      
+
+      // 存储到 localStorage
       localStorage.setItem('ssh_session', JSON.stringify(sessionData))
-      
+
+      // 如果后端返回了会话ID，存储到 Cookie
+      if (response.data.sessionId) {
+        CookieManager.setSessionId(response.data.sessionId)
+        console.log('✅ 已设置 DevOps 会话 Cookie:', config.cookie.sessionName)
+      }
+
       isAuthenticated.value = true
       sessionInfo.value = sessionData
 
@@ -78,6 +86,8 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       // 无论服务器登出是否成功，都清除本地会话
       localStorage.removeItem('ssh_session')
+      // 清除 DevOps Cookie
+      CookieManager.clearDevOpsCookies()
       isAuthenticated.value = false
       sessionInfo.value = null
       stopSessionCheck()

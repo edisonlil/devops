@@ -216,7 +216,11 @@ const dialog = useDialog()
 // 路由参数
 const templateName = computed(() => route.params.templateName as string)
 const workspace = computed(() => route.params.workspaceName as string)
-const source = computed(() => workspace.value ? 'workspace' : 'global')
+const source = computed(() => {
+  // 根据路由名称判断模板来源
+  const routeName = route.name as string
+  return routeName.includes('Workspace') ? 'workspace' : 'global'
+})
 const templateType = computed(() => {
   // 根据路由名称判断模板类型
   const routeName = route.name as string
@@ -545,9 +549,10 @@ onMounted(async () => {
   try {
     if (source.value === 'global') {
       // 全局模板暂时没有详情API，使用基本信息
+      const templateDisplayName = templateName.value.charAt(0).toUpperCase() + templateName.value.slice(1)
       templateInfo.value = {
-        name: templateName.value,
-        description: '全局模板',
+        name: templateDisplayName,
+        description: `${templateDisplayName} 全局模板 - 系统提供的标准部署模板`,
         source: 'global'
       } as MiddlewareTemplate
     } else {
@@ -562,7 +567,7 @@ onMounted(async () => {
       } else {
         // 工作空间中间件模板
         const response = await middlewareApi.getTemplate(workspace.value, templateName.value)
-        templateInfo.value = response
+        templateInfo.value = response.data || response
       }
     }
   } catch (error) {

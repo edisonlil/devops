@@ -420,6 +420,7 @@ const selectedTemplate = ref<any>(null)
 const deployTypeOptions = [
   { label: 'Java 应用', value: 'java' },
   { label: 'Vue 应用', value: 'vue' },
+  { label: 'Node.js 应用', value: 'nodejs' },
   { label: 'Go 应用', value: 'go' },
   { label: 'Python 应用', value: 'python' },
   { label: 'Nginx 静态站点', value: 'nginx' },
@@ -902,6 +903,8 @@ const inferDeployTypeFromTemplate = (templateId: string): string => {
     return 'java'
   } else if (template.includes('vue') || template.includes('react') || template.includes('angular')) {
     return 'vue'
+  } else if (template.includes('nodejs') || template.includes('node') || template.includes('express') || template.includes('koa') || template.includes('nestjs')) {
+    return 'nodejs'
   } else if (template.includes('go') || template.includes('golang')) {
     return 'go'
   } else if (template.includes('python') || template.includes('django') || template.includes('flask')) {

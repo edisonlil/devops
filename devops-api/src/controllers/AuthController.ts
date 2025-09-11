@@ -20,6 +20,25 @@ const sshLoginSchema = Joi.object({
 
 export class AuthController {
   /**
+   * 获取会话ID（支持多种方式）
+   */
+  private getSessionId(req: Request): string | null {
+    // 1. 优先从 session 中获取
+    const sessionId = (req.session as any).sessionId;
+    if (sessionId) {
+      return sessionId;
+    }
+
+    // 2. 从自定义头中获取（前端发送的）
+    const headerSessionId = req.headers['x-devops-session-id'] as string;
+    if (headerSessionId) {
+      return headerSessionId;
+    }
+
+    return null;
+  }
+
+  /**
    * SSH登录
    */
   async sshLogin(req: Request, res: Response) {
@@ -43,7 +62,17 @@ export class AuthController {
       (req.session as any).sessionId = result.sessionId;
       (req.session as any).host = host;
       (req.session as any).username = username;
-      
+
+      // 设置响应头，告知前端会话ID（用于调试）
+      res.setHeader('X-DevOps-Session-ID', result.sessionId);
+
+      console.log('✅ SSH登录成功:', {
+        sessionId: result.sessionId,
+        host,
+        username,
+        cookieName: 'DEVOPS_SESSION_ID'
+      });
+
       res.json({
         success: true,
         message: 'SSH连接成功',
@@ -69,7 +98,7 @@ export class AuthController {
    */
   async logout(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = this.getSessionId(req);
       
       if (sessionId) {
         authService.logout(sessionId);
@@ -102,7 +131,7 @@ export class AuthController {
    */
   async getSessionInfo(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = this.getSessionId(req);
       
       if (!sessionId) {
         res.status(401).json({
@@ -167,7 +196,7 @@ export class AuthController {
    */
   async checkSession(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = this.getSessionId(req);
       
       if (!sessionId) {
         res.json({ valid: false });

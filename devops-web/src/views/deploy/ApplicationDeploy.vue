@@ -275,6 +275,7 @@ import {
 } from 'naive-ui'
 import { Add, Refresh, Close, Play, Stop, Trash, Eye } from '@vicons/ionicons5'
 import { deployApi, type RemoteServer, type ApplicationDeployment } from '@/api/deploy'
+import { APPLICATION_TYPES } from '@/types/application'
 
 const route = useRoute()
 const router = useRouter()
@@ -330,14 +331,7 @@ const deployForm = ref({
 })
 
 // 应用类型选项
-const applicationTypes = [
-  { label: 'Java 应用', value: 'java' },
-  { label: 'Vue 应用', value: 'vue' },
-  { label: 'Go 应用', value: 'go' },
-  { label: 'Nginx 应用', value: 'nginx' },
-  { label: 'Tomcat 应用', value: 'tomcat' },
-  { label: 'Python 应用', value: 'python' }
-]
+const applicationTypes = APPLICATION_TYPES
 
 // 构建工具选项
 const buildTools = [

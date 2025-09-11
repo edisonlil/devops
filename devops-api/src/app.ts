@@ -39,15 +39,34 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Session 中间件
+// Cookie 解析中间件（用于调试）
+app.use((req, res, next) => {
+  // 手动解析 Cookie（express-session 会自动处理，这里只是为了调试）
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    req.cookies = {};
+    cookieHeader.split(';').forEach(cookie => {
+      const [name, value] = cookie.trim().split('=');
+      if (name && value) {
+        req.cookies[name] = decodeURIComponent(value);
+      }
+    });
+  }
+  next();
+});
+
+// Session 中间件 - 使用独特的 Cookie 名称
 app.use(session({
+  name: 'DEVOPS_SESSION_ID', // 独特的 Cookie 名称，避免与其他系统冲突
   secret: process.env.SESSION_SECRET || 'devops-platform-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 2 * 60 * 60 * 1000 // 2小时
+    secure: process.env.NODE_ENV === 'production', // HTTPS 环境下设为 true
+    httpOnly: true, // 防止 XSS 攻击
+    maxAge: 30 * 60 * 1000, // 30分钟，与前端配置保持一致
+    sameSite: 'lax', // 防止 CSRF 攻击
+    path: '/' // Cookie 路径
   }
 }));
 
@@ -60,11 +79,45 @@ app.get('/health', (req, res) => {
   });
 });
 
+// API 健康检查（前端会调用这个）
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+    session: {
+      cookieName: 'DEVOPS_SESSION_ID',
+      hasSession: !!req.session,
+      sessionId: (req.session as any)?.sessionId ? 'exists' : 'none'
+    }
+  });
+});
+
 // 调试中间件
 app.use('/api', (req, res, next) => {
   console.log(`API请求: ${req.method} ${req.path}`);
   console.log('请求参数:', req.params);
   console.log('查询参数:', req.query);
+
+  // 调试 Cookie 和 Session 信息
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Cookie信息:', {
+      devopsSessionId: req.cookies?.DEVOPS_SESSION_ID ? 'exists' : 'none',
+      allCookies: Object.keys(req.cookies || {}),
+      sessionExists: !!req.session,
+      sessionId: (req.session as any)?.sessionId ? 'exists' : 'none'
+    });
+
+    // 检查前端发送的自定义头
+    const customHeaders = {
+      'X-DevOps-Session-ID': req.headers['x-devops-session-id'],
+      'Authorization': req.headers['authorization']
+    };
+    if (Object.values(customHeaders).some(v => v)) {
+      console.log('自定义认证头:', customHeaders);
+    }
+  }
+
   next();
 });
 
