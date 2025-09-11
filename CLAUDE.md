@@ -133,11 +133,11 @@ devops template copy <template-id> --workspace <name>
 
 ### API 服务配置
 
-**DevOps API** 运行在 `localhost:8080`，提供RESTful API服务：
+**DevOps API** 运行在 `localhost:3000`（开发环境）或 `localhost:8080`（生产环境），提供RESTful API服务：
 - 健康检查：`GET /health`
 - 所有业务接口都以 `/api` 开头
 - 支持CORS，允许前端跨域请求
-- 使用Express Session进行会话管理
+- **双重认证机制**：支持 Token Header 认证（推荐）和 Express Session 认证（兼容模式）
 
 **主要路由配置**：
 ```typescript
@@ -197,13 +197,14 @@ const api = axios.create({
    - 不要使用 `rewrite` 规则删除 `/api` 前缀
    - 确保 `changeOrigin: true` 处理跨域
 
-4. **会话管理**：
-   - API使用Express Session，需要 `withCredentials: true`
+4. **认证机制**：
+   - **Token Header 认证**（推荐）：使用 `Authorization: Bearer <token>` 头传递认证信息
+   - **Express Session 认证**（兼容模式）：传统的 Session Cookie 认证
    - 前端响应拦截器处理401跳转登录页
-   - Session过期时间为2小时
+   - Token过期时间为30分钟，Session过期时间为2小时
 
 5. **开发端口**：
-   - API服务：固定端口 8080
+   - API服务：开发环境 3000，生产环境 8080
    - Web服务：Vite自动分配端口（3000、3001、3002等）
 
 ### API接口分类
@@ -213,6 +214,253 @@ const api = axios.create({
 - **工作空间** (`/api/workspaces/*`): 本地工作空间管理、配置读写
 - **中间件部署** (`/api/workspaces/:workspace/middleware/*`): 模板管理、部署执行
 - **应用部署** (`/api/workspaces/:workspace/deploy/*`): DevOps命令执行、部署历史
+
+## Token Header 认证机制
+
+**DevOps API 采用双重认证机制，优先使用 Token Header 认证，向后兼容 Session Cookie 认证**
+
+### 1. 认证机制概述
+
+#### Token Header 认证（推荐）
+- **传输方式**：HTTP Authorization Header
+- **格式**：`Authorization: Bearer <token>`
+- **优势**：无 Cookie 冲突、标准化、安全性高
+- **过期时间**：30分钟自动过期
+- **适用场景**：所有新开发的功能
+
+#### Session Cookie 认证（兼容模式）
+- **传输方式**：HTTP Cookie
+- **格式**：Express Session Cookie
+- **优势**：向后兼容现有系统
+- **过期时间**：2小时自动过期
+- **适用场景**：兼容旧版本客户端
+
+### 2. Token 生成和验证
+
+#### Token 结构
+```
+Token = Base64(sessionId:timestamp:random) + "." + HMAC-SHA256(payload, secret)
+```
+
+#### 生成流程
+```typescript
+// 1. SSH 登录成功后生成 Token
+const timestamp = Date.now().toString();
+const random = crypto.randomBytes(16).toString('hex');
+const payload = `${sessionId}:${timestamp}:${random}`;
+
+// 2. 使用 HMAC-SHA256 签名
+const secret = process.env.SESSION_SECRET || 'devops-platform-secret-key';
+const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+// 3. 组合成最终 Token
+const token = `${Buffer.from(payload).toString('base64')}.${signature}`;
+```
+
+#### 验证流程
+```typescript
+// 1. 解析 Token
+const [payloadBase64, signature] = token.split('.');
+const payload = Buffer.from(payloadBase64, 'base64').toString();
+const [sessionId, timestamp, random] = payload.split(':');
+
+// 2. 验证签名
+const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+if (signature !== expectedSignature) return null;
+
+// 3. 检查过期时间
+const tokenAge = Date.now() - parseInt(timestamp);
+if (tokenAge > 30 * 60 * 1000) return null; // 30分钟过期
+```
+
+### 3. 前端集成
+
+#### Token 管理器 (`TokenManager`)
+```typescript
+class TokenManager {
+  // 设置 Token（登录成功后调用）
+  static setTokenFromLoginResponse(response: any): void {
+    const tokenData = {
+      token: response.token,
+      sessionId: response.sessionId,
+      host: response.host,
+      username: response.username,
+      expiresAt: Date.now() + config.auth.tokenExpiry
+    };
+    localStorage.setItem('DEVOPS_AUTH_TOKEN', JSON.stringify(tokenData));
+  }
+
+  // 获取有效 Token
+  static getValidToken(): string | null {
+    const tokenData = this.getTokenData();
+    if (!tokenData || Date.now() > tokenData.expiresAt) {
+      this.clearToken();
+      return null;
+    }
+    return tokenData.token;
+  }
+
+  // 自动添加认证头
+  static addAuthHeaders(headers: any = {}): any {
+    const token = this.getValidToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      headers['X-DevOps-Session-ID'] = this.getSessionId();
+    }
+    return headers;
+  }
+}
+```
+
+#### API 请求拦截器
+```typescript
+// 请求拦截器：自动添加认证头
+api.interceptors.request.use((config) => {
+  config.headers = TokenManager.addAuthHeaders(config.headers);
+  return config;
+});
+
+// 响应拦截器：处理 Token 过期
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      TokenManager.clearToken();
+      router.push('/login');
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### 4. 后端认证处理
+
+#### 统一认证工具类 (`AuthUtils`)
+```typescript
+export class AuthUtils {
+  // 获取会话ID（支持双重认证）
+  static getSessionId(req: Request, controllerName: string = 'Unknown'): string | null {
+    // 1. 优先从 Authorization 头获取 Token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const tokenData = this.verifyAuthToken(token);
+      if (tokenData) {
+        console.log(`✅ 使用 Token Header 认证 (${controllerName}):`, { sessionId: tokenData.sessionId });
+        return tokenData.sessionId;
+      }
+    }
+
+    // 2. 从自定义头获取（备用方式）
+    const headerSessionId = req.headers['x-devops-session-id'] as string;
+    if (headerSessionId) {
+      console.log(`⚠️ 使用自定义 Header 认证 (${controllerName}):`, { sessionId: headerSessionId });
+      return headerSessionId;
+    }
+
+    // 3. 从 Session 获取（兼容模式）
+    const sessionId = (req.session as any).sessionId;
+    if (sessionId) {
+      console.log(`⚠️ 使用 Cookie Session 认证 (${controllerName}):`, { sessionId: sessionId });
+      return sessionId;
+    }
+
+    console.log(`❌ ${controllerName}: 未找到有效的认证信息`);
+    return null;
+  }
+}
+```
+
+#### Controller 中的使用
+```typescript
+// 所有需要认证的 API 方法
+async someApiMethod(req: Request, res: Response) {
+  try {
+    // 使用统一认证工具获取会话ID
+    const sessionId = AuthUtils.getSessionId(req, 'SomeController');
+    if (!sessionId) {
+      res.status(401).json({
+        success: false,
+        message: '会话无效'
+      });
+      return;
+    }
+
+    // 业务逻辑...
+    res.json({ success: true, data: result });
+    return;
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+    return;
+  }
+}
+```
+
+### 5. 配置和部署
+
+#### 前端配置 (`config/index.ts`)
+```typescript
+export const config = {
+  auth: {
+    mode: 'token',  // 默认使用 Token 认证
+    tokenExpiry: 30 * 60 * 1000,  // 30分钟
+    cookieMode: 'compatible'  // 兼容模式
+  }
+};
+```
+
+#### 环境变量
+```bash
+# .env 文件
+SESSION_SECRET=your-secret-key-here  # Token 签名密钥
+PORT=3000  # API 服务端口
+```
+
+### 6. 故障排除
+
+#### 常见问题
+
+**问题 1：Token 认证失败，返回 401**
+- 检查 Token 是否正确传递到 Authorization 头
+- 验证 Token 是否过期（30分钟）
+- 确认后端 SESSION_SECRET 配置正确
+
+**问题 2：部分 API 仍使用 Cookie 认证**
+- 检查 Controller 是否使用了 `AuthUtils.getSessionId()`
+- 确认没有直接使用 `(req.session as any).sessionId`
+
+**问题 3：前端 Token 管理异常**
+- 检查 localStorage 中的 Token 数据格式
+- 验证 TokenManager 的过期时间计算
+- 确认 API 拦截器正确添加认证头
+
+#### 调试方法
+
+**后端日志**：
+```bash
+# 查看认证日志
+✅ 使用 Token Header 认证 (ApplicationController): { sessionId: 'xxx' }
+⚠️ 使用 Cookie Session 认证 (ApplicationController): { sessionId: 'xxx' }
+❌ ApplicationController: 未找到有效的认证信息
+```
+
+**前端调试**：
+```javascript
+// 检查 Token 状态
+console.log('Token 数据:', TokenManager.getTokenData());
+console.log('有效 Token:', TokenManager.getValidToken());
+
+// 检查 API 请求头
+console.log('请求头:', config.headers);
+```
+
+### 7. 最佳实践
+
+1. **优先使用 Token Header 认证**：新开发的功能应使用 Token 认证
+2. **保持向后兼容**：现有系统可继续使用 Session 认证
+3. **统一错误处理**：所有 Controller 使用 `AuthUtils.getSessionId()`
+4. **安全配置**：生产环境使用强密钥，定期轮换
+5. **监控和日志**：记录认证方式和失败原因，便于故障排除
 
 ## devops-api TypeScript开发规范
 
@@ -246,12 +494,16 @@ const api = axios.create({
     }
     ```
 
-3. **Session类型访问**
+3. **认证处理规范**
     ```typescript
-    // ✅ 正确：使用类型断言
+    // ✅ 推荐：使用统一认证工具类（支持 Token Header + Session）
+    import { AuthUtils } from '../utils/AuthUtils';
+    const sessionId = AuthUtils.getSessionId(req, 'ControllerName');
+
+    // ⚠️ 兼容：直接访问 Session（仅在特殊情况下使用）
     const sessionId = (req.session as any).sessionId;
     (req.session as any).sessionId = newSessionId;
-    
+
     // ❌ 错误：直接访问会编译错误
     const sessionId = req.session.sessionId;
     ```
@@ -274,16 +526,25 @@ const api = axios.create({
 
 7. **错误处理标准模式**
     ```typescript
+    import { AuthUtils } from '../utils/AuthUtils';
+
     async methodName(req: Request, res: Response) {
       try {
-        // 参数验证
+        // 1. 认证验证（推荐使用 AuthUtils）
+        const sessionId = AuthUtils.getSessionId(req, 'ControllerName');
+        if (!sessionId) {
+          res.status(401).json({ success: false, message: '会话无效' });
+          return;
+        }
+
+        // 2. 参数验证
         if (!param) {
           res.status(400).json({ success: false, message: '参数错误' });
           return;
         }
-        
-        // 业务逻辑
-        const result = await service.doSomething();
+
+        // 3. 业务逻辑
+        const result = await service.doSomething(sessionId);
         res.json({ success: true, data: result });
         return;
       } catch (error: any) {
@@ -679,10 +940,20 @@ const showBuildTool = computed(() => {
 
 ### API设计最佳实践
 
-#### 会话验证的统一处理
-所有需要SSH执行的接口都应验证会话：
+#### 认证机制的统一处理
+所有需要SSH执行的接口都应使用统一的认证验证：
 
 ```typescript
+// ✅ 推荐：使用 AuthUtils 支持双重认证
+import { AuthUtils } from '../utils/AuthUtils';
+
+const sessionId = AuthUtils.getSessionId(req, 'ControllerName');
+if (!sessionId) {
+  res.status(401).json({ success: false, message: '会话无效' });
+  return;
+}
+
+// ⚠️ 兼容：直接使用 Session（仅在特殊情况下）
 const sessionId = (req.session as any).sessionId;
 if (!sessionId) {
   res.status(401).json({ success: false, message: '会话无效' });
@@ -716,5 +987,268 @@ API错误信息应该有清晰的层级：
 - **路径错误** → 验证优先级条件判断
 - **超时问题** → 评估任务复杂度，调整轮询策略
 - **状态不一致** → 检查异步操作的状态同步
+- **认证失败 (401)** → 检查是否使用 `AuthUtils.getSessionId()` 而非直接访问 Session
+- **Cookie 冲突** → 优先使用 Token Header 认证，避免 Cookie 依赖
+- **Token 过期** → 检查前端 Token 管理和自动刷新逻辑
 
-这些经验教训可以避免在后续开发中重复遇到相同的技术陷阱。
+### Token 认证迁移经验
+
+#### 从 Session 到 Token 的迁移策略
+1. **渐进式迁移**：保持 Session 认证兼容，逐步迁移到 Token
+2. **统一工具类**：使用 `AuthUtils` 实现双重认证支持
+3. **前端适配**：TokenManager 自动管理 Token 生命周期
+4. **后端适配**：所有 Controller 统一使用 `AuthUtils.getSessionId()`
+
+#### 解决 Cookie 冲突的最佳实践
+- **问题根源**：多系统共享域名导致 Cookie 冲突
+- **解决方案**：采用 HTTP Authorization Header 传递认证信息
+- **技术优势**：标准化、无冲突、更安全
+- **兼容策略**：保留 Cookie 认证作为备用方案
+
+这些经验教训可以避免在后续开发中重复遇到相同的技术陷阱，特别是认证机制相关的问题。
+
+## 前端API客户端Token认证规范
+
+**重要：所有前端API客户端必须正确配置Token Header认证，避免401错误和Cookie冲突问题**
+
+### 1. API客户端分类和配置要求
+
+#### 主要API客户端（推荐方式）
+使用统一的 `request.ts` 客户端，自动继承Token认证配置：
+
+```typescript
+// ✅ 推荐：使用主要API客户端
+import request from './request'
+
+export const someApi = {
+  getData: () => request.get('/some/endpoint'),
+  postData: (data) => request.post('/some/endpoint', data)
+}
+```
+
+**适用文件**：
+- `applications.ts` - 应用管理API
+- `auth.ts` - 认证API
+- 其他简单的API封装
+
+#### 独立API客户端（需要完整配置）
+创建独立axios实例的API客户端，必须添加完整的Token认证拦截器：
+
+```typescript
+// ✅ 正确：独立API客户端的完整配置
+import axios from 'axios'
+import appConfig from '@/config'
+import TokenManager from '@/utils/tokenManager'
+import CookieManager from '@/utils/cookie'
+
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 30000,
+  // Token 模式下禁用 Cookie，Cookie 模式下启用
+  withCredentials: appConfig.auth.mode === 'cookie'
+})
+
+// 请求拦截器 - 添加认证头
+api.interceptors.request.use(
+  (config) => {
+    // 根据配置选择认证方式
+    if (appConfig.auth.mode === 'token') {
+      // Token 认证方式 - 仅使用 HTTP Header，不使用 Cookie
+      const authHeaders = TokenManager.getAuthHeaders()
+      Object.assign(config.headers, authHeaders)
+
+      // 确保 Token 模式下不发送 Cookie
+      if (appConfig.auth.security?.disableCookies) {
+        config.withCredentials = false
+      }
+
+      // 调试信息
+      console.log('🔑 [API_NAME] API Request (Token Header):', {
+        url: config.url,
+        method: config.method,
+        hasToken: !!TokenManager.getToken(),
+        hasSessionId: !!TokenManager.getSessionId()
+      })
+    } else {
+      // Cookie 认证方式（兼容模式）
+      const sessionId = CookieManager.getSessionId()
+      const authToken = CookieManager.getAuthToken()
+
+      if (sessionId) {
+        config.headers['X-DevOps-Session-ID'] = sessionId
+      }
+
+      if (authToken) {
+        config.headers['Authorization'] = `Bearer ${authToken}`
+      }
+
+      // 调试信息
+      console.log('[API_NAME] API Request (Cookie):', {
+        url: config.url,
+        method: config.method,
+        sessionId: sessionId ? '***' : 'none',
+        authToken: authToken ? '***' : 'none'
+      })
+    }
+
+    return config
+  },
+  (error) => {
+    console.error('[API_NAME] API Request Error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// 响应拦截器
+api.interceptors.response.use(
+  (response) => {
+    // 调试信息：记录成功响应
+    console.log('[API_NAME] API Response:', {
+      url: response.config.url,
+      status: response.status,
+      headers: response.headers,
+      data: response.data
+    })
+    return response.data
+  },
+  (error) => {
+    // 调试信息：记录错误响应
+    console.error('[API_NAME] API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    })
+
+    if (error.response?.status === 401) {
+      console.warn('[API_NAME] API 认证失效，跳转到登录页')
+
+      // 根据认证方式清除相应的认证信息
+      if (appConfig.auth.mode === 'token') {
+        TokenManager.clearToken()
+      } else {
+        CookieManager.clearDevOpsCookies()
+      }
+
+      // 清除本地会话信息
+      localStorage.removeItem('ssh_session')
+
+      // 跳转到登录页
+      window.location.href = '/login'
+    }
+
+    console.error('[API_NAME]API请求失败:', error)
+    return Promise.reject(error)
+  }
+)
+```
+
+**适用文件**：
+- `template.ts` - 模板API（需要长超时时间）
+- `middleware.ts` - 中间件API
+- `deploy.ts` - 部署API（需要长超时时间）
+- `workspace.ts` - 工作空间API
+
+### 2. 当前API客户端状态检查清单
+
+#### ✅ 已正确配置的API客户端
+
+| 文件名 | 类型 | 认证配置 | 状态 |
+|--------|------|----------|------|
+| `request.ts` | 主要客户端 | 完整Token认证拦截器 | ✅ 正确 |
+| `applications.ts` | 继承主要客户端 | 使用 `import request` | ✅ 正确 |
+| `auth.ts` | 继承主要客户端 | 使用 `import request` | ✅ 正确 |
+| `template.ts` | 独立客户端 | 完整Token认证拦截器 | ✅ 已修复 |
+| `middleware.ts` | 独立客户端 | 完整Token认证拦截器 | ✅ 已修复 |
+| `deploy.ts` | 独立客户端 | 完整Token认证拦截器 | ✅ 已修复 |
+| `workspace.ts` | 独立客户端 | 完整Token认证拦截器 | ✅ 已修复 |
+
+### 3. 开发新API客户端的规范
+
+#### 选择API客户端类型
+
+**情况1：简单API封装**
+```typescript
+// ✅ 推荐：使用主要API客户端
+import request from './request'
+
+export const newApi = {
+  getData: () => request.get('/new/endpoint'),
+  postData: (data) => request.post('/new/endpoint', data)
+}
+```
+
+**情况2：需要特殊配置（超时时间、baseURL等）**
+```typescript
+// ✅ 必须：创建独立客户端并添加完整Token认证配置
+import axios from 'axios'
+// ... 完整的Token认证拦截器配置（参考上面的模板）
+```
+
+#### 必须检查的配置项
+
+1. **Token认证拦截器**：
+   - ✅ 请求拦截器添加 `Authorization: Bearer <token>` 头
+   - ✅ 请求拦截器添加 `X-DevOps-Session-ID` 头
+   - ✅ 响应拦截器处理401错误并清除Token
+
+2. **Cookie配置**：
+   - ✅ Token模式下设置 `withCredentials: false`
+   - ✅ Cookie模式下设置 `withCredentials: true`
+
+3. **调试信息**：
+   - ✅ 请求时记录Token状态
+   - ✅ 响应时记录状态和错误信息
+
+4. **错误处理**：
+   - ✅ 401错误自动清除认证信息
+   - ✅ 401错误自动跳转到登录页
+
+### 4. 常见问题和解决方案
+
+#### 问题1：新API客户端返回401错误
+**原因**：没有正确配置Token认证拦截器
+**解决**：
+1. 检查是否添加了请求拦截器
+2. 确认 `TokenManager.getAuthHeaders()` 被正确调用
+3. 验证 `Authorization` 头是否正确设置
+
+#### 问题2：Cookie冲突导致认证失败
+**原因**：独立API客户端没有禁用Cookie
+**解决**：
+1. 设置 `withCredentials: appConfig.auth.mode === 'cookie'`
+2. 在Token模式下确保 `config.withCredentials = false`
+
+#### 问题3：时序问题导致间歇性401错误
+**原因**：页面加载时Token还没有完全准备好
+**解决**：
+1. 确保TokenManager正确管理Token生命周期
+2. 添加Token过期检查逻辑
+3. 实现自动重试机制
+
+### 5. 验证和测试
+
+#### 开发时验证清单
+- [ ] 浏览器开发者工具中确认API请求包含 `Authorization: Bearer <token>` 头
+- [ ] 确认没有发送不必要的Cookie（Token模式下）
+- [ ] 测试Token过期后的自动跳转功能
+- [ ] 验证401错误的正确处理
+
+#### 调试命令
+```javascript
+// 浏览器控制台中检查Token状态
+console.log('Token数据:', JSON.parse(localStorage.getItem('DEVOPS_AUTH_TOKEN') || '{}'))
+
+// 检查API请求头
+// 在Network标签中查看请求头是否包含正确的Authorization头
+```
+
+### 6. 迁移指南
+
+#### 从Cookie认证迁移到Token认证
+1. **保持兼容性**：不要删除现有的Cookie认证代码
+2. **逐步迁移**：优先使用Token认证，Cookie认证作为备用
+3. **统一工具**：所有新API客户端使用统一的认证配置模板
+4. **测试验证**：确保所有API在Token模式下正常工作
+
+这个规范确保了所有前端API客户端都能正确处理Token Header认证，避免401错误和Cookie冲突问题。
