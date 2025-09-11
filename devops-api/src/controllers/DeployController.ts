@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
+import { AuthUtils } from '../utils/AuthUtils';
 
 interface CommandExecution {
   id: string;
@@ -51,7 +52,7 @@ export class DeployController {
   // 执行远程命令
   executeDevopsCommand = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'DeployController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -122,7 +123,7 @@ export class DeployController {
   // 获取Git仓库分支列表
   getGitBranches = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'DeployController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -198,7 +199,7 @@ export class DeployController {
 
   getDevopsStatus = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'DeployController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -375,7 +376,7 @@ export class DeployController {
   // 模板预览功能
   previewTemplate = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'DeployController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
