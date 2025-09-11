@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { sshLogin, logout, getSessionInfo, type SessionInfo } from '@/api/auth'
+import { sshLogin, logout, getSessionInfo, checkSession, type SessionInfo } from '@/api/auth'
+import config from '@/config'
+import { sessionDiagnostic } from '@/utils/sessionDiagnostic'
 
 export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
   const sessionInfo = ref<SessionInfo | null>(null)
   const loading = ref(false)
+  const sessionCheckTimer = ref<NodeJS.Timeout | null>(null)
 
   // 检查本地存储的会话
   const checkLocalSession = () => {
@@ -13,10 +16,17 @@ export const useAuthStore = defineStore('auth', () => {
     if (session) {
       try {
         const sessionData = JSON.parse(session)
-        if (sessionData.connected && sessionData.timestamp) {
+        // 检查会话是否过期
+        const now = Date.now()
+        const sessionAge = now - (sessionData.timestamp || 0)
+
+        if (sessionData.connected && sessionData.timestamp && sessionAge < config.session.timeout) {
           isAuthenticated.value = true
           sessionInfo.value = sessionData
           return true
+        } else {
+          // 会话过期，清除本地存储
+          localStorage.removeItem('ssh_session')
         }
       } catch (error) {
         console.error('解析本地会话失败:', error)
@@ -30,6 +40,9 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (credentials: { host: string; username: string; password: string }) => {
     loading.value = true
     try {
+      // 清理可能冲突的 Cookie
+      sessionDiagnostic.clearConflictingCookies()
+
       const response = await sshLogin(credentials)
       
       // 存储会话信息
@@ -46,7 +59,10 @@ export const useAuthStore = defineStore('auth', () => {
       
       isAuthenticated.value = true
       sessionInfo.value = sessionData
-      
+
+      // 启动会话检查
+      startSessionCheck()
+
       return response
     } finally {
       loading.value = false
@@ -64,26 +80,86 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.removeItem('ssh_session')
       isAuthenticated.value = false
       sessionInfo.value = null
+      stopSessionCheck()
+    }
+  }
+
+  // 验证服务器端会话
+  const validateServerSession = async (): Promise<boolean> => {
+    try {
+      const response = await checkSession()
+      return response.valid
+    } catch (error) {
+      console.error('验证服务器会话失败:', error)
+      return false
     }
   }
 
   // 获取会话信息
   const refreshSession = async () => {
     try {
+      // 先验证服务器端会话
+      const isValid = await validateServerSession()
+      if (!isValid) {
+        throw new Error('服务器会话无效')
+      }
+
       const response = await getSessionInfo()
-      sessionInfo.value = response.data
+
+      // 更新本地存储的时间戳
+      const sessionData = {
+        ...sessionInfo.value,
+        ...response.data.data,
+        timestamp: Date.now()
+      }
+
+      localStorage.setItem('ssh_session', JSON.stringify(sessionData))
+      sessionInfo.value = sessionData
       isAuthenticated.value = true
     } catch (error) {
       console.error('获取会话信息失败:', error)
       isAuthenticated.value = false
       sessionInfo.value = null
       localStorage.removeItem('ssh_session')
+      // 清除定时器
+      if (sessionCheckTimer.value) {
+        clearInterval(sessionCheckTimer.value)
+        sessionCheckTimer.value = null
+      }
+    }
+  }
+
+  // 启动会话检查定时器
+  const startSessionCheck = () => {
+    if (sessionCheckTimer.value) {
+      clearInterval(sessionCheckTimer.value)
+    }
+
+    if (config.session.autoRefresh) {
+      sessionCheckTimer.value = setInterval(async () => {
+        if (isAuthenticated.value) {
+          await refreshSession()
+        }
+      }, config.session.checkInterval)
+    }
+  }
+
+  // 停止会话检查定时器
+  const stopSessionCheck = () => {
+    if (sessionCheckTimer.value) {
+      clearInterval(sessionCheckTimer.value)
+      sessionCheckTimer.value = null
     }
   }
 
   // 初始化认证状态
   const init = () => {
-    checkLocalSession()
+    const hasLocalSession = checkLocalSession()
+    if (hasLocalSession) {
+      // 如果有本地会话，验证服务器端会话
+      refreshSession()
+      startSessionCheck()
+    }
   }
 
   return {
@@ -93,6 +169,9 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     doLogout,
     refreshSession,
+    validateServerSession,
+    startSessionCheck,
+    stopSessionCheck,
     init
   }
 })

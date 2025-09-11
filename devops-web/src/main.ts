@@ -9,6 +9,9 @@ import naive from 'naive-ui'
 // 导入全局样式
 import './styles/main.css'
 
+// 导入会话诊断工具（开发环境）
+import './utils/sessionDiagnostic'
+
 const app = createApp(App)
 
 app.use(createPinia())
