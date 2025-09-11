@@ -4,6 +4,7 @@ import { sshLogin, logout, getSessionInfo, checkSession, type SessionInfo } from
 import config from '@/config'
 import { sessionDiagnostic } from '@/utils/sessionDiagnostic'
 import CookieManager from '@/utils/cookie'
+import TokenManager from '@/utils/tokenManager'
 
 export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = ref(false)
@@ -13,25 +14,41 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 检查本地存储的会话
   const checkLocalSession = () => {
-    const session = localStorage.getItem('ssh_session')
-    if (session) {
-      try {
-        const sessionData = JSON.parse(session)
-        // 检查会话是否过期
-        const now = Date.now()
-        const sessionAge = now - (sessionData.timestamp || 0)
+    if (config.auth.mode === 'token') {
+      // Token 认证模式
+      const tokenData = TokenManager.getTokenData()
+      if (tokenData) {
+        isAuthenticated.value = true
+        sessionInfo.value = {
+          host: tokenData.host,
+          username: tokenData.username,
+          connected: true,
+          availableWorkspaces: []
+        }
+        return true
+      }
+    } else {
+      // Cookie 认证模式（兼容）
+      const session = localStorage.getItem('ssh_session')
+      if (session) {
+        try {
+          const sessionData = JSON.parse(session)
+          // 检查会话是否过期
+          const now = Date.now()
+          const sessionAge = now - (sessionData.timestamp || 0)
 
-        if (sessionData.connected && sessionData.timestamp && sessionAge < config.session.timeout) {
-          isAuthenticated.value = true
-          sessionInfo.value = sessionData
-          return true
-        } else {
-          // 会话过期，清除本地存储
+          if (sessionData.connected && sessionData.timestamp && sessionAge < config.session.timeout) {
+            isAuthenticated.value = true
+            sessionInfo.value = sessionData
+            return true
+          } else {
+            // 会话过期，清除本地存储
+            localStorage.removeItem('ssh_session')
+          }
+        } catch (error) {
+          console.error('解析本地会话失败:', error)
           localStorage.removeItem('ssh_session')
         }
-      } catch (error) {
-        console.error('解析本地会话失败:', error)
-        localStorage.removeItem('ssh_session')
       }
     }
     return false
@@ -41,8 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (credentials: { host: string; username: string; password: string }) => {
     loading.value = true
     try {
-      // 清理 DevOps 自己的旧 Cookie（不影响其他系统）
-      CookieManager.clearDevOpsCookies()
+      // 清理旧的认证信息
+      if (config.auth.mode === 'token') {
+        TokenManager.clearToken()
+      } else {
+        CookieManager.clearDevOpsCookies()
+      }
 
       const response = await sshLogin(credentials)
 
@@ -51,18 +72,25 @@ export const useAuthStore = defineStore('auth', () => {
         host: credentials.host,
         username: credentials.username,
         connected: true,
-        timestamp: Date.now(),
         defaultWorkspace: response.data.defaultWorkspace,
         availableWorkspaces: response.data.availableWorkspaces
       }
 
-      // 存储到 localStorage
-      localStorage.setItem('ssh_session', JSON.stringify(sessionData))
+      // 根据认证方式处理认证信息
+      if (config.auth.mode === 'token') {
+        // Token 认证模式 - Token 已在 API 层自动处理
+        console.log('✅ Token 认证登录成功')
+      } else {
+        // Cookie 认证模式（兼容）
+        localStorage.setItem('ssh_session', JSON.stringify({
+          ...sessionData,
+          timestamp: Date.now()
+        }))
 
-      // 如果后端返回了会话ID，存储到 Cookie
-      if (response.data.sessionId) {
-        CookieManager.setSessionId(response.data.sessionId)
-        console.log('✅ 已设置 DevOps 会话 Cookie:', config.cookie.sessionName)
+        if (response.data.sessionId) {
+          CookieManager.setSessionId(response.data.sessionId)
+          console.log('✅ 已设置 DevOps 会话 Cookie:', config.cookie.sessionName)
+        }
       }
 
       isAuthenticated.value = true
@@ -86,8 +114,14 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       // 无论服务器登出是否成功，都清除本地会话
       localStorage.removeItem('ssh_session')
-      // 清除 DevOps Cookie
-      CookieManager.clearDevOpsCookies()
+
+      // 根据认证方式清除相应的认证信息
+      if (config.auth.mode === 'token') {
+        TokenManager.clearToken()
+      } else {
+        CookieManager.clearDevOpsCookies()
+      }
+
       isAuthenticated.value = false
       sessionInfo.value = null
       stopSessionCheck()

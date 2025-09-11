@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
 import Joi from 'joi';
+import crypto from 'crypto';
 
 // 验证SSH登录请求的schema
 const sshLoginSchema = Joi.object({
@@ -20,21 +21,83 @@ const sshLoginSchema = Joi.object({
 
 export class AuthController {
   /**
-   * 获取会话ID（支持多种方式）
+   * 生成认证 Token
+   */
+  private generateAuthToken(sessionId: string): string {
+    // 使用 sessionId + 时间戳 + 随机数生成 Token
+    const timestamp = Date.now().toString();
+    const random = crypto.randomBytes(16).toString('hex');
+    const payload = `${sessionId}:${timestamp}:${random}`;
+
+    // 使用 HMAC 签名
+    const secret = process.env.SESSION_SECRET || 'devops-platform-secret-key';
+    const token = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+    return `${Buffer.from(payload).toString('base64')}.${token}`;
+  }
+
+  /**
+   * 验证认证 Token
+   */
+  private verifyAuthToken(token: string): { sessionId: string; timestamp: number } | null {
+    try {
+      const [payloadBase64, signature] = token.split('.');
+      if (!payloadBase64 || !signature) return null;
+
+      const payload = Buffer.from(payloadBase64, 'base64').toString();
+      const [sessionId, timestamp, random] = payload.split(':');
+
+      if (!sessionId || !timestamp || !random) return null;
+
+      // 验证签名
+      const secret = process.env.SESSION_SECRET || 'devops-platform-secret-key';
+      const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+      if (signature !== expectedSignature) return null;
+
+      // 检查 Token 是否过期（30分钟）
+      const tokenAge = Date.now() - parseInt(timestamp);
+      const maxAge = 30 * 60 * 1000; // 30分钟
+
+      if (tokenAge > maxAge) return null;
+
+      return { sessionId, timestamp: parseInt(timestamp) };
+    } catch (error) {
+      console.error('Token 验证失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取会话ID（优先使用 Token Header，兼容其他方式）
    */
   private getSessionId(req: Request): string | null {
-    // 1. 优先从 session 中获取
-    const sessionId = (req.session as any).sessionId;
-    if (sessionId) {
-      return sessionId;
+    // 1. 优先从 Authorization 头中获取 Token（推荐方式）
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const tokenData = this.verifyAuthToken(token);
+      if (tokenData) {
+        console.log('✅ 使用 Token Header 认证:', { sessionId: tokenData.sessionId });
+        return tokenData.sessionId;
+      }
     }
 
-    // 2. 从自定义头中获取（前端发送的）
+    // 2. 从自定义头中获取（备用方式）
     const headerSessionId = req.headers['x-devops-session-id'] as string;
     if (headerSessionId) {
+      console.log('⚠️ 使用自定义 Header 认证:', { sessionId: headerSessionId });
       return headerSessionId;
     }
 
+    // 3. 从 session 中获取（兼容模式，不推荐）
+    const sessionId = (req.session as any).sessionId;
+    if (sessionId) {
+      console.log('⚠️ 使用 Cookie Session 认证:', { sessionId: sessionId });
+      return sessionId;
+    }
+
+    console.log('❌ 未找到有效的认证信息');
     return null;
   }
 
@@ -63,23 +126,31 @@ export class AuthController {
       (req.session as any).host = host;
       (req.session as any).username = username;
 
+      // 生成认证 Token
+      const authToken = this.generateAuthToken(result.sessionId);
+
       // 设置响应头，告知前端会话ID（用于调试）
       res.setHeader('X-DevOps-Session-ID', result.sessionId);
+      res.setHeader('X-DevOps-Auth-Token', authToken);
 
-      console.log('✅ SSH登录成功:', {
+      console.log('✅ SSH登录成功 (Token Header 模式):', {
         sessionId: result.sessionId,
         host,
         username,
-        cookieName: 'DEVOPS_SESSION_ID'
+        hasToken: !!authToken,
+        tokenLength: authToken.length
       });
 
       res.json({
         success: true,
-        message: 'SSH连接成功',
+        message: 'SSH连接成功 - Token 已生成',
         data: {
           sessionId: result.sessionId,
+          token: authToken,
           defaultWorkspace: result.defaultWorkspace,
-          availableWorkspaces: result.availableWorkspaces
+          availableWorkspaces: result.availableWorkspaces,
+          // 明确告知前端使用 Header 方式
+          authMethod: 'token-header'
         }
       });
       return;
