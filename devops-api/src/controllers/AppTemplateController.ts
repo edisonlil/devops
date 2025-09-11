@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AppTemplateService } from '../services/AppTemplateService';
 import { authService } from '../services/AuthService';
+import { AuthUtils } from '../utils/AuthUtils';
 
 export class AppTemplateController {
   private appTemplateService: AppTemplateService;
@@ -12,7 +13,7 @@ export class AppTemplateController {
   // 获取全局app模板列表
   getGlobalAppTemplates = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -56,7 +57,7 @@ export class AppTemplateController {
   // 获取工作空间app模板列表
   getWorkspaceAppTemplates = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -106,7 +107,7 @@ export class AppTemplateController {
   // 获取所有app模板（全局 + 工作空间）
   getAllAppTemplates = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -143,7 +144,7 @@ export class AppTemplateController {
   // 复制全局模板到工作空间（可重命名）
   copyGlobalTemplateToWorkspace = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -170,7 +171,7 @@ export class AppTemplateController {
   // 获取app模板详情
   getAppTemplate = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -207,7 +208,7 @@ export class AppTemplateController {
   // 获取app模板变量定义
   getAppTemplateVariables = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -244,7 +245,7 @@ export class AppTemplateController {
   // 搜索app模板
   searchAppTemplates = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -312,7 +313,7 @@ export class AppTemplateController {
   // 按分类获取app模板
   getAppTemplatesByCategory = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -366,7 +367,7 @@ export class AppTemplateController {
   // 刷新模板缓存
   refreshCache = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       if (!sessionId) {
         res.status(401).json({ success: false, message: '请先进行SSH登录' });
         return;
@@ -399,7 +400,7 @@ export class AppTemplateController {
   // 清除所有缓存
   clearAllCache = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -427,7 +428,7 @@ export class AppTemplateController {
   // 清除工作空间缓存
   clearWorkspaceCache = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
       const { workspace } = req.params;
 
       if (!sessionId) {
@@ -464,7 +465,7 @@ export class AppTemplateController {
   // 获取缓存状态
   getCacheStatus = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'AppTemplateController');
 
       if (!sessionId) {
         res.status(401).json({

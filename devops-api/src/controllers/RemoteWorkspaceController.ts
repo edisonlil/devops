@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
 import Joi from 'joi';
+import { AuthUtils } from '../utils/AuthUtils';
 
 // 验证创建enable文件请求的schema
 const createEnableSchema = Joi.object({
@@ -17,7 +18,7 @@ export class RemoteWorkspaceController {
    */
   async getRemoteWorkspaces(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
 
       console.log('获取远程工作空间列表请求 - sessionId:', sessionId);
 
@@ -79,8 +80,8 @@ export class RemoteWorkspaceController {
    */
   async getWorkspaceEnable(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
-      
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
+
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -151,8 +152,8 @@ export class RemoteWorkspaceController {
    */
   async createEnableFile(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
-      
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
+
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -227,7 +228,7 @@ ENABEL_WORKSPACE_PATH="${workspace}"
       console.log('请求参数:', req.params);
       console.log('请求体:', req.body);
 
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
       const { name } = req.params;
       const configData = req.body;
 
@@ -285,9 +286,9 @@ ENABEL_WORKSPACE_PATH="${workspace}"
    */
   async getRemoteWorkspaceConfig(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
       const { name } = req.params;
-      
+
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -374,8 +375,8 @@ ENABEL_WORKSPACE_PATH="${workspace}"
    */
   async checkRemoteConnection(req: Request, res: Response) {
     try {
-      const sessionId = (req.session as any).sessionId;
-      
+      const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
+
       if (!sessionId) {
         res.json({
           success: false,

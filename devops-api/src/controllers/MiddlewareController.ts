@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { MiddlewareService } from '../services/MiddlewareService';
 import { TemplateFileService } from '../services/TemplateFileService';
+import { AuthUtils } from '../utils/AuthUtils';
 
 export class MiddlewareController {
   private middlewareService: MiddlewareService;
@@ -244,7 +245,7 @@ export class MiddlewareController {
   getTemplateFiles = async (req: Request, res: Response) => {
     try {
       const { workspace, templateName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'MiddlewareController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -274,7 +275,7 @@ export class MiddlewareController {
   getTemplateFileContent = async (req: Request, res: Response) => {
     try {
       const { workspace, templateName, fileName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'MiddlewareController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -308,7 +309,7 @@ export class MiddlewareController {
     try {
       const { workspace, templateName, fileName } = req.params;
       const { content } = req.body;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'MiddlewareController');
 
       if (!sessionId) {
         res.status(401).json({

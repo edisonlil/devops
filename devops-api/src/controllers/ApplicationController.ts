@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { applicationService } from '../services/ApplicationService';
 import { ApplicationOperation, OperationParams } from '../types/application';
+import { AuthUtils } from '../utils/AuthUtils';
 
 /**
  * 应用管理控制器
@@ -14,7 +15,7 @@ class ApplicationController {
    */
   getApplications = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -63,7 +64,7 @@ class ApplicationController {
    */
   getApplication = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -115,7 +116,7 @@ class ApplicationController {
    */
   executeAction = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -182,7 +183,7 @@ class ApplicationController {
    */
   getApplicationLogs = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -241,7 +242,7 @@ class ApplicationController {
    */
   refreshStatus = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -314,7 +315,7 @@ class ApplicationController {
    */
   getApplicationConfig = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,
@@ -356,7 +357,7 @@ class ApplicationController {
    */
   saveApplicationConfig = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'ApplicationController');
       if (!sessionId) {
         res.status(401).json({
           success: false,

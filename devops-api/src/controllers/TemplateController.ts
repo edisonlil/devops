@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { MiddlewareService } from '../services/MiddlewareService';
 import { TemplateFileService } from '../services/TemplateFileService';
 import { authService } from '../services/AuthService';
+import { AuthUtils } from '../utils/AuthUtils';
 
 export class TemplateController {
   private middlewareService: MiddlewareService;
@@ -66,7 +67,7 @@ export class TemplateController {
   getTemplateFiles = async (req: Request, res: Response) => {
     try {
       const { templateName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -96,7 +97,7 @@ export class TemplateController {
   getTemplateFileContent = async (req: Request, res: Response) => {
     try {
       const { templateName, fileName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -129,7 +130,7 @@ export class TemplateController {
   getAppTemplateFiles = async (req: Request, res: Response) => {
     try {
       const { templateName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -184,7 +185,7 @@ export class TemplateController {
   getAppTemplateFileContent = async (req: Request, res: Response) => {
     try {
       const { templateName, fileName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -241,7 +242,7 @@ export class TemplateController {
   // 调试：检查远程模板目录结构
   debugRemoteTemplates = async (req: Request, res: Response) => {
     try {
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -317,7 +318,7 @@ export class TemplateController {
     try {
       const { templateName, fileName } = req.params;
       const { content } = req.body;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -355,7 +356,7 @@ export class TemplateController {
   getWorkspaceAppTemplateFiles = async (req: Request, res: Response) => {
     try {
       const { workspace, templateName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -411,7 +412,7 @@ export class TemplateController {
   getWorkspaceAppTemplateFileContent = async (req: Request, res: Response) => {
     try {
       const { workspace, templateName, fileName } = req.params;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
@@ -471,7 +472,7 @@ export class TemplateController {
     try {
       const { workspace, templateName, fileName } = req.params;
       const { content } = req.body;
-      const sessionId = (req.session as any).sessionId;
+      const sessionId = AuthUtils.getSessionId(req, 'TemplateController');
 
       if (!sessionId) {
         res.status(401).json({
