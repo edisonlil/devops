@@ -177,9 +177,12 @@
                           </n-icon>
                         </template>
                         <div style="max-width: 300px;">
-                          <div>可选择预设版本或手动输入自定义版本</div>
+                          <div>可选择多个预设版本或手动输入自定义版本</div>
                           <div style="margin-top: 4px; color: #666;">
                             示例：python:3.9、golang:1.19、node:16.14 等
+                          </div>
+                          <div style="margin-top: 4px; color: #666; font-size: 12px;">
+                            支持多选，最终保存为逗号分隔的字符串
                           </div>
                         </div>
                       </n-tooltip>
@@ -187,9 +190,12 @@
                     <n-select
                       v-model:value="workspaceConfig.buildVersion"
                       :options="buildVersionOptions"
+                      multiple
                       filterable
                       tag
                       placeholder="选择预设版本或输入自定义版本"
+                      max-tag-count="responsive"
+                      clearable
                     />
                   </div>
                   <div class="form-item">
@@ -339,7 +345,7 @@ const workspaceConfig = ref({
   harborProject: '',
   harborUsername: '',
   harborPassword: '',
-  buildVersion: '',
+  buildVersion: [] as string[],
   buildCommands: '',
   mavenSettings: '',
   createdAt: '2025/9/5',
@@ -374,10 +380,40 @@ const environmentOptions = [
 ]
 
 const buildVersionOptions = [
-  { label: 'Java 8 (OpenJDK)', value: 'java:8.0.302-open' },
-  { label: 'Java 17 (Zulu)', value: 'java:17.0.12-zulu' },
-  { label: 'Node.js 18', value: 'node:18.12' },
-  { label: 'Node.js 20', value: 'node:20.10' }
+  // Java 版本
+  { label: 'Java 8 (OpenJDK)', value: 'java:8.0.302-open', group: 'Java' },
+  { label: 'Java 11 (OpenJDK)', value: 'java:11.0.16-open', group: 'Java' },
+  { label: 'Java 17 (Zulu)', value: 'java:17.0.12-zulu', group: 'Java' },
+  { label: 'Java 21 (OpenJDK)', value: 'java:21.0.1-open', group: 'Java' },
+  
+  // Node.js 版本
+  { label: 'Node.js 16', value: 'node:16.14', group: 'Node.js' },
+  { label: 'Node.js 18', value: 'node:18.12', group: 'Node.js' },
+  { label: 'Node.js 20', value: 'node:20.10', group: 'Node.js' },
+  { label: 'Node.js 22', value: 'node:22.0', group: 'Node.js' },
+  
+  // Python 版本
+  { label: 'Python 3.8', value: 'python:3.8', group: 'Python' },
+  { label: 'Python 3.9', value: 'python:3.9', group: 'Python' },
+  { label: 'Python 3.10', value: 'python:3.10', group: 'Python' },
+  { label: 'Python 3.11', value: 'python:3.11', group: 'Python' },
+  { label: 'Python 3.12', value: 'python:3.12', group: 'Python' },
+  
+  // Go 版本
+  { label: 'Go 1.19', value: 'golang:1.19', group: 'Go' },
+  { label: 'Go 1.20', value: 'golang:1.20', group: 'Go' },
+  { label: 'Go 1.21', value: 'golang:1.21', group: 'Go' },
+  { label: 'Go 1.22', value: 'golang:1.22', group: 'Go' },
+  
+  // Maven 版本
+  { label: 'Maven 3.8', value: 'maven:3.8.6', group: 'Maven' },
+  { label: 'Maven 3.9', value: 'maven:3.9.3', group: 'Maven' },
+  { label: 'Maven 3.9.6', value: 'maven:3.9.6', group: 'Maven' },
+  
+  // .NET 版本
+  { label: '.NET 6', value: 'dotnet:6.0', group: '.NET' },
+  { label: '.NET 7', value: 'dotnet:7.0', group: '.NET' },
+  { label: '.NET 8', value: 'dotnet:8.0', group: '.NET' }
 ]
 
 // 状态管理
@@ -418,7 +454,16 @@ const saveSettings = async () => {
 
     // 调用API保存配置
     console.log('🚀 开始调用 updateRemoteWorkspaceConfig API')
-    const response = await updateRemoteWorkspaceConfig(workspaceName.value, workspaceConfig.value)
+    
+    // 将构建版本数组转换为逗号分隔的字符串
+    const configToSave = {
+      ...workspaceConfig.value,
+      buildVersion: Array.isArray(workspaceConfig.value.buildVersion) 
+        ? workspaceConfig.value.buildVersion.join(',')
+        : workspaceConfig.value.buildVersion
+    }
+    
+    const response = await updateRemoteWorkspaceConfig(workspaceName.value, configToSave)
 
     if (response.success) {
       message.success('工作空间设置已保存')
@@ -535,7 +580,7 @@ const loadWorkspaceConfig = async () => {
         harborProject: config.BUILD_HARBOR_PROJECT || '',
         harborUsername: config.BUILD_HARBOR_USERNAME || '',
         harborPassword: config.BUILD_HARBOR_PASSWORD || '',
-        buildVersion: config.BUILD_VERSION || '',
+        buildVersion: config.BUILD_VERSION ? config.BUILD_VERSION.split(',').map((v: string) => v.trim()).filter((v: string) => v) : [],
         buildCommands: config.BUILD_COMMANDS || '',
         mavenSettings: config.BUILD_MAVEN_SETTINGS || ''
       }
@@ -571,7 +616,7 @@ const resetToDefaults = async () => {
       namespace: 'default',
       environment: 'development',
       gitBranch: 'main',
-      buildVersion: '',
+      buildVersion: [] as string[],
       buildCommands: '',
       mavenSettings: ''
     }
