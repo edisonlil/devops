@@ -13,10 +13,21 @@
           </n-button>
         </div>
         <div class="action-row deploy-row">
-          <n-button size="medium" @click="savePipeline" :loading="saving">
+          <n-button 
+            size="medium" 
+            @click="savePipeline" 
+            :loading="saving"
+            :disabled="!canProceed"
+          >
             {{ isEditMode ? '更新流水线' : '保存为流水线' }}
           </n-button>
-          <n-button type="primary" size="medium" @click="handleDeploy" :loading="deploying">
+          <n-button 
+            type="primary" 
+            size="medium" 
+            @click="handleDeploy" 
+            :loading="deploying"
+            :disabled="!canProceed"
+          >
             开始部署
           </n-button>
         </div>
@@ -286,7 +297,16 @@
                     placeholder="30000-32767"
                     :min="30000"
                     :max="32767"
+                    :status="portOccupied ? 'error' : undefined"
+                    @blur="checkPortOnBlur"
+                    @update:value="handlePortChange"
                   />
+                  <div class="form-help">
+                    NodePort端口范围通常为30000-32767
+                  </div>
+                  <div v-if="portOccupied" class="error-text">
+                    {{ portOccupiedMessage }}
+                  </div>
                 </div>
                 
                 <div class="form-item">
@@ -294,6 +314,7 @@
                   <n-switch v-model:value="config.forcePort" />
                 </div>
               </div>
+
             </div>
 
             <!-- 高级配置 -->
@@ -363,7 +384,8 @@ import { useMessage } from 'naive-ui'
 import { usePipelineStore } from '@/stores/pipeline'
 import * as workspaceApi from '@/api/workspace'
 import { deployApi } from '@/api/deploy'
-import { DocumentText } from '@vicons/ionicons5'
+import { middlewareApi } from '@/api/middleware'
+import { DocumentText, Search } from '@vicons/ionicons5'
 
 const router = useRouter()
 const route = useRoute()
@@ -373,6 +395,11 @@ const pipelineStore = usePipelineStore()
 const deploying = ref(false)
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
+
+// 端口占用状态
+const portOccupied = ref(false)
+const portOccupiedMessage = ref('')
+const checkingPort = ref(false)
 
 // 分支相关状态
 const branchOptions = ref<Array<{ label: string; value: string }>>([])
@@ -438,6 +465,12 @@ const buildEnvOptions = [
   { label: '灰度环境', value: 'gray' },
   { label: '生产环境', value: 'prod' }
 ]
+
+// 是否可以执行操作（不再因为端口占用而禁用）
+const canProceed = computed(() => {
+  // 仅在正在检查端口时禁用，端口被占用时不禁用操作
+  return !checkingPort.value
+})
 
 // 是否显示构建工具选择
 const showBuildTool = computed(() => {
@@ -535,6 +568,11 @@ const validateForm = () => {
       errors.value.staticDir = '本地目录路径不能为空'
     }
   }
+  
+  // 端口占用仅做提示，不影响表单验证
+  // if (portOccupied.value) {
+  //   errors.value.exposePort = portOccupiedMessage.value
+  // }
   
   return Object.keys(errors.value).length === 0
 }
@@ -636,6 +674,60 @@ const handleGitUrlChange = () => {
       fetchGitBranches(config.value.gitUrl)
     }
   }
+}
+
+// 实时端口检查功能
+const checkPortOnBlur = async () => {
+  if (!config.value.exposePort) {
+    portOccupied.value = false
+    portOccupiedMessage.value = ''
+    return
+  }
+
+  checkingPort.value = true
+  portOccupied.value = false
+  portOccupiedMessage.value = ''
+
+  try {
+    // 调用端口检查 API
+    const response = await middlewareApi.checkPortAvailability(currentWorkspace.value, [config.value.exposePort])
+    const responseData = response as any
+    
+    console.log(`端口 ${config.value.exposePort} 检查响应:`, responseData)
+    
+    if (responseData && responseData.length > 0) {
+      const serverResult = responseData[0]
+      if (serverResult.connected && serverResult.ports && serverResult.ports.length > 0) {
+        const portResult = serverResult.ports[0]
+        console.log(`端口检查结果:`, portResult)
+        if (!portResult.isAvailable) {
+          portOccupied.value = true
+          const processInfo = portResult.processInfo
+          if (processInfo && processInfo.name) {
+            portOccupiedMessage.value = `端口 ${config.value.exposePort} 已被进程 ${processInfo.name} (PID: ${processInfo.pid}) 占用`
+          } else {
+            portOccupiedMessage.value = `端口 ${config.value.exposePort} 已被占用`
+          }
+        }
+      } else if (serverResult.error) {
+        portOccupied.value = true
+        portOccupiedMessage.value = `检查端口失败: ${serverResult.error}`
+      }
+    }
+    
+  } catch (error: any) {
+    console.error('端口检查失败:', error)
+    portOccupied.value = true
+    portOccupiedMessage.value = '端口检查失败，请稍后再试'
+  } finally {
+    checkingPort.value = false
+  }
+}
+
+const handlePortChange = () => {
+  // 端口变化时清空错误状态
+  portOccupied.value = false
+  portOccupiedMessage.value = ''
 }
 
 // 共用的保存流水线方法
@@ -1105,6 +1197,19 @@ watch(() => config.value.sourceType, (newType) => {
     if (branchLoadTimeout.value) {
       clearTimeout(branchLoadTimeout.value)
     }
+  }
+})
+
+// 监听部署类型变化，自动设置默认构建工具
+watch(() => config.value.type, (newType) => {
+  if (newType === 'java' || newType === 'tomcat') {
+    // Java项目默认使用Maven
+    if (!config.value.buildTool) {
+      config.value.buildTool = 'maven'
+    }
+  } else {
+    // 非Java项目清空构建工具
+    config.value.buildTool = ''
   }
 })
 

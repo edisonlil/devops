@@ -342,4 +342,58 @@ export class MiddlewareController {
       return;
     }
   };
+
+  // 检查端口占用情况
+  checkPortAvailability = async (req: Request, res: Response) => {
+    try {
+      const { workspace } = req.params;
+      const { ports } = req.body;
+
+      if (!ports || !Array.isArray(ports) || ports.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: '请提供要检查的端口列表'
+        });
+        return;
+      }
+
+      // 验证端口号范围
+      const invalidPorts = ports.filter(port => 
+        !Number.isInteger(port) || port < 1 || port > 65535
+      );
+      
+      if (invalidPorts.length > 0) {
+        res.status(400).json({
+          success: false,
+          message: `无效的端口号: ${invalidPorts.join(', ')}，端口号必须在 1-65535 范围内`
+        });
+        return;
+      }
+
+      // 获取SSH会话ID
+      const sessionId = req.headers['x-devops-session-id'] as string;
+      if (!sessionId) {
+        res.status(401).json({
+          success: false,
+          message: '缺少SSH会话ID，请重新登录'
+        });
+        return;
+      }
+
+      console.log(`正在检查工作空间 ${workspace} 的端口:`, ports);
+      
+      const results = await this.middlewareService.checkPortAvailability(workspace, ports, sessionId);
+      
+      res.json(results);
+      return;
+      
+    } catch (error: any) {
+      console.error('端口检查失败:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '端口检查失败'
+      });
+      return;
+    }
+  };
 }

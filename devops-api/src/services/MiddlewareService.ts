@@ -1,5 +1,29 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as yaml from 'js-yaml';
+import { RemoteServerService, RemoteServer } from './RemoteServerService';
+import { SSHService } from './SSHService';
+import { authService } from './AuthService';
+
+export interface PortCheckResult {
+  port: number;
+  isAvailable: boolean;
+  message: string;
+  processInfo?: {
+    pid?: string;
+    name?: string;
+    user?: string;
+  };
+  timestamp: string;
+}
+
+export interface ServerPortCheck {
+  serverId: string;
+  serverName: string;
+  serverHost: string;
+  connected: boolean;
+  ports: PortCheckResult[];
+  error?: string;
+}
 
 export interface MiddlewareTemplate {
   name: string;
@@ -274,6 +298,13 @@ export class MiddlewareService {
   ];
 
   private deployments: Map<string, DeploymentJob> = new Map();
+  private remoteServerService: RemoteServerService;
+  private sshService: SSHService;
+
+  constructor() {
+    this.remoteServerService = new RemoteServerService();
+    this.sshService = new SSHService();
+  }
 
   async getTemplates(workspace: string) {
     const categories = [...new Set(this.templates.map(t => t.category))];
@@ -529,6 +560,273 @@ export class MiddlewareService {
     };
   }
 
+  // 端口占用检查功能
+  async checkPortAvailability(
+    workspace: string, 
+    ports: number[], 
+    sessionId?: string
+  ): Promise<ServerPortCheck[]> {
+    console.log(`开始检查工作空间 ${workspace} 的端口占用情况，端口列表:`, ports);
+    
+    try {
+      if (!sessionId) {
+        throw new Error('需要提供SSH会话ID');
+      }
+      
+      // 检查SSH会话是否有效
+      if (!authService.isSessionValid(sessionId)) {
+        throw new Error('SSH会话无效或已过期');
+      }
+      
+      const currentHost: ServerPortCheck = {
+        serverId: 'current-ssh-session',
+        serverName: '当前SSH会话服务器',
+        serverHost: 'remote-server',
+        connected: true,
+        ports: []
+      };
+
+      // 检查每个端口
+      for (const port of ports) {
+        const portResult = await this.checkSinglePortWithSSH(sessionId, port);
+        currentHost.ports.push(portResult);
+      }
+      
+      return [currentHost];
+      
+    } catch (error: any) {
+      console.error('端口检查失败:', error);
+      return [{
+        serverId: 'current-ssh-session',
+        serverName: '当前SSH会话服务器',
+        serverHost: 'remote-server',
+        connected: false,
+        ports: [],
+        error: error.message
+      }];
+    }
+  }
+
+  private async checkSinglePortWithSSH(sessionId: string, port: number): Promise<PortCheckResult> {
+    try {
+      // 使用authService的executeCommand方法执行远程命令
+      const checkCommand = `netstat -tln | grep :${port} | head -1`;
+      const result = await authService.executeCommand(sessionId, checkCommand);
+      
+      const outputStr = result.stdout || '';
+      const isOccupied = outputStr.trim().length > 0;
+      
+      console.log(`端口 ${port} 检查结果: ${isOccupied ? '已占用' : '可用'}, 输出: "${outputStr.trim()}"`);
+      
+      let processInfo: PortCheckResult['processInfo'];
+      
+      if (isOccupied) {
+        // 如果端口被占用，获取进程信息
+        try {
+          const processCommand = `lsof -i :${port} | tail -n +2 | head -1 | awk '{print $2,$1,$3}'`;
+          const processResult = await authService.executeCommand(sessionId, processCommand);
+          
+          const processOutputStr = processResult.stdout || '';
+          if (processOutputStr.trim()) {
+            const [pid, name, user] = processOutputStr.trim().split(' ');
+            processInfo = { pid, name, user };
+          }
+        } catch (error) {
+          // 获取进程信息失败，但端口仍被占用
+          console.warn(`获取端口 ${port} 进程信息失败:`, error);
+        }
+      }
+      
+      return {
+        port,
+        isAvailable: !isOccupied,
+        message: isOccupied ? `端口 ${port} 已被占用` : `端口 ${port} 可用`,
+        processInfo,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error: any) {
+      console.error(`检查端口 ${port} 时发生错误:`, error);
+      return {
+        port,
+        isAvailable: false,
+        message: `检查端口 ${port} 时发生错误: ${error.message}`,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  private async checkSinglePortLocal(port: number): Promise<PortCheckResult> {
+    try {
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+      
+      // 检查端口是否被占用的命令
+      const checkCommand = `netstat -tln | grep :${port}`;
+      
+      let isOccupied = false;
+      let outputStr = '';
+      
+      try {
+        const result = await execAsync(checkCommand);
+        outputStr = result.stdout || '';
+        // 如果有输出，说明端口被占用
+        isOccupied = outputStr.trim().length > 0;
+        console.log(`端口 ${port} 检查结果: ${isOccupied ? '已占用' : '可用'}, 输出: "${outputStr.trim()}"`);
+      } catch (error: any) {
+        // grep 没有找到匹配的结果会返回退出码 1，这是正常的，表示端口没有被占用
+        console.log(`端口 ${port} 检查命令执行结果: 退出码 ${error.code}, 错误: ${error.message}`);
+        if (error.code === 1) {
+          isOccupied = false;
+        } else {
+          // 其他错误（比如命令不存在）才是真正的错误
+          throw error;
+        }
+      }
+      
+      let processInfo: PortCheckResult['processInfo'];
+      
+      if (isOccupied) {
+        // 如果端口被占用，获取进程信息
+        try {
+          const processCommand = `lsof -i :${port} | tail -n +2 | head -1 | awk '{print $2,$1,$3}'`;
+          const processResult = await execAsync(processCommand);
+          
+          const processOutputStr = processResult.stdout || '';
+          if (processOutputStr.trim()) {
+            const [pid, name, user] = processOutputStr.trim().split(' ');
+            processInfo = { pid, name, user };
+          }
+        } catch (error) {
+          // 获取进程信息失败，但端口仍被占用
+          console.warn(`获取端口 ${port} 进程信息失败:`, error);
+        }
+      }
+      
+      return {
+        port,
+        isAvailable: !isOccupied,
+        message: isOccupied ? `端口 ${port} 已被占用` : `端口 ${port} 可用`,
+        processInfo,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error: any) {
+      return {
+        port,
+        isAvailable: false,
+        message: `检查端口 ${port} 时发生错误: ${error.message}`,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  private async checkSinglePort(server: any, port: number): Promise<PortCheckResult> {
+    try {
+      // 检查端口是否被占用的命令
+      const checkCommand = `netstat -tln | grep :${port} | head -1`;
+      const result = await this.sshService.executeCommand(server, checkCommand);
+      
+      const outputStr = result.output.join('');
+      const isOccupied = outputStr.trim().length > 0;
+      
+      let processInfo: PortCheckResult['processInfo'];
+      
+      if (isOccupied) {
+        // 如果端口被占用，获取进程信息
+        try {
+          const processCommand = `lsof -i :${port} | tail -n +2 | head -1 | awk '{print $2,$1,$3}'`;
+          const processResult = await this.sshService.executeCommand(server, processCommand);
+          
+          const processOutputStr = processResult.output.join('');
+          if (processOutputStr.trim()) {
+            const [pid, name, user] = processOutputStr.trim().split(' ');
+            processInfo = { pid, name, user };
+          }
+        } catch (error) {
+          // 获取进程信息失败，但端口仍被占用
+          console.warn(`获取端口 ${port} 进程信息失败:`, error);
+        }
+      }
+      
+      return {
+        port,
+        isAvailable: !isOccupied,
+        message: isOccupied ? `端口 ${port} 已被占用` : `端口 ${port} 可用`,
+        processInfo,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error: any) {
+      return {
+        port,
+        isAvailable: false,
+        message: `检查端口 ${port} 时发生错误: ${error.message}`,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  private async getWorkspaceTargetServers(workspace: string) {
+    // 从 deploy-target 配置文件获取工作空间的目标服务器
+    try {
+      const deployTargetPath = `${process.env.HOME || process.env.USERPROFILE}/.deploy/deploy-target`;
+      
+      // 检查配置文件是否存在
+      const fs = require('fs');
+      if (!fs.existsSync(deployTargetPath)) {
+        console.warn(`deploy-target 配置文件不存在: ${deployTargetPath}`);
+        return [];
+      }
+
+      // 读取配置文件
+      const content = fs.readFileSync(deployTargetPath, 'utf8');
+      const lines = content.split('\n').filter((line: string) => 
+        line.trim() && !line.trim().startsWith('#')
+      );
+
+      // 查找工作空间对应的服务器配置
+      const targetServers = [];
+      for (const line of lines) {
+        const [key, value] = line.split('=');
+        if (key && key.trim() === workspace && value) {
+          // 解析服务器配置: username:host:password
+          const [username, host, password] = value.trim().split(':');
+          if (username && host && password) {
+            // 构造远程服务器对象
+            const server: RemoteServer = {
+              id: `${workspace}-${host}`,
+              name: `${workspace} 部署目标`,
+              host: host,
+              port: 22,
+              username: username,
+              authType: 'password' as const,
+              password: password,
+              tags: [workspace, 'deployment'],
+              status: 'disconnected' as const,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            targetServers.push(server);
+          }
+        }
+      }
+
+      if (targetServers.length > 0) {
+        console.log(`从 deploy-target 配置读取到 ${targetServers.length} 个服务器`, targetServers.map(s => s.host));
+        return targetServers;
+      } else {
+        console.warn(`未在 deploy-target 配置中找到工作空间 '${workspace}' 的服务器配置`);
+        return [];
+      }
+      
+    } catch (error) {
+      console.error('读取 deploy-target 配置失败:', error);
+      return [];
+    }
+  }
+
   // 辅助方法
   private parseMemory(memoryStr: string): number {
     if (memoryStr.endsWith('Gi')) {
@@ -606,7 +904,68 @@ export class MiddlewareService {
   }
 
   private generateCliCommand(config: any): string {
-    return `kubectl apply -f ${config.instance_name}-deployment.yaml`;
+    // 生成等效的 DevOps CLI 命令
+    const templateName = config.template_name;
+    const instanceName = config.instance_name;
+    const namespace = config.namespace || 'middleware';
+    
+    let command = `devops run middleware ${templateName} ${instanceName}`;
+    
+    // 添加命名空间参数
+    if (namespace !== 'middleware') {
+      command += ` --namespace ${namespace}`;
+    }
+    
+    // 添加服务端口配置（使用现代的 --service-port 参数）
+    if (config.service_port) {
+      command += ` --service-port "${config.service_port}"`;
+    } else if (config.app_port) {
+      // 如果有传统的 app_port 配置，转换为 service-port 格式
+      command += ` --service-port "${config.app_port}"`;
+    }
+    
+    // 传统单端口参数支持（向后兼容 --expose-port）
+    if (config.expose_port && !config.service_port && !config.app_port) {
+      command += ` --expose-port "${config.expose_port}"`;
+    }
+    
+    // 添加导出端口配置
+    if (config.export_port) {
+      command += ` --export-port "${config.export_port}"`;
+    }
+    
+    // 添加资源配置
+    if (config.cpu_limit) {
+      command += ` --cpu-limit ${config.cpu_limit}`;
+    }
+    
+    if (config.memory_limit) {
+      command += ` --memory-limit ${config.memory_limit}`;
+    }
+    
+    if (config.storage_size) {
+      command += ` --storage-size ${config.storage_size}`;
+    }
+    
+    // 添加副本数配置
+    if (config.replicas && config.replicas > 1) {
+      command += ` --replicas ${config.replicas}`;
+    }
+    
+    // 添加高级配置选项
+    if (config.backup_enabled) {
+      command += ` --backup-enabled`;
+    }
+    
+    if (config.monitoring_enabled) {
+      command += ` --monitoring-enabled`;
+    }
+    
+    if (config.network_policy_enabled) {
+      command += ` --network-policy`;
+    }
+    
+    return command;
   }
 
   private simulateDeployment(deploymentId: string) {

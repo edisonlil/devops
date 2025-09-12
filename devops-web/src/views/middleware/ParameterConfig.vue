@@ -18,7 +18,7 @@
         <!-- 视图切换选项卡 -->
         <div class="view-tabs">
           <n-tabs 
-            v-model:value="currentView" 
+            v-model="currentView" 
             type="segment" 
             size="large"
             @update:value="handleViewChange"
@@ -48,7 +48,7 @@
                   <h3>📋 基础配置</h3>
                   <n-form-item label="实例名称" path="instance_name">
                     <n-input 
-                      v-model:value="formData.instance_name" 
+                      v-model="formData.instance_name" 
                       placeholder="cache-server"
                       :status="getFieldStatus('instance_name')"
                     />
@@ -61,7 +61,7 @@
 
                   <n-form-item label="命名空间" path="namespace">
                     <n-select
-                      v-model:value="formData.namespace"
+                      v-model="formData.namespace"
                       :options="namespaceOptions"
                       placeholder="选择命名空间"
                     />
@@ -74,7 +74,7 @@
                   
                   <n-form-item label="CPU" path="cpu_limit">
                     <ResourceSlider
-                      v-model:value="formData.cpu_limit"
+                      v-model="formData.cpu_limit"
                       :options="cpuOptions"
                       label="CPU"
                       unit="Cores"
@@ -83,7 +83,7 @@
 
                   <n-form-item label="内存" path="memory_limit">
                     <ResourceSlider
-                      v-model:value="formData.memory_limit"
+                      v-model="formData.memory_limit"
                       :options="memoryOptions"
                       label="内存"
                       unit=""
@@ -92,13 +92,13 @@
 
                   <n-form-item label="存储大小" path="storage_size">
                     <n-input-number
-                      v-model:value="storageValue"
+                      v-model="storageValue"
                       :min="1"
                       :max="1000"
                       style="width: 120px;"
                     />
                     <n-select
-                      v-model:value="storageUnit"
+                      v-model="storageUnit"
                       :options="storageUnitOptions"
                       style="width: 80px; margin-left: 8px;"
                     />
@@ -106,7 +106,7 @@
 
                   <n-form-item label="副本数量" path="replicas">
                     <n-input-number
-                      v-model:value="formData.replicas"
+                      v-model="formData.replicas"
                       :min="1"
                       :max="10"
                       style="width: 120px;"
@@ -118,7 +118,7 @@
                 <div v-if="templateForm" class="form-section">
                   <h3>🔧 {{ templateInfo?.type }} 特定配置</h3>
                   <DynamicFormFields
-                    v-model:value="formData"
+                    v-model="formData"
                     :form-definition="templateForm"
                     @validate="handleFieldValidation"
                   />
@@ -129,19 +129,98 @@
                   <n-collapse>
                     <n-collapse-item title="🚀 高级配置 (可选)" name="advanced">
                       <n-form-item label="备份设置">
-                        <n-switch v-model:value="formData.backup_enabled" />
+                        <n-switch v-model="formData.backup_enabled" />
                         <span style="margin-left: 8px;">启用自动备份</span>
                       </n-form-item>
 
                       <n-form-item label="监控设置">
-                        <n-switch v-model:value="formData.monitoring_enabled" />
+                        <n-switch v-model="formData.monitoring_enabled" />
                         <span style="margin-left: 8px;">启用监控</span>
                       </n-form-item>
 
                       <n-form-item label="网络策略">
-                        <n-switch v-model:value="formData.network_policy_enabled" />
+                        <n-switch v-model="formData.network_policy_enabled" />
                         <span style="margin-left: 8px;">启用网络隔离</span>
                       </n-form-item>
+
+                      <!-- 端口配置 -->
+                      <n-form-item label="服务端口">
+                        <n-input
+                          v-model="formData.service_port"
+                          placeholder="例如: 8080 或 http:8080,admin:9090"
+                          @blur="handlePortChange"
+                        />
+                        <template #feedback>
+                          <span style="font-size: 12px; color: #666;">
+                            支持单端口(8080)或多端口(http:8080,admin:9090)
+                          </span>
+                        </template>
+                      </n-form-item>
+
+                      <n-form-item label="暴露端口">
+                        <n-space>
+                          <n-input
+                            v-model="formData.export_port"
+                            placeholder="例如: 30080 或 30080,30090"
+                            style="flex: 1;"
+                            @blur="handlePortChange"
+                          />
+                          <n-button
+                            @click="checkPortAvailability"
+                            :loading="portChecking"
+                            type="primary"
+                            secondary
+                            size="small"
+                          >
+                            <template #icon>
+                              <n-icon><Search /></n-icon>
+                            </template>
+                            检查端口
+                          </n-button>
+                        </n-space>
+                        <template #feedback>
+                          <span style="font-size: 12px; color: #666;">
+                            NodePort端口范围通常为30000-32767
+                          </span>
+                        </template>
+                      </n-form-item>
+
+                      <!-- 端口检查结果 -->
+                      <div v-if="portCheckResults.length > 0" class="port-check-results">
+                        <n-divider>端口检查结果</n-divider>
+                        <div v-for="serverResult in portCheckResults" :key="serverResult.serverId" class="server-result">
+                          <h4>{{ serverResult.serverName }} ({{ serverResult.serverHost }})</h4>
+                          <div class="server-status">
+                            <n-tag :type="serverResult.connected ? 'success' : 'error'" size="small">
+                              {{ serverResult.connected ? '已连接' : '连接失败' }}
+                            </n-tag>
+                            <span v-if="serverResult.error" class="error-message">{{ serverResult.error }}</span>
+                          </div>
+                          
+                          <div v-if="serverResult.connected && serverResult.ports.length > 0" class="port-results">
+                            <div v-for="portResult in serverResult.ports" :key="portResult.port" class="port-result">
+                              <n-space align="center">
+                                <n-tag :type="portResult.isAvailable ? 'success' : 'warning'" size="small">
+                                  端口 {{ portResult.port }}
+                                </n-tag>
+                                <span>{{ portResult.message }}</span>
+                                <div v-if="portResult.processInfo" class="process-info">
+                                  <n-popover trigger="hover">
+                                    <template #trigger>
+                                      <n-tag size="tiny" type="info">进程信息</n-tag>
+                                    </template>
+                                    <div>
+                                      <p><strong>PID:</strong> {{ portResult.processInfo.pid }}</p>
+                                      <p><strong>进程:</strong> {{ portResult.processInfo.name }}</p>
+                                      <p><strong>用户:</strong> {{ portResult.processInfo.user }}</p>
+                                    </div>
+                                  </n-popover>
+                                </div>
+                              </n-space>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </n-collapse-item>
                   </n-collapse>
                 </div>
@@ -168,7 +247,7 @@
                     <!-- 文件选择器 -->
                     <div class="file-selector">
                       <n-select
-                        v-model:value="selectedFile"
+                        v-model="selectedFile"
                         :options="templateFiles"
                         placeholder="选择文件查看"
                         size="small"
@@ -309,7 +388,8 @@ import {
   CheckmarkCircle, 
   Warning, 
   InformationCircle,
-  DocumentText 
+  DocumentText,
+  Search
 } from '@vicons/ionicons5'
 import { middlewareApi } from '@/api/middleware'
 import type { 
@@ -351,8 +431,31 @@ const formData = ref({
   replicas: 1,
   backup_enabled: true,
   monitoring_enabled: true,
-  network_policy_enabled: false
+  network_policy_enabled: false,
+  service_port: '',
+  export_port: ''
 })
+
+// 端口检查相关状态
+const portChecking = ref(false)
+const portCheckResults = ref<Array<{
+  serverId: string;
+  serverName: string;
+  serverHost: string;
+  connected: boolean;
+  ports: Array<{
+    port: number;
+    isAvailable: boolean;
+    message: string;
+    processInfo?: {
+      pid?: string;
+      name?: string;
+      user?: string;
+    };
+    timestamp: string;
+  }>;
+  error?: string;
+}>>([])
 
 // 存储大小分离处理
 const storageValue = ref(5)
@@ -420,12 +523,12 @@ const loadTemplateInfo = async () => {
       middlewareApi.getTemplateForm(workspaceName.value, templateName.value)
     ])
     
-    templateInfo.value = templateResponse
-    templateForm.value = formResponse.form
+    templateInfo.value = templateResponse as any
+    templateForm.value = (formResponse as any).form
     
     // 设置默认实例名称
     if (!formData.value.instance_name) {
-      formData.value.instance_name = `${templateInfo.value.type}-${Date.now().toString(36).slice(-4)}`
+      formData.value.instance_name = `${templateInfo.value?.type}-${Date.now().toString(36).slice(-4)}`
     }
   } catch (error: any) {
     message.error(error.message || '获取模板信息失败')
@@ -437,7 +540,7 @@ const loadTemplateInfo = async () => {
 const updateCostEstimation = async () => {
   try {
     const response = await middlewareApi.estimateCost(workspaceName.value, formData.value)
-    costEstimation.value = response
+    costEstimation.value = response as any
   } catch (error) {
     console.error('成本预估失败:', error)
   }
@@ -534,10 +637,13 @@ const resetForm = () => {
     replicas: 1,
     backup_enabled: true,
     monitoring_enabled: true,
-    network_policy_enabled: false
+    network_policy_enabled: false,
+    service_port: '',
+    export_port: ''
   }
   storageValue.value = 5
   storageUnit.value = 'Gi'
+  portCheckResults.value = []
 }
 
 const previewConfig = async () => {
@@ -565,6 +671,110 @@ const previewConfig = async () => {
   }
 }
 
+// 端口检查功能
+const checkPortAvailability = async () => {
+  if (!formData.value.export_port && !formData.value.service_port) {
+    message.warning('请先输入要检查的端口')
+    return
+  }
+
+  portChecking.value = true
+  portCheckResults.value = []
+
+  try {
+    // 解析端口配置
+    const portsToCheck = parsePortsFromConfig()
+    
+    if (portsToCheck.length === 0) {
+      message.warning('未检测到有效端口')
+      return
+    }
+
+    message.info(`正在检查 ${portsToCheck.length} 个端口...`)
+    
+    // 调用端口检查 API
+    const response = await middlewareApi.checkPortAvailability(workspaceName.value, portsToCheck)
+    const responseData = response as any
+    portCheckResults.value = responseData
+    
+    // 统计结果
+    const totalServers = responseData.length
+    const connectedServers = responseData.filter((r: any) => r.connected).length
+    const unavailablePorts = responseData.flatMap((r: any) => 
+      r.ports.filter((p: any) => !p.isAvailable)
+    ).length
+    
+    if (unavailablePorts > 0) {
+      message.warning(`检测到 ${unavailablePorts} 个端口已被占用，请调整配置`)
+    } else if (connectedServers === 0) {
+      message.error('无法连接到目标服务器，请检查网络和认证配置')
+    } else {
+      message.success(`端口检查完成，所有端口均可用`)
+    }
+    
+  } catch (error: any) {
+    console.error('端口检查失败:', error)
+    message.error(error.message || '端口检查失败')
+  } finally {
+    portChecking.value = false
+  }
+}
+
+const parsePortsFromConfig = (): number[] => {
+  const ports = new Set<number>()
+  
+  // 解析服务端口
+  if (formData.value.service_port) {
+    const servicePorts = parsePortString(formData.value.service_port)
+    servicePorts.forEach(port => ports.add(port))
+  }
+  
+  // 解析暴露端口
+  if (formData.value.export_port) {
+    const exportPorts = parsePortString(formData.value.export_port)
+    exportPorts.forEach(port => ports.add(port))
+  }
+  
+  return Array.from(ports)
+}
+
+const parsePortString = (portString: string): number[] => {
+  const ports: number[] = []
+  
+  // 分割逗号分隔的端口
+  const portItems = portString.split(',').map(item => item.trim())
+  
+  for (const item of portItems) {
+    // 处理多种格式：8080, http:8080, 8080:30080
+    const parts = item.split(':')
+    
+    if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+      // 简单数字端口
+      ports.push(parseInt(parts[0]))
+    } else if (parts.length === 2) {
+      // 命名端口或显式映射
+      const [first, second] = parts
+      if (/^\d+$/.test(first) && /^\d+$/.test(second)) {
+        // 显式映射：8080:30080
+        ports.push(parseInt(first), parseInt(second))
+      } else if (/^\d+$/.test(second)) {
+        // 命名端口：http:8080
+        ports.push(parseInt(second))
+      }
+    } else if (parts.length === 3 && /^\d+$/.test(parts[2])) {
+      // 容器指定格式：container:http:8080
+      ports.push(parseInt(parts[2]))
+    }
+  }
+  
+  return ports
+}
+
+const handlePortChange = () => {
+  // 端口配置发生变化时清空检查结果
+  portCheckResults.value = []
+}
+
 // 视图切换处理
 const handleViewChange = (view: string) => {
   if (view === 'preview' && !renderedTemplate.value) {
@@ -577,6 +787,9 @@ const handleViewChange = (view: string) => {
 const refreshPreview = async () => {
   renderingPreview.value = true
   try {
+    // TODO: 实现模板渲染功能
+    message.info('模板预览功能正在开发中...')
+    /*
     // 调用API渲染模板
     const response = await middlewareApi.renderTemplate(
       workspaceName.value, 
@@ -597,6 +810,7 @@ const refreshPreview = async () => {
       selectedFile.value = templateFiles.value[0].value
       updateHighlightedCode()
     }
+    */
     
     message.success('模板预览生成成功')
   } catch (error: any) {
@@ -781,6 +995,54 @@ onMounted(() => {
   font-size: 13px;
   color: #666;
   line-height: 1.4;
+}
+
+/* 端口检查结果样式 */
+.port-check-results {
+  margin-top: 16px;
+}
+
+.server-result {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.server-result h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.error-message {
+  font-size: 12px;
+  color: #ff4d4f;
+}
+
+.port-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.port-result {
+  padding: 6px 8px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
+}
+
+.process-info {
+  margin-left: auto;
 }
 
 .config-footer {

@@ -58,4 +58,7 @@ router.post('/instances/:instanceName/restart', middlewareController.restartInst
 // 获取实例日志
 router.get('/instances/:instanceName/logs', middlewareController.getInstanceLogs);
 
+// 检查端口占用情况
+router.post('/check-ports', middlewareController.checkPortAvailability);
+
 export default router;

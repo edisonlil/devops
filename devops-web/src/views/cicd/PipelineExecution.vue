@@ -39,6 +39,15 @@
       <h3 class="section-title">执行命令</h3>
       <div class="command-display">
         <code>{{ pipeline?.command || '加载中...' }}</code>
+        <div class="command-actions">
+          <n-button 
+            size="small" 
+            @click="copyCommand"
+            :disabled="!pipeline?.command"
+          >
+            复制命令
+          </n-button>
+        </div>
       </div>
     </div>
 
@@ -655,6 +664,22 @@ const goBack = () => {
   router.push(`/workspace/${workspaceName}/manage/cicd`)
 }
 
+// 复制执行命令
+const copyCommand = async () => {
+  if (!pipeline.value?.command) {
+    message.warning('没有可复制的命令')
+    return
+  }
+  
+  try {
+    await navigator.clipboard.writeText(pipeline.value.command)
+    message.success('命令已复制到剪贴板')
+  } catch (error) {
+    console.error('复制失败:', error)
+    message.error('复制失败，请手动复制')
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   console.log('PipelineExecution页面挂载，路由查询参数:', route.query)
@@ -767,6 +792,13 @@ onUnmounted(() => {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 14px;
   overflow-x: auto;
+  position: relative;
+}
+
+.command-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 
 .logs-container {

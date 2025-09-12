@@ -199,6 +199,28 @@ export const middlewareApi = {
     return api.post(`/workspaces/${workspace}/middleware/instances/${instanceName}/scale`, { replicas })
   },
 
+  // 检查端口占用情况
+  checkPortAvailability: (workspace: string, ports: number[]) => {
+    return api.post<Array<{
+      serverId: string;
+      serverName: string;
+      serverHost: string;
+      connected: boolean;
+      ports: Array<{
+        port: number;
+        isAvailable: boolean;
+        message: string;
+        processInfo?: {
+          pid?: string;
+          name?: string;
+          user?: string;
+        };
+        timestamp: string;
+      }>;
+      error?: string;
+    }>>(`/workspaces/${workspace}/middleware/check-ports`, { ports })
+  },
+
   // 重启实例
   restartInstance: (workspace: string, instanceName: string) => {
     return api.post(`/workspaces/${workspace}/middleware/instances/${instanceName}/restart`)
