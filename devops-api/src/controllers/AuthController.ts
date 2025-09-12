@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/AuthService';
+import { AuthUtils } from '../utils/AuthUtils';
 import Joi from 'joi';
 import crypto from 'crypto';
 
@@ -36,70 +37,9 @@ export class AuthController {
     return `${Buffer.from(payload).toString('base64')}.${token}`;
   }
 
-  /**
-   * 验证认证 Token
-   */
-  private verifyAuthToken(token: string): { sessionId: string; timestamp: number } | null {
-    try {
-      const [payloadBase64, signature] = token.split('.');
-      if (!payloadBase64 || !signature) return null;
 
-      const payload = Buffer.from(payloadBase64, 'base64').toString();
-      const [sessionId, timestamp, random] = payload.split(':');
 
-      if (!sessionId || !timestamp || !random) return null;
 
-      // 验证签名
-      const secret = process.env.SESSION_SECRET || 'devops-platform-secret-key';
-      const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-
-      if (signature !== expectedSignature) return null;
-
-      // 检查 Token 是否过期（30分钟）
-      const tokenAge = Date.now() - parseInt(timestamp);
-      const maxAge = 30 * 60 * 1000; // 30分钟
-
-      if (tokenAge > maxAge) return null;
-
-      return { sessionId, timestamp: parseInt(timestamp) };
-    } catch (error) {
-      console.error('Token 验证失败:', error);
-      return null;
-    }
-  }
-
-  /**
-   * 获取会话ID（优先使用 Token Header，兼容其他方式）
-   */
-  private getSessionId(req: Request): string | null {
-    // 1. 优先从 Authorization 头中获取 Token（推荐方式）
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const tokenData = this.verifyAuthToken(token);
-      if (tokenData) {
-        console.log('✅ 使用 Token Header 认证:', { sessionId: tokenData.sessionId });
-        return tokenData.sessionId;
-      }
-    }
-
-    // 2. 从自定义头中获取（备用方式）
-    const headerSessionId = req.headers['x-devops-session-id'] as string;
-    if (headerSessionId) {
-      console.log('⚠️ 使用自定义 Header 认证:', { sessionId: headerSessionId });
-      return headerSessionId;
-    }
-
-    // 3. 从 session 中获取（兼容模式，不推荐）
-    const sessionId = (req.session as any).sessionId;
-    if (sessionId) {
-      console.log('⚠️ 使用 Cookie Session 认证:', { sessionId: sessionId });
-      return sessionId;
-    }
-
-    console.log('❌ 未找到有效的认证信息');
-    return null;
-  }
 
   /**
    * SSH登录
@@ -169,7 +109,7 @@ export class AuthController {
    */
   async logout(req: Request, res: Response) {
     try {
-      const sessionId = this.getSessionId(req);
+      const sessionId = AuthUtils.getSessionId(req, 'AuthController');
       
       if (sessionId) {
         authService.logout(sessionId);
@@ -202,7 +142,7 @@ export class AuthController {
    */
   async getSessionInfo(req: Request, res: Response) {
     try {
-      const sessionId = this.getSessionId(req);
+      const sessionId = AuthUtils.getSessionId(req, 'AuthController');
       
       if (!sessionId) {
         res.status(401).json({
@@ -267,18 +207,29 @@ export class AuthController {
    */
   async checkSession(req: Request, res: Response) {
     try {
-      const sessionId = this.getSessionId(req);
-      
+      console.log('🔍 检查会话请求 - 请求头信息:', {
+        authorization: req.headers.authorization ? '***Bearer Token***' : 'none',
+        sessionId: req.headers['x-devops-session-id'] || 'none',
+        cookie: req.headers.cookie ? '***Cookie***' : 'none'
+      });
+
+      const sessionId = AuthUtils.getSessionId(req, 'AuthController');
+
+      console.log('🔍 AuthUtils.getSessionId 结果:', sessionId);
+
       if (!sessionId) {
+        console.log('❌ checkSession: 未找到有效的 sessionId');
         res.json({ valid: false });
         return;
       }
-      
+
       const valid = authService.isSessionValid(sessionId);
+      console.log('🔍 authService.isSessionValid 结果:', valid);
+
       res.json({ valid });
       return;
     } catch (error: any) {
-      console.error('检查会话失败:', error);
+      console.error('❌ 检查会话失败:', error);
       res.json({ valid: false });
       return;
     }

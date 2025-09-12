@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import TokenManager from '@/utils/tokenManager'
 import type { RouteRecordRaw } from 'vue-router'
 
 const routes: RouteRecordRaw[] = [
@@ -164,24 +165,45 @@ const router = createRouter({
   routes
 })
 
-// SSH会话检查函数
-const checkSSHSession = (): boolean => {
+// 认证状态检查函数 - 使用 Token 认证
+const checkAuthentication = (): boolean => {
+  // 优先检查 Token 认证
+  const tokenData = TokenManager.getTokenData()
+  if (tokenData) {
+    console.log('🔍 路由守卫：发现有效 Token 认证')
+    return true
+  }
+
+  // 兼容旧的 SSH 会话检查
   const session = localStorage.getItem('ssh_session')
-  if (!session) return false
-  
+  if (!session) {
+    console.log('🔍 路由守卫：未找到任何认证信息')
+    return false
+  }
+
   try {
     const sessionData = JSON.parse(session)
-    return sessionData.connected && sessionData.timestamp
+    const isValid = sessionData.connected && sessionData.timestamp
+    console.log('🔍 路由守卫：SSH 会话检查结果:', isValid)
+    return isValid
   } catch {
+    console.log('🔍 路由守卫：SSH 会话数据解析失败')
     return false
   }
 }
 
 // 获取默认工作空间
 const getDefaultWorkspaceFromSession = (): string | null => {
+  // 优先从 Token 数据获取
+  const tokenData = TokenManager.getTokenData()
+  if (tokenData && tokenData.defaultWorkspace) {
+    return tokenData.defaultWorkspace
+  }
+
+  // 兼容旧的 SSH 会话方式
   const session = localStorage.getItem('ssh_session')
   if (!session) return null
-  
+
   try {
     const sessionData = JSON.parse(session)
     return sessionData.defaultWorkspace || null
@@ -197,7 +219,7 @@ router.beforeEach((to, from, next) => {
     document.title = `${to.meta.title} - DevOps Platform`
   }
   
-  const isAuthenticated = checkSSHSession()
+  const isAuthenticated = checkAuthentication()
   
   // 检查认证
   if (to.meta.requiresAuth && !isAuthenticated) {

@@ -224,15 +224,23 @@ ENABEL_WORKSPACE_PATH="${workspace}"
    */
   async updateRemoteWorkspaceConfig(req: Request, res: Response) {
     try {
-      console.log('收到更新工作空间配置请求:', req.method, req.path);
-      console.log('请求参数:', req.params);
-      console.log('请求体:', req.body);
+      console.log('🔍 收到更新工作空间配置请求:', req.method, req.path);
+      console.log('📋 请求参数:', req.params);
+      console.log('📦 请求体:', req.body);
+      console.log('🔑 请求头认证信息:', {
+        authorization: req.headers.authorization ? '***Bearer Token***' : 'none',
+        sessionId: req.headers['x-devops-session-id'] || 'none',
+        cookie: req.headers.cookie ? '***Cookie***' : 'none'
+      });
 
       const sessionId = AuthUtils.getSessionId(req, 'RemoteWorkspaceController');
       const { name } = req.params;
       const configData = req.body;
 
+      console.log('🔍 AuthUtils.getSessionId 结果:', sessionId);
+
       if (!sessionId) {
+        console.error('❌ 认证失败：未找到有效的 sessionId');
         res.status(401).json({
           success: false,
           message: '未登录'

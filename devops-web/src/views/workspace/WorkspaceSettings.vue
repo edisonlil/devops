@@ -150,8 +150,31 @@
               <div class="section-content">
                 <div class="form-grid">
                   <div class="form-item">
-                    <label class="form-label">构建版本</label>
-                    <n-input v-model:value="workspaceConfig.buildVersion" placeholder="例如: node:18.12 (可选)" />
+                    <label class="form-label">
+                      构建版本
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-icon size="14" style="margin-left: 4px; color: #999; cursor: help;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                            </svg>
+                          </n-icon>
+                        </template>
+                        <div style="max-width: 300px;">
+                          <div>可选择预设版本或手动输入自定义版本</div>
+                          <div style="margin-top: 4px; color: #666;">
+                            示例：python:3.9、golang:1.19、node:16.14 等
+                          </div>
+                        </div>
+                      </n-tooltip>
+                    </label>
+                    <n-select
+                      v-model:value="workspaceConfig.buildVersion"
+                      :options="buildVersionOptions"
+                      filterable
+                      tag
+                      placeholder="选择预设版本或输入自定义版本"
+                    />
                   </div>
                   <div class="form-item">
                     <label class="form-label">Maven Settings</label>
@@ -266,6 +289,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getRemoteWorkspaceConfig, updateRemoteWorkspaceConfig } from '@/api/workspace'
 import { useAuthStore } from '@/stores/auth'
+import TokenManager from '@/utils/tokenManager'
 // import GlobalNavbar from '@/components/layout/GlobalNavbar.vue'
 
 const route = useRoute()
@@ -332,6 +356,13 @@ const environmentOptions = [
   { label: '生产环境', value: 'production' }
 ]
 
+const buildVersionOptions = [
+  { label: 'Java 8 (OpenJDK)', value: 'java:8.0.302-open' },
+  { label: 'Java 17 (Zulu)', value: 'java:17.0.12-zulu' },
+  { label: 'Node.js 18', value: 'node:18.12' },
+  { label: 'Node.js 20', value: 'node:20.10' }
+]
+
 // 状态管理
 const saving = ref(false)
 
@@ -343,16 +374,29 @@ const goBack = () => {
 // 保存设置
 const saveSettings = async () => {
   try {
-    // 检查认证状态
-    if (!authStore.isAuthenticated) {
+    // 调试信息：检查认证状态
+    console.log('🔍 保存设置 - 认证状态检查:', {
+      isAuthenticated: authStore.isAuthenticated,
+      hasToken: !!TokenManager.getToken(),
+      hasSessionId: !!TokenManager.getSessionId(),
+      tokenData: TokenManager.getTokenData()
+    })
+
+    // 检查认证状态 - 直接检查 Token 而不依赖 authStore.isAuthenticated
+    const tokenData = TokenManager.getTokenData()
+    if (!tokenData) {
+      console.error('❌ 认证检查失败：无有效 Token')
       message.error('请先登录')
       router.push('/login')
       return
     }
 
+    console.log('✅ 发现有效 Token，继续执行保存操作')
+
     saving.value = true
 
     // 调用API保存配置
+    console.log('🚀 开始调用 updateRemoteWorkspaceConfig API')
     const response = await updateRemoteWorkspaceConfig(workspaceName.value, workspaceConfig.value)
 
     if (response.success) {
@@ -471,12 +515,17 @@ const initializeData = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 初始化认证状态
   authStore.init()
 
-  // 检查认证状态
-  if (!authStore.isAuthenticated) {
+  // 等待认证状态初始化完成
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // 检查认证状态 - 直接检查 Token 而不依赖 authStore.isAuthenticated
+  const tokenData = TokenManager.getTokenData()
+  if (!tokenData) {
+    console.error('❌ 认证检查失败：无有效 Token')
     message.error('请先登录')
     router.push('/login')
     return
