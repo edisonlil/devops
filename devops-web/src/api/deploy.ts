@@ -193,7 +193,7 @@ export const deployApi = {
 
   // 获取Git仓库分支列表
   getGitBranches: (workspace: string, gitUrl: string) => {
-    return api.post<{ branches: string[] }>(`/workspaces/${workspace}/deploy/git-branches`, { gitUrl })
+    return api.post<{ success: boolean; data: { branches: string[] }; message?: string }>(`/workspaces/${workspace}/deploy/git-branches`, { gitUrl })
   },
 
   getExecutionLogs: (workspace: string, executionId: string) => {
@@ -271,9 +271,31 @@ export const deployApi = {
 
   // 模板预览
   previewTemplate: (workspace: string, templateName: string, config: any) => {
-    return api.post<{ files: Record<string, string> }>(`/workspaces/${workspace}/deploy/template-preview`, {
+    return api.post<{ success: boolean; data: { files: Record<string, string> }; message?: string }>(`/workspaces/${workspace}/deploy/template-preview`, {
       templateName,
       config
+    })
+  },
+
+  // 上传代码包
+  uploadCodePackage: (workspace: string, formData: FormData, config?: any) => {
+    return api.post<{ 
+      success: boolean;
+      data: {
+        remotePath: string;
+        originalName: string;
+        size: number;
+        uploadTime: string;
+        transferMethod?: string;
+        available?: { scp: boolean; sftp: boolean };
+        extractMode?: string;
+      };
+      message: string;
+    }>(`/workspaces/${workspace}/deploy/upload-code`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      ...config
     })
   }
 }

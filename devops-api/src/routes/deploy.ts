@@ -1,5 +1,45 @@
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { DeployController } from '../controllers/DeployController';
+
+// 配置multer中间件用于文件上传
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'temp');
+    // 确保上传目录存在
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // 使用时间戳和原始文件名生成唯一文件名
+    const timestamp = Date.now();
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${timestamp}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB 限制
+  },
+  fileFilter: (req, file, cb) => {
+    // 允许的文件类型
+    const allowedTypes = /\.(zip|tar|tar\.gz|tar\.bz2|rar|7z)$/i;
+    const originalName = file.originalname.toLowerCase();
+    
+    if (allowedTypes.test(originalName)) {
+      cb(null, true);
+    } else {
+      cb(new Error('不支持的文件类型，请上传 ZIP、TAR 等压缩文件'));
+    }
+  }
+});
 
 const router = Router({ mergeParams: true });
 const deployController = new DeployController();
@@ -51,5 +91,8 @@ router.get('/resources/system-info', deployController.getSystemInfo);
 
 // 模板预览功能
 router.post('/template-preview', deployController.previewTemplate);
+
+// 上传代码包
+router.post('/upload-code', upload.single('file'), deployController.uploadCodePackage);
 
 export default router;

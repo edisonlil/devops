@@ -190,6 +190,7 @@
                   <label class="form-label">代码来源类型 *</label>
                   <n-radio-group v-model:value="config.sourceType">
                     <n-radio value="git">Git 仓库</n-radio>
+                    <n-radio value="upload">上传代码包</n-radio>
                     <n-radio value="local">本地目录</n-radio>
                   </n-radio-group>
                 </div>
@@ -229,10 +230,84 @@
                   </div>
                 </template>
 
+                  <!-- 上传代码包配置 -->
+                <template v-if="config.sourceType === 'upload'">
+                  <div class="form-item full-width">
+                    <label class="form-label">代码包文件 *</label>
+                    <n-upload
+                      v-model:file-list="uploadFiles"
+                      action="#"
+                      :max="1"
+                      :show-file-list="true"
+                      :on-before-upload="handleBeforeUpload"
+                      :on-finish="handleUploadFinish"
+                      :on-error="handleUploadError"
+                      :custom-request="handleCustomUpload"
+                      accept=".zip,.tar,.tar.gz,.tar.bz2,.rar,.7z"
+                      :disabled="uploading"
+                      :directory="false"
+                      :multiple="false"
+                    >
+                      <n-button :disabled="uploading" :loading="uploading">
+                        <template #icon>
+                          <n-icon>
+                            <svg viewBox="0 0 24 24">
+                              <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                          </n-icon>
+                        </template>
+                        {{ uploading ? '上传中...' : '选择代码包' }}
+                      </n-button>
+                    </n-upload>
+                    <div class="form-help">
+                      <n-icon size="14" style="margin-right: 4px;">
+                        <svg viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                        </svg>
+                      </n-icon>
+                      支持 ZIP、TAR 等压缩格式，优先使用SCP传输（更轻量级），备选SFTP传输
+                    </div>
+                    <div class="form-help" style="margin-top: 4px; color: #666;">
+                      如果服务器不支持SCP，系统会自动切换到SFTP。建议在服务器上安装OpenSSH确保最佳兼容性。
+                    </div>
+                    <span v-if="errors.upload" class="error-text">{{ errors.upload }}</span>
+                  </div>
+                  
+                  <!-- 解压选项 -->
+                  <div class="form-item full-width">
+                    <label class="form-label">文件处理选项</label>
+                    <n-radio-group v-model:value="config.extractMode">
+                      <n-radio value="none">保持压缩格式</n-radio>
+                      <n-radio value="auto">自动解压</n-radio>
+                    </n-radio-group>
+                    <div class="form-help">
+                      <n-icon size="14" style="margin-right: 4px;">
+                        <svg viewBox="0 0 24 24">
+                          <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                        </svg>
+                      </n-icon>
+                      选择"保持压缩格式"将上传原始压缩文件，选择"自动解压"将解压文件到目录
+                    </div>
+                  </div>
+                  
+                  <!-- 显示上传后的远程路径 -->
+                  <div class="form-item full-width" v-if="config.staticDir">
+                    <label class="form-label">远程路径</label>
+                    <n-input
+                      v-model:value="config.staticDir"
+                      readonly
+                      placeholder="上传成功后将显示远程路径"
+                    />
+                    <div class="form-help">
+                      {{ config.extractMode === 'auto' ? '这是解压后的目录路径' : '这是上传的压缩文件路径' }}，将作为 --static-dir 参数传递
+                    </div>
+                  </div>
+                </template>
+
                 <!-- 本地目录配置 -->
                 <template v-if="config.sourceType === 'local'">
                   <div class="form-item full-width">
-                    <label class="form-label">本地目录路径 *</label>
+                    <label class="form-label">远程目录路径 *</label>
                     <n-input
                       v-model:value="config.staticDir"
                       placeholder="/path/to/your/project 或 /path/to/dist.tar"
@@ -245,7 +320,7 @@
                           <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
                         </svg>
                       </n-icon>
-                      支持本地目录路径或tar包文件（.tar, .tar.gz, .tar.bz2）
+                      指定远程服务器上已存在的目录路径或tar包文件
                     </div>
                   </div>
                 </template>
@@ -401,10 +476,14 @@ const portOccupied = ref(false)
 const portOccupiedMessage = ref('')
 const checkingPort = ref(false)
 
+// 文件上传状态
+const uploading = ref(false)
+const uploadFiles = ref<any[]>([])
+
 // 分支相关状态
 const branchOptions = ref<Array<{ label: string; value: string }>>([])
 const loadingBranches = ref(false)
-const branchLoadTimeout = ref<number | null>(null)
+const branchLoadTimeout = ref<NodeJS.Timeout | null>(null)
 
 // 视图切换相关
 const currentView = ref('config') // 'config' | 'preview'
@@ -427,10 +506,11 @@ const config = ref({
   type: '',
   workspace: 'default',
   namespace: '',
-  sourceType: 'git', // 'git' 或 'local'
+  sourceType: 'git', // 'git'、'upload' 或 'local'
   gitUrl: '',
   branch: '', // 初始为空，将从工作空间配置加载默认值
   staticDir: '', // 本地目录路径
+  extractMode: 'none', // 'none': 保持压缩格式, 'auto': 自动解压
   buildTool: '',
   buildEnv: 'prod',
   appPort: null as number | null,
@@ -500,6 +580,10 @@ const generatedCommand = computed(() => {
     if (config.value.branch && config.value.branch !== 'main') {
       parts.push('--git-branch', config.value.branch)
     }
+  } else if (config.value.sourceType === 'upload') {
+    if (config.value.staticDir) {
+      parts.push('--static-dir', `"${config.value.staticDir}"`)
+    }
   } else if (config.value.sourceType === 'local') {
     if (config.value.staticDir) {
       parts.push('--static-dir', `"${config.value.staticDir}"`)
@@ -563,9 +647,13 @@ const validateForm = () => {
     if (!config.value.gitUrl) {
       errors.value.gitUrl = 'Git 仓库地址不能为空'
     }
+  } else if (config.value.sourceType === 'upload') {
+    if (!config.value.staticDir) {
+      errors.value.upload = '请上传代码包文件'
+    }
   } else if (config.value.sourceType === 'local') {
     if (!config.value.staticDir) {
-      errors.value.staticDir = '本地目录路径不能为空'
+      errors.value.staticDir = '远程目录路径不能为空'
     }
   }
   
@@ -587,6 +675,189 @@ const copyCommand = async () => {
   }
 }
 
+// 文件上传相关方法
+const handleBeforeUpload = (data: { file: any; fileList: any[] }) => {
+  console.log('准备上传文件:', data.file.name, '文件大小:', data.file.size)
+  console.log('文件类型:', data.file.type)
+  console.log('完整文件信息:', data.file)
+  
+  // 检查文件大小（限制为100MB）
+  const maxSize = 100 * 1024 * 1024 // 100MB
+  if (data.file.size > maxSize) {
+    message.error('文件大小不能超过100MB')
+    return false
+  }
+  
+  // 检查文件类型
+  const allowedTypes = ['.zip', '.tar', '.tar.gz', '.tar.bz2', '.rar', '.7z']
+  const fileName = data.file.name.toLowerCase()
+  const isValidType = allowedTypes.some(type => fileName.endsWith(type))
+  
+  if (!isValidType) {
+    message.error('请选择支持的压缩文件格式')
+    return false
+  }
+  
+  console.log('文件验证通过，允许上传')
+  return true
+}
+
+const handleCustomUpload = async ({ file, onProgress, onFinish, onError }: any) => {
+  let isFinished = false // 防止重复完成
+  
+  const finishUpload = (success: boolean, error?: any) => {
+    if (isFinished) return
+    isFinished = true
+    
+    uploading.value = false
+    
+    if (success) {
+      onFinish()
+    } else {
+      onError(error || new Error('上传失败'))
+    }
+  }
+  
+  try {
+    uploading.value = true
+    console.log('开始上传文件:', file.file.name, '大小:', file.file.size)
+    
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file.file)
+    formData.append('workspace', currentWorkspace.value)
+    formData.append('extractMode', config.value.extractMode) // 添加解压模式参数
+    
+    console.log('发送上传请求到:', `/workspaces/${currentWorkspace.value}/deploy/upload-code`)
+    
+    // 设置超时定时器 - 如果后端不响应，强制结束
+    const uploadTimeout = setTimeout(() => {
+      if (!isFinished) {
+        console.warn('上传操作超时，强制结束')
+        finishUpload(false, new Error('上传超时，请检查网络连接或选择较小的文件'))
+      }
+    }, 300000) // 5分钟绝对超时
+    
+    // 调用上传 API
+    const response = await deployApi.uploadCodePackage(currentWorkspace.value, formData, {
+      timeout: 300000, // 5分钟超时
+      onUploadProgress: (progressEvent: any) => {
+        if (progressEvent.total && !isFinished) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          console.log(`上传进度: ${percentCompleted}%`)
+          onProgress({ percent: percentCompleted })
+          
+          // 如果进度达到100%，延长超时时间等待后端处理
+          if (percentCompleted >= 100) {
+            clearTimeout(uploadTimeout)
+            // 再给5分钟等待后端处理完成
+            setTimeout(() => {
+              if (!isFinished) {
+                console.warn('文件上传完成但后端处理超时，强制结束')
+                finishUpload(false, new Error('后端处理超时，但文件可能已上传成功，请检查远程文件'))
+              }
+            }, 300000)
+          }
+        }
+      }
+    })
+    
+    // 清理超时定时器
+    clearTimeout(uploadTimeout)
+    
+    console.log('上传响应:', response)
+    console.log('响应类型:', typeof response)
+    console.log('响应键名:', Object.keys(response))
+    
+    // axios响应拦截器已经返回了response.data，所以这里直接访问属性
+    const apiResponse = response as any; // 临时的类型断言
+    
+    if (apiResponse.success && apiResponse.data?.remotePath) {
+      // 设置远程目录路径
+      config.value.staticDir = apiResponse.data.remotePath
+      
+      // 显示传输方法信息
+      const transferMethod = apiResponse.data.transferMethod || 'Unknown'
+      const available = apiResponse.data.available || { scp: false, sftp: false }
+      
+      let methodMessage = `文件上传成功（使用${transferMethod}）`
+      let availabilityInfo = `服务器支持: SCP(${available.scp ? '✓' : '✗'}), SFTP(${available.sftp ? '✓' : '✗'})`
+      
+      // 如果SCP不可用，提示用户
+      if (!available.scp && !available.sftp) {
+        message.warning('注意：服务器不支持SCP和SFTP，可能需要安装OpenSSH')
+      } else if (!available.scp) {
+        message.info('提示：服务器不支持SCP，已使用SFTP传输。如需更轻量级的传输方式，可安装scp命令')
+      }
+      
+      console.log(availabilityInfo)
+      message.success(methodMessage + '\n远程路径: ' + apiResponse.data.remotePath)
+      
+      // 成功完成上传
+      finishUpload(true)
+    } else {
+      console.error('响应数据检查失败:', {
+        success: apiResponse.success,
+        hasData: !!apiResponse.data,
+        hasRemotePath: !!apiResponse.data?.remotePath,
+        responseKeys: Object.keys(apiResponse),
+        actualResponse: apiResponse
+      })
+      throw new Error(apiResponse.message || '上传失败')
+    }
+  } catch (error: any) {
+    console.error('文件上传失败:', error)
+    let errorMessage = '文件上传失败'
+    
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = '上传超时，请检查网络连接或选择较小的文件'
+    } else if (error.response?.status === 401) {
+      errorMessage = '用户认证已过期，请重新登录'
+    } else if (error.response?.status === 409) {
+      // SSH会话断开，不是认证问题
+      const responseData = error.response?.data
+      errorMessage = responseData?.message || 'SSH会话已断开'
+      
+      // 显示更友好的提示信息
+      if (responseData?.details?.autoReconnectFailed) {
+        // 自动重连失败，提示用户稍后重试
+        message.warning(`${errorMessage}\n系统已尝试自动重连但失败，请稍后重试`)
+        // 可以考虑添加一个重试按钮
+      } else if (responseData?.details?.suggestion) {
+        message.warning(`${errorMessage}\n${responseData.details.suggestion}`)
+      } else {
+        message.warning(errorMessage + '\n请稍后重试或检查网络连接')
+      }
+      
+      finishUpload(false, error)
+      return // 直接返回，不显示错误消息
+    } else if (error.response?.status === 500) {
+      const responseData = error.response?.data
+      if (responseData?.message?.includes('服务器不支持SCP和SFTP')) {
+        errorMessage = '服务器不支持文件传输，请安装OpenSSH并启用SCP/SFTP服务'
+      } else if (responseData?.message?.includes('SCP传输失败')) {
+        errorMessage = 'SCP传输失败，请检查服务器scp命令是否可用'
+      } else {
+        errorMessage = responseData?.message || 'SSH连接问题，请检查服务器连接'
+      }
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    message.error(errorMessage)
+    finishUpload(false, error)
+  }
+}
+
+const handleUploadFinish = ({ file, event }: any) => {
+  console.log('文件上传完成:', file.name)
+}
+
+const handleUploadError = ({ file, event }: any) => {
+  console.error('文件上传错误:', file.name, event)
+  message.error(`文件 ${file.name} 上传失败`)
+}
+
 // 获取Git分支列表
 const fetchGitBranches = async (gitUrl: string) => {
   if (!gitUrl || loadingBranches.value) return
@@ -606,14 +877,15 @@ const fetchGitBranches = async (gitUrl: string) => {
       const response = await deployApi.getGitBranches(workspaceName, gitUrl)
       console.log('Git分支 API 响应:', response)
 
-      if (response.success && response.data?.branches && response.data.branches.length > 0) {
-        branchOptions.value = response.data.branches.map(branch => ({
+      const apiResponse = response as any;
+      if (apiResponse.success && apiResponse.data?.branches && apiResponse.data.branches.length > 0) {
+        branchOptions.value = apiResponse.data.branches.map((branch: string) => ({
           label: branch,
           value: branch
         }))
 
         // 如果当前分支不在列表中，添加到列表
-        if (config.value.branch && !response.data.branches.includes(config.value.branch)) {
+        if (config.value.branch && !apiResponse.data.branches.includes(config.value.branch)) {
           branchOptions.value.unshift({
             label: config.value.branch,
             value: config.value.branch
@@ -897,11 +1169,12 @@ const refreshPreview = async () => {
       previewConfig
     )
 
-    if (response.success && response.data?.files) {
-      renderedTemplate.value = response.data
+    const apiResponse = response as any;
+    if (apiResponse.success && apiResponse.data?.files) {
+      renderedTemplate.value = apiResponse.data
       
       // 构建文件选项
-      templateFiles.value = Object.keys(response.data.files).map(filename => ({
+      templateFiles.value = Object.keys(apiResponse.data.files).map(filename => ({
         label: filename,
         value: filename
       }))
@@ -913,7 +1186,7 @@ const refreshPreview = async () => {
       
       message.success(`模板预览生成成功，共生成 ${templateFiles.value.length} 个文件`)
     } else {
-      throw new Error(response.message || '模板预览生成失败')
+      throw new Error(apiResponse.message || '模板预览生成失败')
     }
   } catch (error: any) {
     console.error('模板预览失败:', error)
@@ -922,7 +1195,7 @@ const refreshPreview = async () => {
     
     // 如果是模板路径问题，给出提示
     if (errorMessage.includes('模板目录不存在') || errorMessage.includes('未找到模板目录')) {
-      message.warning(`请检查模板 "${templateName}" 是否存在于远程服务器`)
+      message.warning(`请检查模板 "${selectedTemplate.value?.originalName || selectedTemplate.value?.name || '未知'}" 是否存在于远程服务器`)
     }
   } finally {
     renderingPreview.value = false
@@ -1191,8 +1464,8 @@ watch(() => config.value.sourceType, (newType) => {
   if (newType === 'git' && config.value.gitUrl) {
     // 切换到Git模式且有URL时，加载分支
     fetchGitBranches(config.value.gitUrl)
-  } else if (newType === 'local') {
-    // 切换到本地模式时，清空分支选项
+  } else if (newType === 'upload' || newType === 'local') {
+    // 切换到上传模式或本地模式时，清空分支选项
     branchOptions.value = []
     if (branchLoadTimeout.value) {
       clearTimeout(branchLoadTimeout.value)
