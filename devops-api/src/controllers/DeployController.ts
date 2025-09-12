@@ -153,10 +153,8 @@ export class DeployController {
         if (result.exitCode !== 0) {
           console.error('获取分支失败:', result.stderr);
           res.json({
-            success: true,
-            data: {
-              branches: ['main', 'master', 'develop'] // 提供默认分支作为备选
-            }
+            success: false,
+            message: '获取分支失败：' + result.stderr
           });
           return;
         }
@@ -169,21 +167,26 @@ export class DeployController {
 
         console.log(`获取到 ${branches.length} 个分支:`, branches);
 
+        if (branches.length === 0) {
+          res.json({
+            success: false,
+            message: '未找到任何分支'
+          });
+          return;
+        }
+
         res.json({
           success: true,
           data: {
-            branches: branches.length > 0 ? branches : ['main', 'master']
+            branches: branches
           }
         });
         return;
       } catch (error: any) {
         console.error('执行git命令失败:', error);
-        // 如果命令执行失败，返回默认分支
         res.json({
-          success: true,
-          data: {
-            branches: ['main', 'master', 'develop']
-          }
+          success: false,
+          message: '执行git命令失败：' + error.message
         });
         return;
       }

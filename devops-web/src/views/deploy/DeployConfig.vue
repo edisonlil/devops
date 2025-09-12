@@ -402,7 +402,7 @@ const config = ref({
   namespace: '',
   sourceType: 'git', // 'git' 或 'local'
   gitUrl: '',
-  branch: 'main',
+  branch: '', // 初始为空，将从工作空间配置加载默认值
   staticDir: '', // 本地目录路径
   buildTool: '',
   buildEnv: 'prod',
@@ -566,8 +566,9 @@ const fetchGitBranches = async (gitUrl: string) => {
 
       const workspaceName = route.params.workspaceName as string
       const response = await deployApi.getGitBranches(workspaceName, gitUrl)
+      console.log('Git分支 API 响应:', response)
 
-      if (response.data.branches && response.data.branches.length > 0) {
+      if (response.success && response.data?.branches && response.data.branches.length > 0) {
         branchOptions.value = response.data.branches.map(branch => ({
           label: branch,
           value: branch
@@ -580,41 +581,32 @@ const fetchGitBranches = async (gitUrl: string) => {
             value: config.value.branch
           })
         }
-
-        // 如果没有设置分支，设置默认分支
-        if (!config.value.branch) {
-          // 优先选择 main，然后是 master，最后是第一个分支
-          const defaultBranch = response.data.branches.find(b => b === 'main') ||
-                               response.data.branches.find(b => b === 'master') ||
-                               response.data.branches[0]
-          if (defaultBranch) {
-            config.value.branch = defaultBranch
-          }
-        }
       } else {
-        // 如果没有获取到分支，提供默认选项
-        branchOptions.value = [
-          { label: 'main', value: 'main' },
-          { label: 'master', value: 'master' },
-          { label: 'develop', value: 'develop' }
-        ]
-
-        if (!config.value.branch) {
-          config.value.branch = 'main'
+        // Git分支获取失败时，如果有工作空间默认分支，则显示它
+        if (config.value.branch) {
+          branchOptions.value = [{
+            label: config.value.branch,
+            value: config.value.branch
+          }]
+          console.log('Git分支获取失败，使用工作空间默认分支:', config.value.branch)
+        } else {
+          branchOptions.value = []
         }
+        message.warning('无法获取远程分支列表，请检查Git仓库地址或网络连接')
       }
     } catch (error: any) {
       console.error('获取Git分支失败:', error)
-      // 出错时提供默认分支选项
-      branchOptions.value = [
-        { label: 'main', value: 'main' },
-        { label: 'master', value: 'master' },
-        { label: 'develop', value: 'develop' }
-      ]
-
-      if (!config.value.branch) {
-        config.value.branch = 'main'
+      // 出错时，如果有工作空间默认分支，则显示它
+      if (config.value.branch) {
+        branchOptions.value = [{
+          label: config.value.branch,
+          value: config.value.branch
+        }]
+        console.log('Git分支获取异常，使用工作空间默认分支:', config.value.branch)
+      } else {
+        branchOptions.value = []
       }
+      message.error('获取Git分支失败，请检查仓库地址或网络连接')
     } finally {
       loadingBranches.value = false
     }
@@ -923,14 +915,26 @@ const inferDeployTypeFromTemplate = (templateId: string): string => {
 const loadWorkspaceDefaults = async () => {
   try {
     const response = await workspaceApi.getRemoteWorkspaceConfig(currentWorkspace.value)
+    console.log('工作空间配置响应:', response)
 
     // 由于axios响应拦截器，response已经是response.data
     if (response.data?.exists && response.data?.config) {
       const workspaceConfig = response.data.config
+      console.log('解析的工作空间配置:', workspaceConfig)
+      console.log('BUILD_GIT_BRANCH值:', workspaceConfig.BUILD_GIT_BRANCH)
+      console.log('当前分支值:', config.value.branch)
 
       // 填充默认值到表单（只在字段为空时填充）
-      if (workspaceConfig.BUILD_GIT_BRANCH && (!config.value.branch || config.value.branch === 'main')) {
+      if (workspaceConfig.BUILD_GIT_BRANCH && !config.value.branch) {
+        console.log('设置工作空间默认分支:', workspaceConfig.BUILD_GIT_BRANCH)
         config.value.branch = workspaceConfig.BUILD_GIT_BRANCH
+        
+        // 同时将默认分支添加到选项列表中，确保下拉框能正确显示
+        branchOptions.value = [{
+          label: workspaceConfig.BUILD_GIT_BRANCH,
+          value: workspaceConfig.BUILD_GIT_BRANCH
+        }]
+        console.log('已添加工作空间默认分支到选项列表')
       }
 
       if (workspaceConfig.BUILD_GIT_URL && !config.value.gitUrl) {
@@ -965,9 +969,29 @@ const loadWorkspaceDefaults = async () => {
         config.value.buildEnv = 'prod'
       }
 
+    } else {
+      console.log('没有找到工作空间配置，使用默认值')
+      // 如果没有工作空间配置，设置默认分支
+      if (!config.value.branch) {
+        config.value.branch = 'main'
+        // 同时添加到选项列表
+        branchOptions.value = [{
+          label: 'main',
+          value: 'main'
+        }]
+      }
     }
   } catch (error) {
     console.warn('加载workspace配置失败:', error)
+    // 出错时也设置默认分支
+    if (!config.value.branch) {
+      config.value.branch = 'main'
+      // 同时添加到选项列表
+      branchOptions.value = [{
+        label: 'main',
+        value: 'main'
+      }]
+    }
     // 不显示错误消息，因为这不是关键功能
   }
 }
@@ -984,12 +1008,32 @@ const loadPipelineForEdit = async () => {
     return
   }
   
-  // 从流水线配置恢复表单数据
+  // 从流水线配置恢复表单数据，但保留工作空间默认值
   if (pipeline.config) {
+    // 保存当前的工作空间默认值
+    const workspaceBranch = config.value.branch
+    const workspaceGitUrl = config.value.gitUrl
+    const workspaceNamespace = config.value.namespace
+    const workspaceJavaOpts = config.value.javaOpts
+    
     config.value = {
       ...config.value,
       ...pipeline.config,
       workspace: currentWorkspace.value // 确保工作空间正确
+    }
+
+    // 如果流水线中没有设置这些值，则使用工作空间默认值
+    if (!pipeline.config.branch && workspaceBranch) {
+      config.value.branch = workspaceBranch
+    }
+    if (!pipeline.config.gitUrl && workspaceGitUrl) {
+      config.value.gitUrl = workspaceGitUrl
+    }
+    if (!pipeline.config.namespace && workspaceNamespace) {
+      config.value.namespace = workspaceNamespace
+    }
+    if (!pipeline.config.javaOpts && workspaceJavaOpts) {
+      config.value.javaOpts = workspaceJavaOpts
     }
 
     // 确保代码来源类型正确设置
@@ -1025,8 +1069,11 @@ onMounted(async () => {
   // 设置当前工作空间
   config.value.workspace = currentWorkspace.value
 
+  // 先加载workspace默认配置，确保在任何模式下都能获取到默认值
+  await loadWorkspaceDefaults()
+
   if (isEditMode) {
-    // 编辑模式：从流水线加载配置
+    // 编辑模式：从流水线加载配置，但不覆盖已设置的工作空间默认值
     await loadPipelineForEdit()
   } else if (templateId) {
     // 新建模式：从模板参数设置基础配置
@@ -1040,9 +1087,6 @@ onMounted(async () => {
       originalName: templateId // 保留原始名称用于命令生成
     }
   }
-
-  // 加载workspace默认配置
-  await loadWorkspaceDefaults()
 
   // 如果有Git URL，自动加载分支
   if (config.value.sourceType === 'git' && config.value.gitUrl) {
