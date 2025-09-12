@@ -22,6 +22,70 @@ export class DeployController {
     // 初始化
   }
 
+  /**
+   * 解析工作空间配置文件内容
+   */
+  private parseWorkspaceConfig(content: string): Record<string, string> {
+    const config: Record<string, string> = {};
+    const lines = content.split('\n');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const [key, ...valueParts] = trimmed.split('=');
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join('=').replace(/"/g, '').trim();
+          config[key.trim()] = value;
+        }
+      }
+    }
+    
+    return config;
+  }
+
+  /**
+   * 构建带认证的Git URL
+   */
+  private buildAuthenticatedGitUrl(gitUrl: string, username: string, password: string): string {
+    console.log(`构建认证Git URL: ${gitUrl}`);
+    console.log(`用户名: ${username}`);
+    console.log(`密码长度: ${password.length}`);
+    
+    try {
+      const url = new URL(gitUrl);
+      console.log(`URL解析成功: protocol=${url.protocol}, host=${url.host}`);
+      
+      // 对用户名和密码进行URL编码
+      const encodedUsername = encodeURIComponent(username);
+      const encodedPassword = encodeURIComponent(password);
+      
+      // 构建带认证的URL
+      url.username = encodedUsername;
+      url.password = encodedPassword;
+      
+      const result = url.toString();
+      console.log(`认证URL构建成功`);
+      return result;
+    } catch (error) {
+      console.error('构建认证Git URL失败:', error);
+      console.log('尝试使用字符串替换方式');
+      
+      // 如果URL解析失败，尝试简单的字符串替换方式
+      if (gitUrl.startsWith('https://')) {
+        const result = gitUrl.replace('https://', `https://${encodeURIComponent(username)}:${encodeURIComponent(password)}@`);
+        console.log('HTTPS URL替换成功');
+        return result;
+      } else if (gitUrl.startsWith('http://')) {
+        const result = gitUrl.replace('http://', `http://${encodeURIComponent(username)}:${encodeURIComponent(password)}@`);
+        console.log('HTTP URL替换成功');
+        return result;
+      } else {
+        console.error('不支持的Git URL格式:', gitUrl);
+        return gitUrl; // 如果都不匹配，返回原始URL
+      }
+    }
+  }
+
   // 获取远程服务器列表
   getRemoteServers = async (req: Request, res: Response) => {
     try {
@@ -144,17 +208,77 @@ export class DeployController {
 
       console.log(`获取Git仓库分支: ${gitUrl}`);
 
+      // 获取当前工作空间
+      const workspace = req.params.workspace || 'default';
+      console.log(`当前工作空间: ${workspace}`);
+      
+      // 尝试获取工作空间Git认证配置
+      let command = `GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${gitUrl}" 2>&1 | grep 'refs/heads/' | sed 's|.*refs/heads/||' | sort`;
+      console.log(`初始Git命令: ${command}`);
+      
+      try {
+        // 尝试读取工作空间配置文件获取Git认证信息
+        const configPath = `/root/devops/workspace/${workspace}/config`;
+        console.log(`检查工作空间配置文件: ${configPath}`);
+        const configExists = await authService.remoteFileExists(sessionId, configPath);
+        console.log(`配置文件存在: ${configExists}`);
+        
+        if (configExists) {
+          const configContent = await authService.readRemoteFile(sessionId, configPath);
+          console.log(`配置文件内容长度: ${configContent.length}`);
+          const config = this.parseWorkspaceConfig(configContent);
+          console.log(`解析的配置:`, config);
+          
+          // 如果配置了Git用户名和密码，使用认证方式
+          if (config.BUILD_GIT_USERNAME && config.BUILD_GIT_PASSWORD) {
+            console.log(`使用工作空间Git认证信息: 用户名=${config.BUILD_GIT_USERNAME}`);
+            
+            // 构建帶认证的Git URL
+            const urlWithAuth = this.buildAuthenticatedGitUrl(gitUrl, config.BUILD_GIT_USERNAME, config.BUILD_GIT_PASSWORD);
+            console.log(`认证URL构建完成 (隐藏密码)`);
+            // 使用更安全的Git命令，禁用交互式提示
+            command = `GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${urlWithAuth}" 2>&1 | grep 'refs/heads/' | sed 's|.*refs/heads/||' | sort`;
+            console.log(`使用认证后的Git命令 (隐藏密码部分)`);
+          } else {
+            console.log(`工作空间配置中未找到Git认证信息`);
+            console.log(`BUILD_GIT_USERNAME: ${config.BUILD_GIT_USERNAME || '未设置'}`);
+            console.log(`BUILD_GIT_PASSWORD: ${config.BUILD_GIT_PASSWORD ? '已设置' : '未设置'}`);
+          }
+        } else {
+          console.log(`工作空间配置文件不存在，使用默认Git命令`);
+        }
+      } catch (configError) {
+        console.warn('获取工作空间配置失败，使用默认Git命令:', configError);
+      }
+
       // 使用git ls-remote命令获取远程分支
-      const command = `git ls-remote --heads "${gitUrl}" | sed 's/.*refs\\/heads\\///' | sort`;
 
       try {
+        console.log(`开始执行Git命令...`);
         const result = await authService.executeCommand(sessionId, command);
+        console.log(`Git命令执行结果: exitCode=${result.exitCode}`);
+        console.log(`Git命令stdout长度: ${result.stdout?.length || 0}`);
+        console.log(`Git命令stderr长度: ${result.stderr?.length || 0}`);
+        
+        if (result.stderr) {
+          console.log(`Git命令stderr内容: ${result.stderr}`);
+        }
 
         if (result.exitCode !== 0) {
           console.error('获取分支失败:', result.stderr);
+          
+          // 如果是认证问题，提供更详细的错误信息
+          let errorMessage = '获取分支失败：' + result.stderr;
+          if (result.stderr.includes('Authentication failed') || 
+              result.stderr.includes('Permission denied') ||
+              result.stderr.includes('could not read Username') ||
+              result.stderr.includes('terminal prompts disabled')) {
+            errorMessage = 'Git仓库需要认证，请在工作空间设置中配置Git用户名和密码';
+          }
+          
           res.json({
             success: false,
-            message: '获取分支失败：' + result.stderr
+            message: errorMessage
           });
           return;
         }
