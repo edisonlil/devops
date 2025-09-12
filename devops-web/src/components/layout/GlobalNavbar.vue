@@ -126,6 +126,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useAuthStore } from '@/stores/auth'
 import ProfessionalLogo from '@/components/common/ProfessionalLogo.vue'
 import { getSessionInfo, type SessionInfo } from '@/api/auth'
+import { createEnableFile } from '@/api/workspace'
 
 const router = useRouter()
 const route = useRoute()
@@ -217,7 +218,7 @@ const createRules = {
   ]
 }
 
-const handleWorkspaceSelect = (key: string) => {
+const handleWorkspaceSelect = async (key: string) => {
   if (key === 'create') {
     showCreateDialog.value = true
   } else if (key === 'manage') {
@@ -229,14 +230,31 @@ const handleWorkspaceSelect = (key: string) => {
       message.error('无法获取当前工作空间信息')
     }
   } else {
-    // 切换工作空间
-    workspaceStore.switchWorkspace(key)
-    const workspace = workspaceStore.workspaces.find(w => w.name === key)
-    message.success(`已切换到工作空间: ${workspace?.displayName || key}`)
+    try {
+      // 切换工作空间
+      workspaceStore.switchWorkspace(key)
+      const workspace = workspaceStore.workspaces.find(w => w.name === key)
+      
+      // 更新远程enable文件，设置为默认工作空间
+      await createEnableFile({ workspace: key })
+      
+      message.success(`已切换到工作空间: ${workspace?.displayName || key}，并设置为默认工作空间`)
 
-    // 如果在工作空间页面，直接跳转到新工作空间
-    if (route.path.includes('/workspace/')) {
-      router.push(`/workspace/${key}`)
+      // 如果在工作空间页面，直接跳转到新工作空间
+      if (route.path.includes('/workspace/')) {
+        router.push(`/workspace/${key}`)
+      }
+    } catch (error: any) {
+      console.error('切换工作空间失败:', error)
+      
+      // 即使更新enable文件失败，也要显示切换成功的消息
+      const workspace = workspaceStore.workspaces.find(w => w.name === key)
+      message.warning(`已切换到工作空间: ${workspace?.displayName || key}，但未能设置为默认工作空间`)
+      
+      // 如果在工作空间页面，直接跳转到新工作空间
+      if (route.path.includes('/workspace/')) {
+        router.push(`/workspace/${key}`)
+      }
     }
   }
 }

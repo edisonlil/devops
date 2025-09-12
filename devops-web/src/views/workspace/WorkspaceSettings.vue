@@ -83,7 +83,23 @@
                   </div>
                   <div class="form-item">
                     <label class="form-label">默认分支</label>
-                    <n-input v-model:value="workspaceConfig.gitBranch" placeholder="main" />
+                    <n-select
+                      v-model:value="workspaceConfig.gitBranch"
+                      :options="branchOptions"
+                      :loading="loadingBranches"
+                      filterable
+                      tag
+                      placeholder="选择或输入分支名"
+                      @focus="handleBranchSelectFocus"
+                    >
+                      <template #action>
+                        <div style="padding: 8px; border-top: 1px solid #e5e7eb;">
+                          <n-button size="small" @click="refreshBranches" :loading="loadingBranches" block>
+                            刷新分支列表
+                          </n-button>
+                        </div>
+                      </template>
+                    </n-select>
                   </div>
                   <div class="form-item">
                     <label class="form-label">Git 用户名</label>
@@ -288,6 +304,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getRemoteWorkspaceConfig, updateRemoteWorkspaceConfig } from '@/api/workspace'
+import { deployApi } from '@/api/deploy'
 import { useAuthStore } from '@/stores/auth'
 import TokenManager from '@/utils/tokenManager'
 // import GlobalNavbar from '@/components/layout/GlobalNavbar.vue'
@@ -365,6 +382,10 @@ const buildVersionOptions = [
 
 // 状态管理
 const saving = ref(false)
+const loadingBranches = ref(false)
+
+// 分支选项
+const branchOptions = ref<Array<{label: string, value: string}>>([])
 
 // 返回控制台
 const goBack = () => {
@@ -422,6 +443,60 @@ const saveSettings = async () => {
   }
 }
 
+// 刷新分支列表
+const refreshBranches = async () => {
+  if (!workspaceConfig.value.gitUrl) {
+    message.warning('请先填写 Git 仓库地址')
+    return
+  }
+
+  try {
+    loadingBranches.value = true
+    console.log('获取分支列表:', workspaceConfig.value.gitUrl)
+    
+    const response = await deployApi.getGitBranches(workspaceName.value, workspaceConfig.value.gitUrl) as any
+    
+    if (response.success && response.data?.branches) {
+      branchOptions.value = response.data.branches.map((branch: string) => ({
+        label: branch,
+        value: branch
+      }))
+      message.success(`获取到 ${response.data.branches.length} 个分支`)
+    } else {
+      throw new Error(response.message || '获取分支失败')
+    }
+  } catch (error: any) {
+    console.error('获取分支失败:', error)
+    message.error('获取分支失败: ' + (error.response?.data?.message || error.message))
+    // 如果获取失败，清空列表
+    branchOptions.value = []
+  } finally {
+    loadingBranches.value = false
+  }
+}
+
+// 处理分支选择框获取焦点
+const handleBranchSelectFocus = async () => {
+  // 如果已经有分支列表，则不再获取
+  if (branchOptions.value.length > 0) {
+    return
+  }
+  
+  // 自动获取分支列表
+  await refreshBranches()
+}
+
+// 初始化分支选项
+const initBranchOptions = () => {
+  // 如果有默认分支，将其加入选项中
+  if (workspaceConfig.value.gitBranch) {
+    branchOptions.value = [{
+      label: workspaceConfig.value.gitBranch,
+      value: workspaceConfig.value.gitBranch
+    }]
+  }
+}
+
 // 导出配置
 const exportConfig = () => {
   const config = { ...workspaceConfig.value }
@@ -464,10 +539,16 @@ const loadWorkspaceConfig = async () => {
         buildCommands: config.BUILD_COMMANDS || '',
         mavenSettings: config.BUILD_MAVEN_SETTINGS || ''
       }
+      
+      // 初始化分支选项
+      initBranchOptions()
     } else {
       // 如果配置文件不存在，使用默认值
       workspaceConfig.value.displayName = `${workspaceName.value}-crm`
       workspaceConfig.value.description = `${workspaceName.value} 工作空间的配置和环境设置`
+      
+      // 初始化分支选项
+      initBranchOptions()
     }
   } catch (error) {
     console.error('加载工作空间配置失败:', error)
@@ -475,6 +556,9 @@ const loadWorkspaceConfig = async () => {
     // 使用默认值
     workspaceConfig.value.displayName = `${workspaceName.value}-crm`
     workspaceConfig.value.description = `${workspaceName.value} 工作空间的配置和环境设置`
+    
+    // 初始化分支选项
+    initBranchOptions()
   }
 }
 
