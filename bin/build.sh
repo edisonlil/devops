@@ -248,7 +248,7 @@ function create_k8s_harbor_secret() {
 		local namespace="${env[cfg_k8s_namespace]}"
 		
 		if [[ -n "$harbor_address" && -n "$harbor_username" && -n "$harbor_password" ]]; then
-			local secret_name="harbor-registry-${namespace}"
+			local secret_name="harbor-registry-${namespace}-${env[opt_workspace]}"
 			
 			info "检查 K8s Harbor Secret: $secret_name"
 			
@@ -1421,7 +1421,7 @@ function remote_deploy() {
                 # 构建远程命令：创建namespace + 创建Harbor Secret + 部署应用
                 local harbor_secret_cmd=""
                 if [[ "${env[cfg_enable_harbor]}" == "1" && -n "${env[cfg_harbor_address]}" && -n "${env[cfg_harbor_username]}" && -n "${env[cfg_harbor_password]}" ]]; then
-                    local secret_name="harbor-registry-${env[cfg_k8s_namespace]}"
+                    local secret_name="harbor-registry-${env[cfg_k8s_namespace]}-${env[opt_workspace]}"
                     # 设置secret名称，供模板渲染器使用
                     env[cfg_harbor_secret_name]="$secret_name"
                     harbor_secret_cmd="kubectl get secret $secret_name -n ${env[cfg_k8s_namespace]} >/dev/null 2>&1 || kubectl create secret docker-registry $secret_name --docker-server=${env[cfg_harbor_address]} --docker-username=${env[cfg_harbor_username]} --docker-password=${env[cfg_harbor_password]} --namespace=${env[cfg_k8s_namespace]} >/dev/null 2>&1;"
