@@ -1100,13 +1100,8 @@ function add_middleware_jinja2_variables() {
                     ;;
             esac
 
-            # 特殊处理：namespace 使用 cfg_k8s_namespace 的值
-            if [[ "$var_name" == "namespace" ]]; then
-                var_value="${env[cfg_k8s_namespace]}"
-                if [[ "${DEBUG}" == "true" ]]; then
-                    echo "DEBUG: 特殊处理 namespace: 使用 cfg_k8s_namespace=$var_value"
-                fi
-            fi
+            # 不再特殊处理namespace，直接使用middleware_namespace的值
+            # 这样可以确保命令行参数优先级高于配置文件
 
             # 将下划线转换为连字符（符合命令行参数约定）
             local param_name="${var_name//_/-}"
@@ -2193,7 +2188,7 @@ function apply_command_line_overrides() {
 
             # 跳过系统保留参数和instance_name（直接复用命令中的<name>）
             case "$var_name" in
-                interactive|workspace|namespace|build_tool|git_url|svn_url|java_opts|dockerfile|static_dir|template|git_branch|build_cmds|build_env|build_version|app_port|expose_port|force_port|python_requirements|python_main|instance_name)
+                interactive|workspace|build_tool|git_url|svn_url|java_opts|dockerfile|static_dir|template|git_branch|build_cmds|build_env|build_version|app_port|expose_port|force_port|python_requirements|python_main|instance_name)
                     if [[ "${DEBUG}" == "true" ]]; then
                         echo "DEBUG: 跳过系统参数: $var_name"
                     fi
@@ -2211,18 +2206,23 @@ function apply_command_line_overrides() {
         fi
     done
 
-    # 处理auto-generate密码
+    # 处理auto-generate密码（仅处理未被命令行参数覆盖的变量）
     for key in "${!env[@]}"; do
         if [[ "$key" =~ ^middleware_ && "${env[$key]}" == "auto-generate" ]]; then
-            env["$key"]=$(generate_password)
-            if [[ "${DEBUG}" == "true" ]]; then
-                echo "DEBUG: 自动生成密码: $key"
+            # 检查是否有对应的opt_参数，如果没有才生成随机密码
+            local var_name="${key#middleware_}"
+            local opt_key="opt_${var_name}"
+            if [[ -z "${env[$opt_key]}" ]]; then
+                env["$key"]=$(generate_password)
+                if [[ "${DEBUG}" == "true" ]]; then
+                    echo "DEBUG: 自动生成密码: $key"
+                fi
             fi
         fi
     done
 
     # 确保基础变量有值
-    # namespace 使用系统统一的 cfg_k8s_namespace
+    # namespace 不再在这里强制设置，而是在渲染时使用 cfg_k8s_namespace 的值
     env[middleware_instance_name]="${env[middleware_instance_name]:-${env[cmd_3]}}"
 }
 

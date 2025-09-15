@@ -98,9 +98,11 @@ class DynamicMiddlewareRenderer:
             self.variables.setdefault('cpu_request', cpu_request)
             self.variables.setdefault('cpu_limit', cpu_limit)
         
-        # 处理auto-generate密码
+        # 处理auto-generate密码（仅处理未被用户指定的密码变量）
         for key, value in list(self.variables.items()):
             if isinstance(value, str) and value == 'auto-generate' and 'password' in key:
+                # 检查是否是用户明确指定的auto-generate，还是默认值
+                # 如果用户明确指定了密码值，这里就不会是'auto-generate'
                 self.variables[key] = self._generate_random_password()
                 logger.info(f"自动生成密码: {key}")
     
