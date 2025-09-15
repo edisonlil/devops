@@ -144,45 +144,61 @@
                       </n-form-item>
 
                       <!-- 端口配置 -->
-                      <n-form-item label="服务端口">
-                        <n-input
-                          v-model="formData.service_port"
-                          placeholder="例如: 8080 或 http:8080,admin:9090"
-                          @blur="handlePortChange"
-                        />
+                      <n-form-item label="端口配置">
+                        <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px;">
+                          <div
+                            v-for="(config, index) in portConfigs"
+                            :key="config.id"
+                            style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"
+                          >
+                            <div style="flex: 1;">
+                              <strong>{{ config.name }}</strong>
+                              <n-input 
+                                v-model="config.value" 
+                                :placeholder="config.name.includes('应用端口') ? '例如: 8080 或 8080,9090' : '例如: 30080 或 30080,30090'"
+                                style="margin-top: 8px;"
+                                @blur="handlePortChange"
+                              />
+                            </div>
+                            <n-button
+                              v-if="portConfigs.length > 2"
+                              size="small"
+                              text
+                              @click="removePortConfig(index)"
+                              style="color: #ef4444; margin-top: 24px;"
+                            >
+                              <template #icon>
+                                <n-icon><Remove /></n-icon>
+                              </template>
+                            </n-button>
+                          </div>
+                          <n-button type="primary" ghost @click="addPortConfig">
+                            <template #icon>
+                              <n-icon><Add /></n-icon>
+                            </template>
+                            添加端口配置
+                          </n-button>
+                        </div>
                         <template #feedback>
                           <span style="font-size: 12px; color: #666;">
-                            支持单端口(8080)或多端口(http:8080,admin:9090)
+                            支持配置多个服务端口和暴露端口
                           </span>
                         </template>
                       </n-form-item>
 
-                      <n-form-item label="暴露端口">
-                        <n-space>
-                          <n-input
-                            v-model="formData.export_port"
-                            placeholder="例如: 30080 或 30080,30090"
-                            style="flex: 1;"
-                            @blur="handlePortChange"
-                          />
-                          <n-button
-                            @click="checkPortAvailability"
-                            :loading="portChecking"
-                            type="primary"
-                            secondary
-                            size="small"
-                          >
-                            <template #icon>
-                              <n-icon><Search /></n-icon>
-                            </template>
-                            检查端口
-                          </n-button>
-                        </n-space>
-                        <template #feedback>
-                          <span style="font-size: 12px; color: #666;">
-                            NodePort端口范围通常为30000-32767
-                          </span>
-                        </template>
+                      <!-- 端口检查按钮 -->
+                      <n-form-item>
+                        <n-button
+                          @click="checkPortAvailability"
+                          :loading="portChecking"
+                          type="primary"
+                          secondary
+                        >
+                          <template #icon>
+                            <n-icon><Search /></n-icon>
+                          </template>
+                          检查端口可用性
+                        </n-button>
                       </n-form-item>
 
                       <!-- 端口检查结果 -->
@@ -389,7 +405,9 @@ import {
   Warning, 
   InformationCircle,
   DocumentText,
-  Search
+  Search,
+  Add,
+  Remove
 } from '@vicons/ionicons5'
 import { middlewareApi } from '@/api/middleware'
 import type { 
@@ -435,6 +453,13 @@ const formData = ref({
   service_port: '',
   export_port: ''
 })
+
+// 端口配置列表
+const portConfigs = ref([
+  { id: 1, name: '应用端口1', value: '', type: 'string' },
+  { id: 2, name: '暴露端口1', value: '', type: 'string' }
+])
+
 
 // 端口检查相关状态
 const portChecking = ref(false)
@@ -774,6 +799,34 @@ const handlePortChange = () => {
   // 端口配置发生变化时清空检查结果
   portCheckResults.value = []
 }
+
+// 添加端口配置
+const addPortConfig = () => {
+  const appPortCount = portConfigs.value.filter(item => item.name.includes('应用端口')).length
+  const exportPortCount = portConfigs.value.filter(item => item.name.includes('暴露端口')).length
+  const totalCount = portConfigs.value.length + 1
+  
+  // 交替添加应用端口和暴露端口
+  const isAppPort = totalCount % 2 === 1
+  const portType = isAppPort ? '应用端口' : '暴露端口'
+  const portCount = isAppPort ? appPortCount + 1 : exportPortCount + 1
+  
+  const newConfig = {
+    id: Date.now(),
+    name: `${portType}${portCount}`,
+    value: '',
+    type: 'string'
+  }
+  portConfigs.value.push(newConfig)
+}
+
+// 删除端口配置
+const removePortConfig = (index: number) => {
+  if (portConfigs.value.length > 2) { // 至少保留两个配置
+    portConfigs.value.splice(index, 1)
+  }
+}
+
 
 // 视图切换处理
 const handleViewChange = (view: string) => {

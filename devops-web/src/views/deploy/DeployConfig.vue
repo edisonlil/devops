@@ -354,28 +354,90 @@
             <!-- 端口配置 -->
             <div class="form-section">
               <h3 class="section-title">端口配置</h3>
-              <div class="form-grid">
-                <div class="form-item">
+              <div class="port-config-container">
+                <!-- 应用端口配置 -->
+                <div class="port-group">
                   <label class="form-label">应用端口</label>
-                  <n-input-number 
-                    v-model:value="config.appPort" 
-                    placeholder="8080"
-                    :min="1"
-                    :max="65535"
-                  />
+                  <div class="port-list">
+                    <div 
+                      v-for="(port, index) in config.appPorts" 
+                      :key="`app-${index}`"
+                      class="port-item"
+                    >
+                      <n-input-number 
+                        v-model="config.appPorts[index]" 
+                        placeholder="8080"
+                        :min="1"
+                        :max="65535"
+                        style="flex: 1;"
+                      />
+                      <n-button 
+                        size="small" 
+                        text 
+                        @click="removeAppPort(index)"
+                        style="color: #ef4444; margin-left: 8px;"
+                      >
+                        <template #icon>
+                          <n-icon><Remove /></n-icon>
+                        </template>
+                      </n-button>
+                    </div>
+                    <n-button 
+                      size="small" 
+                      ghost 
+                      @click="addAppPort"
+                      style="margin-top: 8px;"
+                    >
+                      <template #icon>
+                        <n-icon><Add /></n-icon>
+                      </template>
+                      添加应用端口
+                    </n-button>
+                  </div>
                 </div>
-                
-                <div class="form-item">
+
+                <!-- 暴露端口配置 -->
+                <div class="port-group">
                   <label class="form-label">暴露端口</label>
-                  <n-input-number 
-                    v-model:value="config.exposePort" 
-                    placeholder="30000-32767"
-                    :min="30000"
-                    :max="32767"
-                    :status="portOccupied ? 'error' : undefined"
-                    @blur="checkPortOnBlur"
-                    @update:value="handlePortChange"
-                  />
+                  <div class="port-list">
+                    <div 
+                      v-for="(port, index) in config.exposePorts" 
+                      :key="`expose-${index}`"
+                      class="port-item"
+                    >
+                      <n-input-number 
+                        v-model="config.exposePorts[index]" 
+                        placeholder="30080"
+                        :min="30000"
+                        :max="32767"
+                        :status="isPortOccupied(port) ? 'error' : undefined"
+                        style="flex: 1;"
+                        @blur="checkPortOnBlur"
+                        @update:value="handlePortChange"
+                      />
+                      <n-button 
+                        size="small" 
+                        text 
+                        @click="removeExposePort(index)"
+                        style="color: #ef4444; margin-left: 8px;"
+                      >
+                        <template #icon>
+                          <n-icon><Remove /></n-icon>
+                        </template>
+                      </n-button>
+                    </div>
+                    <n-button 
+                      size="small" 
+                      ghost 
+                      @click="addExposePort"
+                      style="margin-top: 8px;"
+                    >
+                      <template #icon>
+                        <n-icon><Add /></n-icon>
+                      </template>
+                      添加暴露端口
+                    </n-button>
+                  </div>
                   <div class="form-help">
                     NodePort端口范围通常为30000-32767
                   </div>
@@ -386,10 +448,9 @@
                 
                 <div class="form-item">
                   <label class="form-label">强制端口</label>
-                  <n-switch v-model:value="config.forcePort" />
+                  <n-switch v-model="config.forcePort" />
                 </div>
               </div>
-
             </div>
 
             <!-- 高级配置 -->
@@ -460,7 +521,7 @@ import { usePipelineStore } from '@/stores/pipeline'
 import * as workspaceApi from '@/api/workspace'
 import { deployApi } from '@/api/deploy'
 import { middlewareApi } from '@/api/middleware'
-import { DocumentText, Search } from '@vicons/ionicons5'
+import { DocumentText, Search, Add, Remove } from '@vicons/ionicons5'
 
 const router = useRouter()
 const route = useRoute()
@@ -513,8 +574,8 @@ const config = ref({
   extractMode: 'none', // 'none': 保持压缩格式, 'auto': 自动解压
   buildTool: '',
   buildEnv: 'prod',
-  appPort: null as number | null,
-  exposePort: null as number | null,
+  appPorts: [] as (number | string)[], // 支持多个应用端口
+  exposePorts: [] as (number | string)[], // 支持多个暴露端口
   forcePort: false,
   javaOpts: '',
   buildCmds: ''
@@ -606,12 +667,16 @@ const generatedCommand = computed(() => {
   if (config.value.buildEnv && config.value.buildEnv !== 'prod') {
     parts.push('--build-env', config.value.buildEnv)
   }
-  if (config.value.appPort) {
-    parts.push('--app-port', config.value.appPort.toString())
+  if (config.value.appPorts.length > 0) {
+    const appPortsStr = config.value.appPorts.join(',')
+    parts.push('--service-port', appPortsStr)
   }
-  if (config.value.exposePort) {
-    parts.push('--expose-port', config.value.exposePort.toString())
+
+  if (config.value.exposePorts.length > 0) {
+    const exposePortsStr = config.value.exposePorts.join(',')
+    parts.push('--export-port', exposePortsStr)
   }
+  
   if (config.value.forcePort) {
     parts.push('--force-port')
   }
@@ -950,7 +1015,7 @@ const handleGitUrlChange = () => {
 
 // 实时端口检查功能
 const checkPortOnBlur = async () => {
-  if (!config.value.exposePort) {
+  if (config.value.exposePorts.length === 0) {
     portOccupied.value = false
     portOccupiedMessage.value = ''
     return
@@ -962,24 +1027,27 @@ const checkPortOnBlur = async () => {
 
   try {
     // 调用端口检查 API
-    const response = await middlewareApi.checkPortAvailability(currentWorkspace.value, [config.value.exposePort])
+    const response = await middlewareApi.checkPortAvailability(currentWorkspace.value, config.value.exposePorts.map(port => Number(port)))
     const responseData = response as any
     
-    console.log(`端口 ${config.value.exposePort} 检查响应:`, responseData)
+    console.log(`端口 ${config.value.exposePorts.join(',')} 检查响应:`, responseData)
     
     if (responseData && responseData.length > 0) {
       const serverResult = responseData[0]
       if (serverResult.connected && serverResult.ports && serverResult.ports.length > 0) {
-        const portResult = serverResult.ports[0]
-        console.log(`端口检查结果:`, portResult)
-        if (!portResult.isAvailable) {
+        const unavailablePorts = serverResult.ports.filter((portResult: any) => !portResult.isAvailable)
+        console.log(`端口检查结果:`, serverResult.ports)
+        if (unavailablePorts.length > 0) {
           portOccupied.value = true
-          const processInfo = portResult.processInfo
-          if (processInfo && processInfo.name) {
-            portOccupiedMessage.value = `端口 ${config.value.exposePort} 已被进程 ${processInfo.name} (PID: ${processInfo.pid}) 占用`
-          } else {
-            portOccupiedMessage.value = `端口 ${config.value.exposePort} 已被占用`
-          }
+          const portMessages = unavailablePorts.map((portResult: any) => {
+            const processInfo = portResult.processInfo
+            if (processInfo && processInfo.name) {
+              return `端口 ${portResult.port} 已被进程 ${processInfo.name} (PID: ${processInfo.pid}) 占用`
+            } else {
+              return `端口 ${portResult.port} 已被占用`
+            }
+          })
+          portOccupiedMessage.value = portMessages.join('; ')
         }
       } else if (serverResult.error) {
         portOccupied.value = true
@@ -1000,6 +1068,33 @@ const handlePortChange = () => {
   // 端口变化时清空错误状态
   portOccupied.value = false
   portOccupiedMessage.value = ''
+}
+
+// 端口管理函数
+const addAppPort = () => {
+  config.value.appPorts.push(8080)
+}
+
+const removeAppPort = (index: number) => {
+  if (config.value.appPorts.length > 1) {
+    config.value.appPorts.splice(index, 1)
+  }
+}
+
+const addExposePort = () => {
+  config.value.exposePorts.push(30080)
+}
+
+const removeExposePort = (index: number) => {
+  if (config.value.exposePorts.length > 1) {
+    config.value.exposePorts.splice(index, 1)
+  }
+}
+
+// 检查特定端口是否被占用
+const isPortOccupied = (port: number | string) => {
+  // 这里可以根据需要实现端口占用检查逻辑
+  return false
 }
 
 // 共用的保存流水线方法
@@ -1153,8 +1248,8 @@ const refreshPreview = async () => {
     const previewConfig = {
       name: config.value.name,
       namespace: config.value.namespace,
-      appPort: config.value.appPort,
-      exposePort: config.value.exposePort,
+      appPorts: config.value.appPorts,
+      exposePorts: config.value.exposePorts,
       javaOpts: config.value.javaOpts,
       buildEnv: config.value.buildEnv,
       imagePath: `harbor.example.com/${config.value.name}:latest`, // 示例镜像路径
@@ -1433,6 +1528,14 @@ onMounted(async () => {
 
   // 设置当前工作空间
   config.value.workspace = currentWorkspace.value
+
+  // 初始化默认端口配置
+  if (config.value.appPorts.length === 0) {
+    config.value.appPorts = [8080]
+  }
+  if (config.value.exposePorts.length === 0) {
+    config.value.exposePorts = [30080]
+  }
 
   // 先加载workspace默认配置，确保在任何模式下都能获取到默认值
   await loadWorkspaceDefaults()
@@ -2041,5 +2144,30 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 端口配置样式 */
+.port-config-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.port-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.port-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.port-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>
