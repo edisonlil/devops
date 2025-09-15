@@ -365,7 +365,8 @@
                       class="port-item"
                     >
                       <n-input-number 
-                        v-model="config.appPorts[index]" 
+                        :value="config.appPorts[index]" 
+                        @update:value="val => updateAppPort(index, val)"
                         placeholder="8080"
                         :min="1"
                         :max="65535"
@@ -406,14 +407,14 @@
                       class="port-item"
                     >
                       <n-input-number 
-                        v-model="config.exposePorts[index]" 
+                        :value="config.exposePorts[index]" 
+                        @update:value="val => updateExposePort(index, val)"
                         placeholder="30080"
                         :min="30000"
                         :max="32767"
                         :status="isPortOccupied(port) ? 'error' : undefined"
                         style="flex: 1;"
                         @blur="checkPortOnBlur"
-                        @update:value="handlePortChange"
                       />
                       <n-button 
                         size="small" 
@@ -1068,6 +1069,9 @@ const handlePortChange = () => {
   // 端口变化时清空错误状态
   portOccupied.value = false
   portOccupiedMessage.value = ''
+  
+  // 触发命令预览更新
+  // 由于 generatedCommand 是计算属性，当 config.appPorts 或 config.exposePorts 变化时会自动更新
 }
 
 // 端口管理函数
@@ -1088,6 +1092,22 @@ const addExposePort = () => {
 const removeExposePort = (index: number) => {
   if (config.value.exposePorts.length > 1) {
     config.value.exposePorts.splice(index, 1)
+  }
+}
+
+// 更新应用端口
+const updateAppPort = (index: number, value: number | null) => {
+  if (value !== null) {
+    config.value.appPorts[index] = value
+    handlePortChange()
+  }
+}
+
+// 更新暴露端口
+const updateExposePort = (index: number, value: number | null) => {
+  if (value !== null) {
+    config.value.exposePorts[index] = value
+    handlePortChange()
   }
 }
 
