@@ -339,14 +339,29 @@
             <!-- 构建配置 -->
             <div class="form-section">
               <h3 class="section-title">构建配置</h3>
+              <div class="form-help" style="margin-bottom: 16px;">
+                <n-icon size="14" style="margin-right: 4px;">
+                  <svg viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                  </svg>
+                </n-icon>
+                构建环境用于指定应用的运行环境配置。可以选择预设环境或输入自定义值（如：staging、uat、demo等）。Java项目会自动将构建环境作为Spring Profile参数。
+              </div>
               <div class="form-grid">
                 <div class="form-item">
-                  <label class="form-label">构建环境</label>
+                  <label class="form-label">构建环境（可选）</label>
                   <n-select
                     v-model:value="config.buildEnv"
                     :options="buildEnvOptions"
-                    placeholder="选择构建环境"
+                    placeholder="选择或输入构建环境（可选）"
+                    filterable
+                    tag
+                    clearable
+                    :status="buildEnvValidation.status"
                   />
+                  <div v-if="buildEnvValidation.message" class="form-error">
+                    {{ buildEnvValidation.message }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -589,7 +604,7 @@ const config = ref({
   staticDir: '', // 本地目录路径
   extractMode: 'none', // 'none': 保持压缩格式, 'auto': 自动解压
   buildTool: '',
-  buildEnv: 'prod',
+  buildEnv: '',
   appPorts: [] as (number | string)[], // 支持多个应用端口
   exposePorts: [] as (number | string)[], // 支持多个暴露端口
   forcePort: false,
@@ -617,16 +632,39 @@ const buildToolOptions = [
 ]
 
 const buildEnvOptions = [
+  { label: '不指定构建环境', value: '' },
   { label: '开发环境', value: 'dev' },
   { label: '测试环境', value: 'test' },
   { label: '灰度环境', value: 'gray' },
   { label: '生产环境', value: 'prod' }
 ]
 
+// 验证构建环境值
+const isValidBuildEnv = (value: string) => {
+  if (!value) return true // 空值有效
+  // 构建环境值应该是小写字母、数字、连字符和下划线的组合
+  return /^[a-z0-9_-]+$/.test(value)
+}
+
+// 构建环境验证状态
+const buildEnvValidation = computed(() => {
+  if (!config.value.buildEnv) return { status: undefined, message: '' }
+  
+  if (!isValidBuildEnv(config.value.buildEnv)) {
+    return {
+      status: 'error' as const,
+      message: '构建环境值只能包含小写字母、数字、连字符和下划线'
+    }
+  }
+  
+  return { status: undefined, message: '' }
+})
+
 // 是否可以执行操作（不再因为端口占用而禁用）
 const canProceed = computed(() => {
   // 仅在正在检查端口时禁用，端口被占用时不禁用操作
-  return !checkingPort.value
+  // 同时检查构建环境验证是否通过
+  return !checkingPort.value && !buildEnvValidation.value.status
 })
 
 // 是否显示构建工具选择
@@ -680,7 +718,7 @@ const generatedCommand = computed(() => {
   if (config.value.namespace) {
     parts.push('--namespace', config.value.namespace)
   }
-  if (config.value.buildEnv && config.value.buildEnv !== 'prod') {
+  if (config.value.buildEnv && config.value.buildEnv !== '') {
     parts.push('--build-env', config.value.buildEnv)
   }
   if (config.value.appPorts.length > 0) {
@@ -1455,10 +1493,7 @@ const loadWorkspaceDefaults = async () => {
         }
       }
 
-      // 设置默认构建环境为生产环境
-      if (!config.value.buildEnv) {
-        config.value.buildEnv = 'prod'
-      }
+      // 构建环境现在是可选的，不进行默认初始化
 
     } else {
       console.log('没有找到工作空间配置，使用默认值')
@@ -1806,6 +1841,12 @@ onUnmounted(() => {
 }
 
 .error-text {
+  font-size: 12px;
+  color: #EF4444;
+  margin-top: 4px;
+}
+
+.form-error {
   font-size: 12px;
   color: #EF4444;
   margin-top: 4px;

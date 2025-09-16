@@ -818,6 +818,19 @@ function render_template() {
 	local java_opts="${env[opt_java_opts]:-}"
 	local enable_harbor="${env[cfg_enable_harbor]:-0}"
 	
+	# Java部署时，如果java_opts中没有-Dspring.profiles.active，则自动追加--build-env
+	if [[ "${env[cmd_2]}" == "java" || "${env[cmd_2]}" == "tomcat" ]]; then
+		local build_env="${env[opt_build_env]}"
+		if [[ -n "$build_env" && "$java_opts" != *"-Dspring.profiles.active"* ]]; then
+			if [[ -n "$java_opts" ]]; then
+				java_opts="$java_opts -Dspring.profiles.active=$build_env"
+			else
+				java_opts="-Dspring.profiles.active=$build_env"
+			fi
+			info "自动追加Spring Profile配置: -Dspring.profiles.active=$build_env"
+		fi
+	fi
+	
 	# 检查是否是中间件部署，如果是且包含Jinja2语法，使用专门的渲染器
 	if [[ "${env[cmd_type]}" == "middleware" ]] && grep -q "{{.*}}\|{%.*%}" "$deploy_tpl"; then
 		info "检测到中间件Jinja2模板，使用专门的渲染器"

@@ -23,6 +23,16 @@ function java_build() {
 
 	# 应用版本配置（优先级：命令行 > workspace配置）
 	apply_versions "$opt_build_version" "$cfg_build_version"
+	
+	# Java部署时，如果java_opts中没有-Dspring.profiles.active，则自动追加--build-env
+	if [[ -n "$opt_build_env" && "$opt_java_opts" != *"-Dspring.profiles.active"* ]]; then
+		if [[ -n "$opt_java_opts" ]]; then
+			opt_java_opts="$opt_java_opts -Dspring.profiles.active=$opt_build_env"
+		else
+			opt_java_opts="-Dspring.profiles.active=$opt_build_env"
+		fi
+		info "自动追加Spring Profile配置: -Dspring.profiles.active=$opt_build_env"
+	fi
 
 	module_path=`find $cfg_temp_dir -name ${cmd_job_name} -type d -exec test -f {}/pom.xml \; -print | tail -1`
         if test -z "$module_path"; then module_path=$cfg_temp_dir; fi
