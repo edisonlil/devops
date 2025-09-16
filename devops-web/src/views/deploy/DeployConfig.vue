@@ -353,8 +353,17 @@
 
             <!-- 端口配置 -->
             <div class="form-section">
-              <h3 class="section-title">端口配置</h3>
+              <h3 class="section-title">端口配置（可选）</h3>
               <div class="port-config-container">
+                <div class="form-help" style="margin-bottom: 16px;">
+                  <n-icon size="14" style="margin-right: 4px;">
+                    <svg viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/>
+                    </svg>
+                  </n-icon>
+                  端口配置是可选的。如果不配置端口，系统将使用默认端口配置。
+                </div>
+                
                 <!-- 应用端口配置 -->
                 <div class="port-group">
                   <label class="form-label">应用端口</label>
@@ -382,6 +391,9 @@
                           <n-icon><Remove /></n-icon>
                         </template>
                       </n-button>
+                    </div>
+                    <div v-if="config.appPorts.length === 0" class="empty-ports">
+                      <span style="color: #9ca3af; font-size: 14px;">暂无应用端口配置</span>
                     </div>
                     <n-button 
                       size="small" 
@@ -426,6 +438,9 @@
                           <n-icon><Remove /></n-icon>
                         </template>
                       </n-button>
+                    </div>
+                    <div v-if="config.exposePorts.length === 0" class="empty-ports">
+                      <span style="color: #9ca3af; font-size: 14px;">暂无暴露端口配置</span>
                     </div>
                     <n-button 
                       size="small" 
@@ -1080,9 +1095,7 @@ const addAppPort = () => {
 }
 
 const removeAppPort = (index: number) => {
-  if (config.value.appPorts.length > 1) {
-    config.value.appPorts.splice(index, 1)
-  }
+  config.value.appPorts.splice(index, 1)
 }
 
 const addExposePort = () => {
@@ -1090,9 +1103,7 @@ const addExposePort = () => {
 }
 
 const removeExposePort = (index: number) => {
-  if (config.value.exposePorts.length > 1) {
-    config.value.exposePorts.splice(index, 1)
-  }
+  config.value.exposePorts.splice(index, 1)
 }
 
 // 更新应用端口
@@ -1549,13 +1560,7 @@ onMounted(async () => {
   // 设置当前工作空间
   config.value.workspace = currentWorkspace.value
 
-  // 初始化默认端口配置
-  if (config.value.appPorts.length === 0) {
-    config.value.appPorts = [8080]
-  }
-  if (config.value.exposePorts.length === 0) {
-    config.value.exposePorts = [30080]
-  }
+  // 端口配置现在是可选的，不进行默认初始化
 
   // 先加载workspace默认配置，确保在任何模式下都能获取到默认值
   await loadWorkspaceDefaults()
@@ -2189,5 +2194,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.empty-ports {
+  padding: 12px;
+  text-align: center;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+  margin: 8px 0;
 }
 </style>
