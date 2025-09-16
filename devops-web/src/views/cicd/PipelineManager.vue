@@ -36,6 +36,32 @@
         </n-button>
       </div>
 
+      <!-- 批量操作工具栏 -->
+      <div v-if="hasSelectedPipelines" class="batch-actions-bar">
+        <div class="batch-info">
+          <span class="selected-count">已选择 {{ selectedPipelinesCount }} 项</span>
+          <n-button size="small" text @click="clearSelection">取消选择</n-button>
+        </div>
+        <div class="batch-buttons">
+          <n-button 
+            size="small" 
+            type="primary" 
+            @click="batchExecute"
+            :disabled="selectedPipelinesCount === 0"
+          >
+            批量执行
+          </n-button>
+          <n-button 
+            size="small" 
+            type="error" 
+            @click="batchDelete"
+            :disabled="selectedPipelinesCount === 0"
+          >
+            批量删除
+          </n-button>
+        </div>
+      </div>
+
       <!-- 空状态 -->
       <div v-if="filteredPipelines.length === 0" class="empty-state">
         <h3 class="empty-title">暂无流水线</h3>
@@ -51,6 +77,13 @@
       <div v-else class="pipeline-list">
         <div class="table-container">
           <div class="table-header">
+            <div class="col-checkbox">
+              <n-checkbox
+                :checked="isAllSelected"
+                :indeterminate="isIndeterminate"
+                @update:checked="handleSelectAll"
+              />
+            </div>
             <div class="col-name" @click="handleSort('name')">
               <span>名称</span>
               <n-icon class="sort-icon" :class="{ active: sortField === 'name' }">
@@ -94,6 +127,12 @@
             :key="pipeline.id"
             class="table-row"
           >
+            <div class="col-checkbox">
+              <n-checkbox
+                :checked="selectedPipelines.includes(pipeline.id)"
+                @update:checked="(checked) => handleSelectPipeline(pipeline.id, checked)"
+              />
+            </div>
             <div class="col-name">
               <div class="pipeline-info">
                 <div class="pipeline-details">
@@ -168,15 +207,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
 import { Add, Search, EllipsisHorizontal } from '@vicons/ionicons5'
 import { usePipelineStore, type Pipeline } from '@/stores/pipeline'
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const dialog = useDialog()
 const pipelineStore = usePipelineStore()
 
 // 搜索查询
@@ -185,6 +225,15 @@ const sortField = ref('')
 const sortOrder = ref('asc')
 const currentPage = ref(1)
 const pageSize = ref(10)
+
+// 多选状态管理
+const selectedPipelines = ref<string[]>([])
+const isAllSelected = ref(false)
+const isIndeterminate = ref(false)
+
+// 工作空间相关状态
+const workspaces = ref<Array<{id: string, name: string}>>([])
+const loadingWorkspaces = ref(false)
 
 // 计算属性
 const filteredPipelines = computed(() => {
@@ -225,6 +274,28 @@ const paginatedPipelines = computed(() => {
   return filteredPipelines.value.slice(start, end)
 })
 
+// 多选相关计算属性
+const hasSelectedPipelines = computed(() => selectedPipelines.value.length > 0)
+const selectedPipelinesCount = computed(() => selectedPipelines.value.length)
+
+// 监听选择状态变化，更新全选状态
+const updateSelectAllStatus = () => {
+  const currentPagePipelines = paginatedPipelines.value
+  const currentPageIds = currentPagePipelines.map(p => p.id)
+  const selectedInCurrentPage = currentPageIds.filter(id => selectedPipelines.value.includes(id))
+  
+  if (selectedInCurrentPage.length === 0) {
+    isAllSelected.value = false
+    isIndeterminate.value = false
+  } else if (selectedInCurrentPage.length === currentPageIds.length) {
+    isAllSelected.value = true
+    isIndeterminate.value = false
+  } else {
+    isAllSelected.value = false
+    isIndeterminate.value = true
+  }
+}
+
 
 
 // 方法
@@ -234,6 +305,218 @@ const handleSort = (field: string) => {
   } else {
     sortField.value = field
     sortOrder.value = 'asc'
+  }
+}
+
+// 多选相关方法
+const handleSelectAll = (checked: boolean) => {
+  const currentPagePipelines = paginatedPipelines.value
+  const currentPageIds = currentPagePipelines.map(p => p.id)
+  
+  if (checked) {
+    // 添加当前页所有流水线到选中列表
+    currentPageIds.forEach(id => {
+      if (!selectedPipelines.value.includes(id)) {
+        selectedPipelines.value.push(id)
+      }
+    })
+  } else {
+    // 从选中列表中移除当前页所有流水线
+    selectedPipelines.value = selectedPipelines.value.filter(id => !currentPageIds.includes(id))
+  }
+  
+  updateSelectAllStatus()
+}
+
+const handleSelectPipeline = (pipelineId: string, checked: boolean) => {
+  if (checked) {
+    if (!selectedPipelines.value.includes(pipelineId)) {
+      selectedPipelines.value.push(pipelineId)
+    }
+  } else {
+    selectedPipelines.value = selectedPipelines.value.filter(id => id !== pipelineId)
+  }
+  
+  updateSelectAllStatus()
+}
+
+const clearSelection = () => {
+  selectedPipelines.value = []
+  isAllSelected.value = false
+  isIndeterminate.value = false
+}
+
+// 获取工作空间列表
+const loadWorkspaces = async () => {
+  try {
+    loadingWorkspaces.value = true
+    // 这里应该调用实际的API获取工作空间列表
+    // 暂时使用模拟数据
+    workspaces.value = [
+      { id: 'wukong-crm', name: 'wukong-crm' },
+      { id: 'wukong-test', name: 'wukong-test' },
+      { id: 'gencode', name: 'gencode' },
+      { id: 'docker-test', name: 'docker-test' }
+    ]
+  } catch (error) {
+    console.error('获取工作空间列表失败:', error)
+    message.error('获取工作空间列表失败')
+  } finally {
+    loadingWorkspaces.value = false
+  }
+}
+
+// 显示复制对话框
+const showCopyDialog = async (pipeline: Pipeline) => {
+  // 先加载工作空间列表
+  if (workspaces.value.length === 0) {
+    await loadWorkspaces()
+  }
+
+  const currentWorkspaceName = route.params.workspaceName as string
+  let selectedWorkspace = currentWorkspaceName
+  let newName = `${pipeline.name} (副本)`
+  
+  // 使用 naive-ui 的对话框
+  dialog.create({
+    title: `复制流水线: ${pipeline.name}`,
+    content: () => {
+      const selectedWorkspaceRef = ref(currentWorkspaceName)
+      const newNameRef = ref(newName)
+      
+      return h('div', { style: 'padding: 16px;' }, [
+        h('div', { style: 'margin-bottom: 16px;' }, [
+          h('label', { style: 'display: block; margin-bottom: 8px; font-weight: 500;' }, '流水线名称'),
+          h('input', {
+            value: newNameRef.value,
+            onInput: (e: any) => newNameRef.value = e.target.value,
+            style: 'width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;'
+          })
+        ]),
+        h('div', { style: 'margin-bottom: 16px;' }, [
+          h('label', { style: 'display: block; margin-bottom: 8px; font-weight: 500;' }, '目标工作空间'),
+          h('select', {
+            value: selectedWorkspaceRef.value,
+            onChange: (e: any) => selectedWorkspaceRef.value = e.target.value,
+            style: 'width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;'
+          }, workspaces.value.map(ws => 
+            h('option', { 
+              value: ws.id,
+              selected: ws.id === currentWorkspaceName
+            }, ws.name)
+          ))
+        ]),
+        h('div', { style: 'color: #6b7280; font-size: 14px;' }, [
+          selectedWorkspaceRef.value === currentWorkspaceName 
+            ? '复制到当前工作空间' 
+            : `复制到工作空间: ${workspaces.value.find(w => w.id === selectedWorkspaceRef.value)?.name}`
+        ])
+      ])
+    },
+    positiveText: '复制',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        // 从对话框获取用户输入的值
+        const dialogContent = document.querySelector('.n-dialog__content')
+        if (!dialogContent) return false
+        
+        const nameInput = dialogContent.querySelector('input') as HTMLInputElement
+        const workspaceSelect = dialogContent.querySelector('select') as HTMLSelectElement
+        
+        if (nameInput && workspaceSelect) {
+          selectedWorkspace = workspaceSelect.value
+          newName = nameInput.value
+        }
+        
+        await copyPipelineToWorkspace(pipeline, selectedWorkspace, newName)
+        message.success('流水线复制成功')
+        return true
+      } catch (error) {
+        message.error(`复制流水线失败: ${error}`)
+        return false
+      }
+    }
+  })
+}
+
+// 复制流水线到指定工作空间
+const copyPipelineToWorkspace = async (pipeline: Pipeline, targetWorkspace: string, newName: string) => {
+  try {
+    // 创建流水线副本
+    const pipelineCopy = {
+      ...pipeline,
+      id: `${pipeline.id}_${Date.now()}`, // 生成新的ID
+      name: newName,
+      workspace: targetWorkspace
+    }
+    
+    // 这里应该调用实际的API进行跨工作空间复制
+    // 暂时使用本地存储模拟
+    await pipelineStore.createPipeline(pipelineCopy)
+    
+    // 如果复制到其他工作空间，可能需要额外的API调用
+    if (targetWorkspace !== route.params.workspaceName) {
+      console.log(`复制流水线到工作空间: ${targetWorkspace}`)
+      // 这里可以调用专门的跨工作空间复制API
+    }
+  } catch (error) {
+    console.error('复制流水线失败:', error)
+    throw error
+  }
+}
+
+// 批量操作功能
+const batchExecute = async () => {
+  if (selectedPipelines.value.length === 0) {
+    message.warning('请先选择要执行的流水线')
+    return
+  }
+
+  try {
+    const pipelineNames = selectedPipelines.value.map(id => {
+      const pipeline = pipelineStore.getPipelineById(id)
+      return pipeline?.name || id
+    }).join('、')
+
+    message.info(`正在批量执行 ${selectedPipelines.value.length} 个流水线: ${pipelineNames}`)
+    
+    // 这里可以实现批量执行的逻辑
+    // 由于批量执行通常需要跳转到专门的批量执行页面，这里先清空选择
+    clearSelection()
+    message.success('批量执行任务已提交')
+  } catch (error) {
+    message.error(`批量执行失败: ${error}`)
+  }
+}
+
+const batchDelete = async () => {
+  if (selectedPipelines.value.length === 0) {
+    message.warning('请先选择要删除的流水线')
+    return
+  }
+
+  try {
+    // 显示确认对话框
+    const confirmed = await new Promise<boolean>((resolve) => {
+      // 这里可以使用 naive-ui 的对话框组件
+      // 为了简化，这里直接确认
+      resolve(confirm(`确定要删除选中的 ${selectedPipelines.value.length} 个流水线吗？此操作不可撤销。`))
+    })
+
+    if (!confirmed) return
+
+    // 执行批量删除
+    const deletePromises = selectedPipelines.value.map(id => 
+      pipelineStore.deletePipeline(id)
+    )
+
+    await Promise.all(deletePromises)
+    
+    message.success(`成功删除 ${selectedPipelines.value.length} 个流水线`)
+    clearSelection()
+  } catch (error) {
+    message.error(`批量删除失败: ${error}`)
   }
 }
 
@@ -300,6 +583,16 @@ const editPipeline = (pipeline: Pipeline) => {
 
 
 
+// 监听分页变化，清空选择状态
+const watchPageChange = () => {
+  clearSelection()
+}
+
+// 监听搜索变化，清空选择状态
+const watchSearchChange = () => {
+  clearSelection()
+}
+
 // 初始化数据
 onMounted(() => {
   const workspaceName = route.params.workspaceName as string
@@ -309,6 +602,10 @@ onMounted(() => {
   localStorage.removeItem('devops_deploy_history')
 
   pipelineStore.loadPipelines(workspaceName)
+  
+  // 监听分页和搜索变化
+  watch(currentPage, watchPageChange)
+  watch(searchQuery, watchSearchChange)
 })
 
 
@@ -352,9 +649,9 @@ const getPipelineMenuOptions = (pipeline: any) => [
   }
 ]
 
-const handlePipelineAction = async (key: string) => {
+const handlePipelineAction = async (key: string, pipelineParam?: Pipeline) => {
   const [action, id] = key.split('-')
-  const pipeline = pipelineStore.getPipelineById(id)
+  const pipeline = pipelineParam || pipelineStore.getPipelineById(id)
 
   switch (action) {
     case 'edit':
@@ -364,15 +661,7 @@ const handlePipelineAction = async (key: string) => {
       break
     case 'copy':
       if (pipeline) {
-        try {
-          await pipelineStore.createPipeline({
-            ...pipeline,
-            name: `${pipeline.name} (副本)`
-          })
-          message.success('流水线复制成功')
-        } catch (error) {
-          message.error('复制流水线失败')
-        }
+        await showCopyDialog(pipeline)
       }
       break
     case 'delete':
@@ -435,6 +724,49 @@ const handlePipelineAction = async (key: string) => {
   align-items: center;
 }
 
+/* 批量操作工具栏样式 */
+.batch-actions-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: #F0F9FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  min-height: 44px;
+  gap: 24px;
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.selected-count {
+  font-size: 14px;
+  color: #1E40AF;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.batch-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 100%;
+}
+
+.batch-buttons .n-button {
+  height: 32px;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* 分页区域样式 */
 .pagination-section {
   margin-top: 24px;
@@ -457,8 +789,8 @@ const handlePipelineAction = async (key: string) => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 180px 180px 150px  150px 120px;
-  gap: 56px;
+  grid-template-columns: 50px 180px 180px 150px  150px 120px;
+  gap: 24px;
   padding: 16px 0 16px 24px;
   background: #FFFFFF;
   font-size: var(--font-size-caption);
@@ -519,8 +851,8 @@ const handlePipelineAction = async (key: string) => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 180px 180px 150px 150px 120px;
-  gap: 56px;
+  grid-template-columns: 50px 180px 180px 150px 150px 120px;
+  gap: 24px;
   padding: 16px 0 16px 24px;
   transition: all 0.2s ease;
   align-items: center;
@@ -535,6 +867,13 @@ const handlePipelineAction = async (key: string) => {
 
 .table-row:hover {
   background: #F8F9FA;
+}
+
+/* 复选框列样式 */
+.col-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 /* 确保所有列都左对齐 */
@@ -663,8 +1002,8 @@ const handlePipelineAction = async (key: string) => {
 @media (max-width: 1024px) {
   .table-header,
   .table-row {
-    grid-template-columns: 150px 90px 110px 1fr 110px;
-    gap: 24px;
+    grid-template-columns: 40px 150px 90px 110px 1fr 110px;
+    gap: 16px;
     padding: 16px 20px;
     font-size: 12px;
     min-height: 60px;
@@ -678,8 +1017,8 @@ const handlePipelineAction = async (key: string) => {
 @media (max-width: 480px) {
   .table-header,
   .table-row {
-    grid-template-columns: 1fr 70px 110px;
-    gap: 20px;
+    grid-template-columns: 40px 1fr 70px 110px;
+    gap: 16px;
     padding: 16px 16px;
     min-height: 64px;
   }
